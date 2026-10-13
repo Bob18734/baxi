@@ -9,17 +9,17 @@ It is updated the same day the work happens, never reconstructed afterward.
 
 | Tool | Who used it | What it did | What it did not do |
 |---|---|---|---|
-| Claude Code (Claude Fable 5.1, Anthropic) | Both students, through Vardaan's account | Research and verification of data sources; the planning document; project scaffold; feature extractor; routing client; map screens; walkthrough, drive, debrief and log screens; PDF export; tests for the student modules; daily code explanations; this file | The four student-owned modules (see below), the briefing content file, the written answers, the video narration |
+| Claude Code (Claude Opus 5.5 for most building, Claude Fable 5.1 for planning and review, Anthropic) | Both students, through Vardaan's account | Research and verification of data sources; the planning document; project scaffold; feature extractor; routing client; map screens; route following and cue pipeline; preview, drive, arrived and log screens; PDF export; tests for the student modules; daily code explanations; this file | The four student-owned modules (see below), the briefing content file, the written answers, the video narration |
 | ChatGPT Codex (OpenAI) | Partner | Reviews pull requests and reports findings. Findings and what we changed are logged below | Does not write app code |
-| Higgsfield | Partner | Video intro and transitions for the demo video only | No generated footage of the app; every app shot is a real screen recording |
+| Higgsfield | Partner | Video intro, title cards, transitions, and a short animated explainer of the lane-cue idea for the demo video only | No generated footage of the app; every app shot is a real screen recording |
 
 ## Student-owned code (written by hand, no AI generation)
 
 | File | Owner | Notes |
 |---|---|---|
-| FirstRoads/Core/RoundaboutClassifier.swift | Vardaan | Claude wrote the types, doc comments, tests and a stub. Vardaan replaces the stub. |
-| FirstRoads/Core/LanePicker.swift | Vardaan | Same arrangement. |
-| FirstRoads/Core/RouteScorer.swift | Partner | Same arrangement. |
+| FirstRoads/Core/LanePicker.swift | Vardaan | Claude wrote the types, doc comments, tests and a stub. Vardaan replaces the stub. |
+| FirstRoads/Core/CueScheduler.swift | Vardaan | Same arrangement. (Replaces RouteScorer after the Oct 13 refocus; file lands Oct 14.) |
+| FirstRoads/Core/RoundaboutClassifier.swift | Partner | Same arrangement. |
 | FirstRoads/Core/ApproachHeading.swift | Partner | Same arrangement. |
 | FirstRoads/Resources/Content/briefings.json | Both | Every entry cites the Indiana Driver's Manual by chapter and page. No AI-written driving advice. |
 
@@ -31,3 +31,4 @@ It is updated the same day the work happens, never reconstructed afterward.
 ### 2026-10-13
 - Claude Code: re-planned for native iOS; probed Apple Look Around coverage at four Carmel points with a Swift script; counted OSM turn:lanes coverage in Carmel; tested OSRM lane and roundabout output.
 - Claude Code: created the Xcode project spec (project.yml), the data build scripts in scripts/, the models, Geo helpers, FeatureExtractor, BundledData, the Home, Plan and Log screens, the four module interfaces with stubs, and the first tests.
+- Claude Code (Fable 5.1), evening: refocused the plan on navigation for new drivers (early lane cues, lights-until-turn, roundabout exit and lane, spoken once through the system speech synthesizer) after Vardaan proposed it; cut skill tiers, scoring and generated loops; rewrote the planning document; updated this file and the README. Module split changed: Vardaan owns LanePicker and CueScheduler, partner owns RoundaboutClassifier and ApproachHeading.

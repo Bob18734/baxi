@@ -1,0 +1,13 @@
+{
+  "note": "Hand-written by the students. Every entry cites the Indiana Driver's Manual (2025 edition PDF at https://www.in.gov/bmv/licenses-permits-ids/files/drivers-manual.pdf). No AI-written advice. Claude only created this empty schema.",
+  "entries": [
+    {
+      "kind": "singleLaneRoundabout",
+      "title": "",
+      "howTo": "",
+      "manualChapter": 7,
+      "manualPage": 40,
+      "quote": ""
+    }
+  ]
+}

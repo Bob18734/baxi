@@ -1,0 +1,6180 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-13T13:48:11Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "way",
+  "id": 17351465,
+  "tags": {
+    "destination": "South Meridian Street;Westfield;Kokomo",
+    "destination:lanes": "South Meridian Street|Westfield;Kokomo",
+    "destination:ref": "US 31 North",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway_link",
+    "junction:ref": "31",
+    "lanes": "2",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A63",
+    "tiger:county": "Hamilton, IN",
+    "turn:lanes": "through|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 17370861,
+  "tags": {
+    "alt_name": "W 136th St",
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 51362165,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "South Meridian Street;Downtown|South Meridian Street;Downtown||106th Strreet",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 63606520,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East City Center Drive",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 63606525,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East 126th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 63606527,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East 126th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "none|merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 63611079,
+  "tags": {
+    "destination": "East Smokey Row Road",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 63611086,
+  "tags": {
+    "alt_name": "East 136th Street",
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East Smoky Row Road",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 63611087,
+  "tags": {
+    "alt_name": "East 136th Street",
+    "highway": "tertiary",
+    "lanes": "1",
+    "maxspeed": "30 mph",
+    "name": "East Smoky Row Road",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 63663159,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 63663166,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 63663167,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 63670355,
+  "tags": {
+    "foot": "use_sidepath",
+    "highway": "secondary",
+    "lanes": "1",
+    "lit": "yes",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "sidewalk": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 63670440,
+  "tags": {
+    "cycleway:right": "no",
+    "foot": "yes",
+    "highway": "secondary",
+    "lanes": "1",
+    "maxspeed": "40 mph",
+    "name": "Westfield Boulevard",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "through"
+  }
+},
+{
+  "type": "way",
+  "id": 63814294,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 64014580,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:start_date": "approximate;local;Bing Aerial",
+    "start_date": "2020",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Carmel",
+    "tiger:name_type": "Dr",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 64014597,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "sidewalk:both": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 64032090,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Lowes Way",
+    "oneway": "yes",
+    "shoulder": "no",
+    "sidewalk": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 96576608,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 96576610,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 96576613,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through|merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 96576616,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 96576623,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 96576627,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East Main Street",
+    "old_ref": "SR 234",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 96576628,
+  "tags": {
+    "highway": "secondary",
+    "maxspeed": "30 mph",
+    "name": "East Main Street",
+    "old_ref": "SR 234",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 113307998,
+  "tags": {
+    "destination:street": "East 99th Street",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 113308010,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 113308012,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "1",
+    "maxspeed": "45 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 113308014,
+  "tags": {
+    "foot": "no",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 113308628,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "sidewalk:both": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 116815050,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||Main Street;Old Meridian Street|116th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 125236853,
+  "tags": {
+    "destination": "North Keystone Parkway;West 96th Street;West 98th Street;East 96th Street",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "right|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 125236864,
+  "tags": {
+    "destination": "Keystone Avenue",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "junction:ref": "33",
+    "lanes": "2",
+    "oneway": "yes",
+    "turn:lanes": "left|right"
+  }
+},
+{
+  "type": "way",
+  "id": 125483704,
+  "tags": {
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "through"
+  }
+},
+{
+  "type": "way",
+  "id": 129146541,
+  "tags": {
+    "destination": "Indianapolis",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 129870579,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 129870591,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 129870596,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 129895755,
+  "tags": {
+    "alt_name": "W 136th St",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 130038345,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 130537046,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 130537047,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 130537048,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 130539015,
+  "tags": {
+    "destination:street": "Smoky Row Road",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 130701965,
+  "tags": {
+    "destination": "Keystone Avenue South",
+    "destination:lanes": "B|B",
+    "destination:ref": "I 465 East",
+    "highway": "motorway_link",
+    "lanes": "2",
+    "oneway": "yes",
+    "turn:lanes": "slight_left;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 133970155,
+  "tags": {
+    "destination:ref": "I 465 East",
+    "highway": "motorway_link",
+    "junction": "onramp",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 149968018,
+  "tags": {
+    "destination:lanes": "C",
+    "destination:ref": "I 465 West",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 153006938,
+  "tags": {
+    "cycleway:both": "no",
+    "foot": "yes",
+    "highway": "secondary_link",
+    "lanes": "1",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 155627729,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:start_date": "approximate;local;Bing Aerial",
+    "start_date": "2020",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Carmel",
+    "tiger:name_type": "Dr",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 166267476,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 167508703,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 167896004,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 167896019,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 167896041,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "noname": "yes",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "concrete",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 167896049,
+  "tags": {
+    "destination:ref": "I 465",
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed": "50 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "through|merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 167896051,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 168152581,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 168152602,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "North Guilford Road",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Guilford",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 168152611,
+  "tags": {
+    "area": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 168152668,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 168152680,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016;Bing aerial",
+    "start_date": "2017",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 168176236,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 168512426,
+  "tags": {
+    "bicycle": "no",
+    "foot": "no",
+    "hazmat": "designated",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "horse": "no",
+    "lanes": "5",
+    "lit": "yes",
+    "maxspeed": "65 mph",
+    "official_name": "USS Indianapolis Memorial Highway",
+    "oneway": "yes",
+    "ref": "I 465",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A15",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "I-465",
+    "turn:lanes": "|||slight_right|slight_right",
+    "unsigned_ref": "US 31;US 52;US 421"
+  }
+},
+{
+  "type": "way",
+  "id": 186657902,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "4",
+    "oneway": "yes",
+    "turn:lanes": "left|left;through|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 208254668,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 256709094,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "shoulder": "no",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "reverse;left||"
+  }
+},
+{
+  "type": "way",
+  "id": 281740082,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 281747078,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||146th Street;151st Street;136th Street|Main Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "opening_date": "2014-11-21",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 281749470,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283013456,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283013458,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 283013460,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283013464,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283013467,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "concrete",
+    "turn:lanes": "left;through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283019989,
+  "tags": {
+    "destination:lanes": "B|B;C|C",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283019991,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283019993,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "concrete",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 283023400,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283023401,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283023406,
+  "tags": {
+    "cycleway:right": "no",
+    "foot": "yes",
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "noname": "yes",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "concrete",
+    "turn:lanes": "through|through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283023407,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283028618,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283028619,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283028621,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283028622,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283028627,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed:advisory": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283028628,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283028629,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283028632,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxspeed:advisory": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 283042949,
+  "tags": {
+    "foot": "no",
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283042953,
+  "tags": {
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 283042966,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Lowes Way",
+    "oneway": "yes",
+    "sidewalk": "right",
+    "surface": "asphalt",
+    "turn:lanes": "left|left|through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283044060,
+  "tags": {
+    "highway": "residential",
+    "lanes": "2",
+    "name": "Venice Drive",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283046570,
+  "tags": {
+    "destination:lanes": "Keystone Parkway North|Keystone Parkway North|Keystone Parkway North;West 96th Street;98th Street|East 96th Street|East 96th Street",
+    "foot": "no",
+    "highway": "motorway",
+    "lanes": "5",
+    "maxspeed": "45 mph",
+    "name": "North Keystone Avenue",
+    "oneway": "yes",
+    "turn:lanes": "|through|through;slight_right|slight_right|right",
+    "unsigned_ref": "SR 431"
+  }
+},
+{
+  "type": "way",
+  "id": 283046580,
+  "tags": {
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283046584,
+  "tags": {
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "4",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283046585,
+  "tags": {
+    "destination": "Carmel",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left"
+  }
+},
+{
+  "type": "way",
+  "id": 283046586,
+  "tags": {
+    "destination": "South Keystone Avenue",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left"
+  }
+},
+{
+  "type": "way",
+  "id": 283046587,
+  "tags": {
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "5",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left|right|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 283196244,
+  "tags": {
+    "destination": "151st Street;146th Street",
+    "highway": "motorway_link",
+    "junction:ref": "129A",
+    "lanes": "2",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 319334157,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||106th Street;116th Street|Main Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "opening_date": "2014-11-21",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 319345252,
+  "tags": {
+    "destination": "East 136th Street",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|right"
+  }
+},
+{
+  "type": "way",
+  "id": 319345254,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 319345256,
+  "tags": {
+    "highway": "residential",
+    "lanes": "2",
+    "maxspeed": "25 mph",
+    "name": "Eglin Drive",
+    "oneway": "yes",
+    "sidewalk": "both",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Elgin",
+    "tiger:name_type": "Dr",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 319345258,
+  "tags": {
+    "highway": "residential",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Rohrer Road",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Rohrer",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 319345262,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 319345263,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West Smoky Row Road",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "turn:lanes": "through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 332758503,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "15 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 370805674,
+  "tags": {
+    "cycleway:right": "track",
+    "cycleway:right:oneway": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46250",
+    "tiger:zip_right": "46250",
+    "turn:lanes": "left|||"
+  }
+},
+{
+  "type": "way",
+  "id": 378397016,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "oneway": "yes",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "United States Highway 31",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "through;slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 380338352,
+  "tags": {
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "through"
+  }
+},
+{
+  "type": "way",
+  "id": 380338355,
+  "tags": {
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "2",
+    "oneway": "yes",
+    "turn:lanes": "through|"
+  }
+},
+{
+  "type": "way",
+  "id": 413021040,
+  "tags": {
+    "NHS": "yes",
+    "bridge": "yes",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "layer": "1",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "left|left||"
+  }
+},
+{
+  "type": "way",
+  "id": 413023399,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "South Meridian Street;Downtown|South Meridian Street;Downtown||",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "none|none|slight_right|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 423660900,
+  "tags": {
+    "bicycle": "no",
+    "cycleway:right": "no",
+    "expressway": "yes",
+    "foot": "no",
+    "highway": "primary",
+    "lanes": "7",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left|none|none|none|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 423669978,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "reverse;left||"
+  }
+},
+{
+  "type": "way",
+  "id": 427606186,
+  "tags": {
+    "destination:lanes": "Westfield;Kokomo|Westfield;Kokomo|106th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway_link",
+    "lanes": "3",
+    "maxspeed": "55 mph",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 429077451,
+  "tags": {
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway_link",
+    "lanes": "3",
+    "maxspeed": "55 mph",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "none|slight_right|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507089,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507090,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "5",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left||||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507092,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507093,
+  "tags": {
+    "cycleway:right": "no",
+    "destination:ref": "106th Street;I 465 West;I 465 East",
+    "destination:ref:lanes": "|106th Street|I 465 West|I 465 East",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507095,
+  "tags": {
+    "cycleway:right": "no",
+    "destination:ref": "106th Street;I 465 West;I 465 East",
+    "destination:ref:lanes": "|||106th Street|I 465 West|I 465 East",
+    "highway": "primary",
+    "lanes": "6",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|||||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507511,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507518,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "5",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "left||||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437507520,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "left|||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512390,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512393,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512394,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512398,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512401,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512403,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512408,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512411,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "IN 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437512430,
+  "tags": {
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "reverse;left|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514327,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514339,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514340,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514598,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "||right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514602,
+  "tags": {
+    "access": "no",
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46280",
+    "tiger:zip_right": "46280",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437514603,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46280",
+    "tiger:zip_right": "46280",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514985,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437514987,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437515388,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437515389,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437515391,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437515395,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437515398,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437515712,
+  "tags": {
+    "foot": "no",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "Westfield Boulevard",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "left|"
+  }
+},
+{
+  "type": "way",
+  "id": 437515714,
+  "tags": {
+    "foot": "use_sidepath",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "Westfield Boulevard",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "|right"
+  }
+},
+{
+  "type": "way",
+  "id": 437668386,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437668389,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 437668392,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West 116th Street",
+    "oneway": "yes",
+    "sidewalk:both": "separate",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016",
+    "start_date": "2016",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 437671430,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671431,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671432,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671436,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671437,
+  "tags": {
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437671439,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671441,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671443,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437671449,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 437678363,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 437681873,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437681877,
+  "tags": {
+    "cycleway": "lane",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46250",
+    "tiger:zip_right": "46250",
+    "turn:lanes": "left|||"
+  }
+},
+{
+  "type": "way",
+  "id": 437681880,
+  "tags": {
+    "cycleway:right": "track",
+    "cycleway:right:oneway": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "shoulder": "no",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46250",
+    "tiger:zip_right": "46250",
+    "turn:lanes": "|||right"
+  }
+},
+{
+  "type": "way",
+  "id": 437681883,
+  "tags": {
+    "cycleway:right": "separate",
+    "cycleway:right:oneway": "no",
+    "highway": "primary",
+    "lanes": "5",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46250",
+    "tiger:zip_right": "46250",
+    "turn:lanes": "|||right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 437685608,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 437793131,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||106th Street;116th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "||through;slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 463015293,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||Main Street;136th Street|Old Meridian Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "none|none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 475810012,
+  "tags": {
+    "highway": "primary_link",
+    "lanes": "1",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 475827265,
+  "tags": {
+    "alt_name": "W 136th St",
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 493154334,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 493154335,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 493154336,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 493154337,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 493154338,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 493154339,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 493154340,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 493154341,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "through;left|through"
+  }
+},
+{
+  "type": "way",
+  "id": 497937618,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "Pennsylvania Street",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Pennsylvania",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 497941312,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "20 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "source:maxspeed": "sign",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "River",
+    "tiger:name_base_1": "116th",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "none|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 504489476,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Range Line",
+    "tiger:name_direction_prefix": "S",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 508981591,
+  "tags": {
+    "destination": "Keystone Avenue",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|right"
+  }
+},
+{
+  "type": "way",
+  "id": 510490617,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 514042585,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "|116th Street|106th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "surface": "asphalt",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 527373872,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "noname": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 562101212,
+  "tags": {
+    "destination": "Keystone Parkway;Rangeline Road;Clay Terrace Boulevard",
+    "highway": "motorway_link",
+    "junction:ref": "129B",
+    "lanes": "1",
+    "maxheight": "default",
+    "oneway": "yes",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "United States Highway 31",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "through;slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 609293502,
+  "tags": {
+    "check_date": "2019-07-29",
+    "description": "Ramp from NB Keystone Ave to 96th St (Under Construction as of July 2018).",
+    "destination": "96th Street;98th Street West",
+    "fut_lanes": "3",
+    "highway": "motorway_link",
+    "lanes": "3",
+    "maxspeed:advisory": "25 mph",
+    "maxweightrating": "19500 st",
+    "maxweightrating:conditional": "none @ destination",
+    "oneway": "yes",
+    "turn:lanes": "left;through|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 609293506,
+  "tags": {
+    "check_date": "2020-01-05",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 609293516,
+  "tags": {
+    "check_date": "2019-06-20",
+    "construction": "trunk",
+    "foot": "no",
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "old_name": "Keystone Avenue",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "none|none|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 609299460,
+  "tags": {
+    "foot": "no",
+    "highway": "motorway",
+    "lanes": "3",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "||through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 611343770,
+  "tags": {
+    "destination:ref": "I 465 East",
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "junction": "onramp",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 611343777,
+  "tags": {
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "through"
+  }
+},
+{
+  "type": "way",
+  "id": 611343783,
+  "tags": {
+    "destination:lanes": "C",
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 611343784,
+  "tags": {
+    "destination:lanes": "C",
+    "embankment": "yes",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "merge_to_left"
+  }
+},
+{
+  "type": "way",
+  "id": 611343786,
+  "tags": {
+    "destination:lanes": "Carmel|Carmel|Indianapolis|Indianapolis",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 611343788,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "through"
+  }
+},
+{
+  "type": "way",
+  "id": 625801674,
+  "tags": {
+    "check_date": "2019-05-24",
+    "cycleway:right": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 625801678,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "turn:lanes": "none|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 625803925,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016;Bing aerial",
+    "start_date": "2017",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Carmel",
+    "tiger:name_type": "Dr",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 654487652,
+  "tags": {
+    "check_date": "2019-06-20",
+    "highway": "motorway_link",
+    "lanes": "3",
+    "oneway": "yes",
+    "turn:lanes": "||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 654586905,
+  "tags": {
+    "check_date": "2019-06-20",
+    "description": "Ramp from SB Keystone Pkwy to 96th St (Under Construction as of July 2018).",
+    "highway": "motorway_link",
+    "lanes": "2",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "turn:lanes": "left;through;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 688410356,
+  "tags": {
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left"
+  }
+},
+{
+  "type": "way",
+  "id": 688410357,
+  "tags": {
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left"
+  }
+},
+{
+  "type": "way",
+  "id": 688410363,
+  "tags": {
+    "cycleway:right": "no",
+    "expressway": "yes",
+    "foot": "no",
+    "highway": "primary",
+    "lanes": "5",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left|none|none|none|right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 749790323,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 830832983,
+  "tags": {
+    "highway": "motorway_link",
+    "lanes": "2",
+    "oneway": "yes",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016",
+    "start_date": "2016",
+    "turn:lanes": "|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 830833010,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "Pennsylvania Street",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Pennsylvania",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left;through;right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 830833036,
+  "tags": {
+    "area": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 830833037,
+  "tags": {
+    "area": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 835067483,
+  "tags": {
+    "cycleway:right": "no",
+    "destination:ref": "106th Street;I 465 West;I 465 East",
+    "destination:ref:lanes": "|106th Street|I 465 West|I 465 East",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "North Meridian Street",
+    "old_ref": "US 31",
+    "oneway": "yes",
+    "source": "tiger_import_dch_v0.6_20070810",
+    "surface": "asphalt",
+    "turn:lanes": "||right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 965336429,
+  "tags": {
+    "area": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 999760725,
+  "tags": {
+    "check_date": "2020-01-05",
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1004836888,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "1",
+    "name": "Lowes Way",
+    "oneway": "yes",
+    "turn:lanes": "left"
+  }
+},
+{
+  "type": "way",
+  "id": 1004836892,
+  "tags": {
+    "highway": "secondary_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "turn:lanes": "right"
+  }
+},
+{
+  "type": "way",
+  "id": 1004836910,
+  "tags": {
+    "change": "no",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "North Range Line Road",
+    "name_1": "Jefferson Square",
+    "oneway": "yes",
+    "sidewalk": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Range Line",
+    "tiger:name_base_1": "Jefferson",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "Sq",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1025369041,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1042575522,
+  "tags": {
+    "bicycle": "no",
+    "destination:lanes": "none|none|none|Allisonville Road|Keystone Avenue|Keystone Avenue",
+    "foot": "no",
+    "hazmat": "designated",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "horse": "no",
+    "lanes": "6",
+    "lit": "yes",
+    "maxspeed": "65 mph",
+    "official_name": "USS Indianapolis Memorial Highway",
+    "oneway": "yes",
+    "ref": "I 465",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A15",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "I-465",
+    "turn:lanes": "||||slight_right|slight_right",
+    "unsigned_ref": "US 31;US 52;US 421"
+  }
+},
+{
+  "type": "way",
+  "id": 1042606963,
+  "tags": {
+    "bicycle": "no",
+    "destination:lanes": "none|none|Keystone Avenue|Meridian Street|Westfield;Kokomo",
+    "foot": "no",
+    "hazmat": "designated",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "horse": "no",
+    "lanes": "5",
+    "maxspeed": "65 mph",
+    "official_name": "USS Indianapolis Memorial Highway",
+    "oneway": "yes",
+    "ref": "I 465",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A15",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "I-465",
+    "turn:lanes": "|||slight_right|slight_right",
+    "unsigned_ref": "US 52;US 421"
+  }
+},
+{
+  "type": "way",
+  "id": 1056781627,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1090548306,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1090548310,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "name": "South Range Line Road",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "none|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1098692169,
+  "tags": {
+    "destination:street": "Smoky Row Road",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "maxspeed": "50 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1101636313,
+  "tags": {
+    "destination:lanes": "South Keystone Avenue|South Keystone Avenue|North Keystone Parkway|North Keystone Parkway;West 96th Street;West 98th Street|East 96th Street",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "5",
+    "maxspeed": "35 mph",
+    "oneway": "yes",
+    "turn:lanes": "left|left|slight_right|slight_right|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1102892185,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "Westfield|Westfield|Westfield;146th Street;151th Street|136th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "US Highway 31 North",
+    "oneway": "yes",
+    "opening_date": "2014-11-21",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1103100586,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "||161st Street|151st Street|146th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "5",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "turn:lanes": "|||slight_right|slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1103394549,
+  "tags": {
+    "destination": "136th Street",
+    "destination:ref": "US 31 South",
+    "highway": "motorway_link",
+    "lanes": "2",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1103394550,
+  "tags": {
+    "destination": "136th Street",
+    "destination:street": "Old Meridian Street",
+    "highway": "motorway_link",
+    "junction:ref": "128",
+    "lanes": "2",
+    "maxspeed": "55 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1103829658,
+  "tags": {
+    "NHS": "yes",
+    "destination:lanes": "|116st Street|Main Street|136th Street",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "55 mph",
+    "name": "North Meridian Street",
+    "oneway": "yes",
+    "ref": "US 31",
+    "source:hgv:national_network": "https://hepgis-usdot.hub.arcgis.com/apps/usdot::national-network-conventional-combination-trucks-map/explore",
+    "tiger:cfcc": "A25",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Meridian",
+    "tiger:name_base_1": "United States Highway 31",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:zip_left": "46074",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1104685589,
+  "tags": {
+    "alt_name": "W 136th St",
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "West 136th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1112189091,
+  "tags": {
+    "bicycle": "no",
+    "foot": "no",
+    "highway": "motorway",
+    "horse": "no",
+    "lanes": "2",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Keystone",
+    "tiger:name_base_1": "State Road 431",
+    "tiger:name_type": "Ave",
+    "tiger:reviewed": "no",
+    "turn:lanes": "|through;slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1131991733,
+  "tags": {
+    "bridge": "yes",
+    "highway": "primary",
+    "lanes": "4",
+    "layer": "1",
+    "maxspeed": "45 mph",
+    "name": "East 146th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1132079964,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1173656374,
+  "tags": {
+    "destination": "Main Street",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "junction:ref": "127",
+    "lanes": "2",
+    "maxspeed:advisory": "40 mph",
+    "oneway": "yes",
+    "turn:lanes": "none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1176704507,
+  "tags": {
+    "cycleway:both": "no",
+    "highway": "motorway_link",
+    "lanes": "1",
+    "maxspeed": "25 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "through;slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897463,
+  "tags": {
+    "destination": "136th Street",
+    "destination:ref": "US 31 North",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "lanes": "2",
+    "maxspeed": "55 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897464,
+  "tags": {
+    "destination": "136th Street;Old Meridian Street",
+    "destination:symbol": "hospital",
+    "highway": "motorway_link",
+    "junction": "offramp",
+    "junction:ref": "128",
+    "lanes": "2",
+    "maxspeed": "55 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897487,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897488,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897489,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "1",
+    "maxspeed": "30 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "West Main Street",
+    "old_ref": "IN 234",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Main",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897490,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897491,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897492,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016;Bing aerial",
+    "start_date": "2017",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897493,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "West Carmel Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:start_date": "approximate;local;Bing Aerial",
+    "start_date": "2020",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Carmel",
+    "tiger:name_type": "Dr",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897498,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016;Bing aerial",
+    "start_date": "2017",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897499,
+  "tags": {
+    "alt_name": "W 122nd St",
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "122nd",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|left;through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897500,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "name": "Pennsylvania Street",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Pennsylvania",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1201897501,
+  "tags": {
+    "highway": "primary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1202052052,
+  "tags": {
+    "check_date": "2019-05-24",
+    "cycleway:right": "no",
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1210052596,
+  "tags": {
+    "alt_name": "East 136th Street",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "East Smoky Row Road",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Smokey Row",
+    "tiger:name_base_1": "136th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_direction_prefix_1": "E",
+    "tiger:name_type": "Rd",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left;through|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1229232113,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "1",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1229232114,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1269963640,
+  "tags": {
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "45 mph",
+    "name": "East 146th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1269963641,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "East 146th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1287519610,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1299307027,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "East 96th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "96th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "turn:lanes": "||right|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1340610760,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1346069836,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1357641461,
+  "tags": {
+    "check_date": "2020-01-05",
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "noname": "yes",
+    "roundabout": "dogbone",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1359788912,
+  "tags": {
+    "cycleway:right": "lane",
+    "cycleway:right:lane": "exclusive",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "concrete",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Marion, IN",
+    "tiger:name_base": "Allisonville",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46038",
+    "tiger:zip_right": "46038",
+    "turn:lanes": "||right"
+  }
+},
+{
+  "type": "way",
+  "id": 1360330125,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "15 mph",
+    "surface": "asphalt",
+    "turn:lanes": "none|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1362550824,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1370789720,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1371585615,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1371652653,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1372269459,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1372273934,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1372285150,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1376664644,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "45 mph",
+    "name": "West 146th Street",
+    "name_1": "Gray Road West",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "146th",
+    "tiger:name_base_1": "Gray",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_direction_suffix_1": "W",
+    "tiger:name_type": "St",
+    "tiger:name_type_1": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1396847103,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1396847104,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1412124442,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1412377107,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1412377109,
+  "tags": {
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1412989265,
+  "tags": {
+    "highway": "primary",
+    "lanes": "4",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1415344279,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1416493364,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1416495277,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 1416661188,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "source:start_date": "approximate;local;IndianaMap orthoimagery 2016;Bing aerial",
+    "start_date": "2017",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1416687330,
+  "tags": {
+    "foot": "use_sidepath",
+    "highway": "secondary",
+    "lanes": "3",
+    "lit": "no",
+    "maxspeed": "40 mph",
+    "name": "Pennsylvania Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Pennsylvania",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1416688991,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "lit": "no",
+    "maxspeed": "40 mph",
+    "name": "Pennsylvania Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Pennsylvania",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1416915863,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1417137311,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "15 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1417137312,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "15 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1417137313,
+  "tags": {
+    "highway": "primary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "15 mph",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1420094943,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1420094944,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1420679813,
+  "tags": {
+    "access": "yes",
+    "bicycle": "yes",
+    "cycleway": "no",
+    "foot": "yes",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "motor_vehicle": "yes",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "source": "bing",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 1423018413,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1424065466,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1426346006,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Old Meridian Street",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Old Meridian",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1426636212,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "West Main Street",
+    "old_ref": "IN 234",
+    "oneway": "yes",
+    "sidewalk:both": "no",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Main",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1429193430,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 1429195197,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Guilford",
+    "tiger:name_direction_prefix": "S",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1430176750,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxweight": "19500 lbs",
+    "name": "South Guilford Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1451303837,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East City Center Drive",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1451911107,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "35 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1452793030,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "East City Center Drive",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "126th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1455438088,
+  "tags": {
+    "highway": "tertiary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "40 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1459546190,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "name_1": "Adams Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "City Center",
+    "tiger:name_base_1": "Adams",
+    "tiger:name_type": "Dr",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459550914,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "name_1": "Adams Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "City Center",
+    "tiger:name_base_1": "Adams",
+    "tiger:name_type": "Dr",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459553764,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "name_1": "Adams Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "City Center",
+    "tiger:name_base_1": "Adams",
+    "tiger:name_type": "Dr",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459553765,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "name_1": "Adams Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "City Center",
+    "tiger:name_base_1": "Adams",
+    "tiger:name_type": "Dr",
+    "tiger:name_type_1": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_left_1": "46032",
+    "tiger:zip_right": "46032",
+    "tiger:zip_right_1": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459692035,
+  "tags": {
+    "alt_name": "W 122nd St",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "122nd",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459721796,
+  "tags": {
+    "alt_name": "W 122nd St",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "122nd",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1459787343,
+  "tags": {
+    "alt_name": "W 122nd St",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "30 mph",
+    "name": "City Center Drive",
+    "oneway": "yes",
+    "sidewalk": "right",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "122nd",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1465297351,
+  "tags": {
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "East 116th Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "116th",
+    "tiger:name_direction_prefix": "E",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1479609382,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Illinois Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Illinois",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1481047753,
+  "tags": {
+    "cycleway:right": "no",
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "North Gray Road",
+    "name_1": "East 481st",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1482117403,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Illinois Street",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Illinois",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left||"
+  }
+},
+{
+  "type": "way",
+  "id": 1482117405,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Illinois Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Illinois",
+    "tiger:name_direction_prefix": "N",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1483355530,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "source:start_date": "approximate;local;Bing Aerial",
+    "start_date": "2020",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1490615722,
+  "tags": {
+    "highway": "tertiary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Illinois Street",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "103rd;Illinois",
+    "tiger:name_direction_prefix": "W",
+    "tiger:name_type": "St",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1495809124,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1498949484,
+  "tags": {
+    "foot": "no",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxspeed": "50 mph",
+    "maxweight": "19500 lbs",
+    "maxweight:conditional": "none @ delivery",
+    "name": "Keystone Parkway",
+    "noref": "yes",
+    "old_ref": "SR 431",
+    "oneway": "yes",
+    "source:maxweight": "Truck␣Restriction␣Ordinance␣https://codelibrary.amlegal.com/codes/carmel/latest/carmel_in/0-0-0-6573",
+    "surface": "asphalt",
+    "turn:lanes": "|||slight_right"
+  }
+},
+{
+  "type": "way",
+  "id": 1506792318,
+  "tags": {
+    "cycleway": "lane",
+    "highway": "primary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Allisonville Road",
+    "old_ref": "SR 37A",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "surface": "concrete",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1506800102,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "left;through|through"
+  }
+},
+{
+  "type": "way",
+  "id": 1506800103,
+  "tags": {
+    "highway": "secondary",
+    "junction": "roundabout",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "maxspeed:advisory": "15 mph",
+    "sidewalk": "no",
+    "surface": "asphalt",
+    "turn:lanes": "left|left;through"
+  }
+},
+{
+  "type": "way",
+  "id": 1517212947,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "35 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none"
+  }
+},
+{
+  "type": "way",
+  "id": 1539974681,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "30 mph",
+    "name": "South Range Line Road",
+    "oneway": "yes",
+    "sidewalk": "separate",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Range Line",
+    "tiger:name_direction_prefix": "S",
+    "tiger:name_type": "Rd",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46032",
+    "tiger:zip_right": "46032",
+    "turn:lanes": "none|through;right"
+  }
+},
+{
+  "type": "way",
+  "id": 1551228659,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1551265864,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "tiger:zip_left": "46033",
+    "tiger:zip_right": "46033",
+    "turn:lanes": "left|none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1551268786,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "3",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "turn:lanes": "none|none|right"
+  }
+},
+{
+  "type": "way",
+  "id": 1553766233,
+  "tags": {
+    "highway": "secondary",
+    "lanes": "4",
+    "maxspeed": "40 mph",
+    "name": "Hazel Dell Parkway",
+    "oneway": "yes",
+    "surface": "asphalt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Hamilton, IN",
+    "tiger:name_base": "Hazel Dell",
+    "tiger:name_type": "Pky",
+    "tiger:reviewed": "no",
+    "turn:lanes": "left|none|none|right"
+  }
+}
+
+  ]
+}

@@ -6,6 +6,6 @@ DerivedData/
 build/
 *.xcresult
 .DS_Store
-# Raw downloads are rebuilt by scripts/; the bundled JSON in FirstRoads/Resources/Data is committed.
+# Raw downloads are rebuilt by scripts/; the bundled JSON in Baxi/Resources/Data is committed.
 data/raw/*.zip
 data/raw/FARS*/

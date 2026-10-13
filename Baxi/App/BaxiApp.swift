@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct FirstRoadsApp: App {
+struct BaxiApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()

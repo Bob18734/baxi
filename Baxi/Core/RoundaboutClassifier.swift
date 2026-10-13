@@ -2,7 +2,7 @@ import Foundation
 
 // OWNER: Vardaan. This file is one of the two modules Vardaan writes himself.
 // Claude wrote the types, the doc comments, the stub, and the tests in
-// FirstRoadsTests/RoundaboutClassifierTests.swift. Replace the body of `classify` with your own logic
+// BaxiTests/RoundaboutClassifierTests.swift. Replace the body of `classify` with your own logic
 // and make every test pass. Keep the signature.
 
 /// One roundabout as it appears in OpenStreetMap: one or more ways tagged junction=roundabout that

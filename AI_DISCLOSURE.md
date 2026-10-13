@@ -17,11 +17,11 @@ It is updated the same day the work happens, never reconstructed afterward.
 
 | File | Owner | Notes |
 |---|---|---|
-| FirstRoads/Core/LanePicker.swift | Vardaan | Claude wrote the types, doc comments, tests and a stub. Vardaan replaces the stub. |
-| FirstRoads/Core/CueScheduler.swift | Vardaan | Same arrangement. (Replaces RouteScorer after the Oct 13 refocus; file lands Oct 14.) |
-| FirstRoads/Core/RoundaboutClassifier.swift | Partner | Same arrangement. |
-| FirstRoads/Core/ApproachHeading.swift | Partner | Same arrangement. |
-| FirstRoads/Resources/Content/briefings.json | Both | Every entry cites the Indiana Driver's Manual by chapter and page. No AI-written driving advice. |
+| Baxi/Core/LanePicker.swift | Vardaan | Claude wrote the types, doc comments, tests and a stub. Vardaan replaces the stub. |
+| Baxi/Core/CueScheduler.swift | Vardaan | Same arrangement. (Replaces RouteScorer after the Oct 13 refocus; file lands Oct 14.) |
+| Baxi/Core/RoundaboutClassifier.swift | Partner | Same arrangement. |
+| Baxi/Core/ApproachHeading.swift | Partner | Same arrangement. |
+| Baxi/Resources/Content/briefings.json | Both | Every entry cites the Indiana Driver's Manual by chapter and page. No AI-written driving advice. |
 
 ## Log
 
@@ -32,3 +32,4 @@ It is updated the same day the work happens, never reconstructed afterward.
 - Claude Code: re-planned for native iOS; probed Apple Look Around coverage at four Carmel points with a Swift script; counted OSM turn:lanes coverage in Carmel; tested OSRM lane and roundabout output.
 - Claude Code: created the Xcode project spec (project.yml), the data build scripts in scripts/, the models, Geo helpers, FeatureExtractor, BundledData, the Home, Plan and Log screens, the four module interfaces with stubs, and the first tests.
 - Claude Code (Fable 5.1), evening: refocused the plan on navigation for new drivers (early lane cues, lights-until-turn, roundabout exit and lane, spoken once through the system speech synthesizer) after Vardaan proposed it; cut skill tiers, scoring and generated loops; rewrote the planning document; updated this file and the README. Module split changed: Vardaan owns LanePicker and CueScheduler, partner owns RoundaboutClassifier and ApproachHeading.
+- Claude Code (Fable 5.1), evening: renamed the app, Xcode targets, bundle id and GitHub repo from FirstRoads to Baxi after Vardaan chose the name (the taxi passenger who knows the way). No logic changed; tests re-run after the rename.

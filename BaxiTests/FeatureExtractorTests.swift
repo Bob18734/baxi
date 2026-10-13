@@ -1,5 +1,5 @@
 import Testing
-@testable import FirstRoads
+@testable import Baxi
 
 struct FeatureExtractorTests {
     private func way(_ id: Int, nodes: [Int], tags: [String: String]) -> OSMWay {

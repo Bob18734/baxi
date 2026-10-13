@@ -1,5 +1,5 @@
 import Testing
-@testable import FirstRoads
+@testable import Baxi
 
 struct GeoTests {
     @Test func distanceAcrossCarmel() {

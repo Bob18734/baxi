@@ -1,6 +1,6 @@
 import Foundation
 
-// OWNER: Vardaan. Second of Vardaan's two modules. Tests: FirstRoadsTests/LanePickerTests.swift.
+// OWNER: Vardaan. Second of Vardaan's two modules. Tests: BaxiTests/LanePickerTests.swift.
 
 /// Which lane to be in before a roundabout or a turn, read from the OSM `turn:lanes` tag of the
 /// approach way. A `turn:lanes` value lists lanes left to right separated by `|`; each lane holds

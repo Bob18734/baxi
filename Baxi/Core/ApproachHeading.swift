@@ -1,6 +1,6 @@
 import Foundation
 
-// OWNER: partner. Second of the partner's two modules. Tests: FirstRoadsTests/ApproachHeadingTests.swift.
+// OWNER: partner. Second of the partner's two modules. Tests: BaxiTests/ApproachHeadingTests.swift.
 
 enum ApproachHeading {
     /// The compass bearing a driver faces when arriving at `spot` along `route`.

@@ -1,6 +1,6 @@
 import Foundation
 
-// OWNER: partner. First of the partner's two modules. Tests: FirstRoadsTests/RouteScorerTests.swift.
+// OWNER: partner. First of the partner's two modules. Tests: BaxiTests/RouteScorerTests.swift.
 
 /// A candidate loop after routing and feature matching, ready to be scored.
 struct ScoredCandidate: Identifiable {

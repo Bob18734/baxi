@@ -2,7 +2,7 @@
 """Build the bundled crash-context layers.
 
 Inputs (data/raw/): hin_2026.geojson, intersection_studies.geojson, fars_2023_hamilton.json
-Outputs (FirstRoads/Resources/Data/): hin_2026.json, intersection_studies.json, fars_2023_hamilton.json
+Outputs (Baxi/Resources/Data/): hin_2026.json, intersection_studies.json, fars_2023_hamilton.json
 
 Sources:
   Indianapolis MPO High Injury Network 2026 (public ArcGIS feature service)
@@ -12,7 +12,7 @@ Sources:
 import json, pathlib, shutil
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-RAW, OUT = ROOT / "data/raw", ROOT / "FirstRoads/Resources/Data"
+RAW, OUT = ROOT / "data/raw", ROOT / "Baxi/Resources/Data"
 
 def num(v):
     try: return float(v) if v not in (None, "") else None

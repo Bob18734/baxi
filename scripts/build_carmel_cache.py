@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the bundled Carmel road cache from OpenStreetMap via the Overpass API.
 
-Output: FirstRoads/Resources/Data/carmel_osm.json
+Output: Baxi/Resources/Data/carmel_osm.json
 Run:    python3 scripts/build_carmel_cache.py
 
 The app never calls Overpass during the Carmel demo; it reads this file.
@@ -10,8 +10,8 @@ Bounding box covers Carmel, IN (south 39.92, west -86.20, north 40.00, east -86.
 import json, sys, time, urllib.request, urllib.parse, pathlib
 
 BBOX = "39.92,-86.20,40.00,-86.05"
-UA = "firstroads-cac-2026/0.1 (student project; contact via GitHub)"
-OUT = pathlib.Path(__file__).resolve().parents[1] / "FirstRoads/Resources/Data/carmel_osm.json"
+UA = "baxi-cac-2026/0.1 (student project; contact via GitHub)"
+OUT = pathlib.Path(__file__).resolve().parents[1] / "Baxi/Resources/Data/carmel_osm.json"
 
 QUERY = f"""
 [out:json][timeout:120];

@@ -1,6 +1,6 @@
 # XcodeGen spec. Regenerate the Xcode project with:  xcodegen generate
-# (brew install xcodegen). FirstRoads.xcodeproj is git-ignored on purpose.
-name: FirstRoads
+# (brew install xcodegen). Baxi.xcodeproj is git-ignored on purpose.
+name: Baxi
 options:
   bundleIdPrefix: com.vardaangoel
   deploymentTarget:
@@ -16,43 +16,43 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
 targets:
-  FirstRoads:
+  Baxi:
     type: application
     platform: iOS
     sources:
-      - path: FirstRoads
+      - path: Baxi
     info:
-      path: FirstRoads/Info.plist
+      path: Baxi/Info.plist
       properties:
-        CFBundleDisplayName: FirstRoads
+        CFBundleDisplayName: Baxi
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocationWhenInUseUsageDescription: "FirstRoads shows the passenger where the car is on the practice route. The driver never uses the phone."
+        NSLocationWhenInUseUsageDescription: "Baxi shows the passenger where the car is on the practice route. The driver never uses the phone."
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-  FirstRoadsTests:
+  BaxiTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: FirstRoadsTests
+      - path: BaxiTests
     dependencies:
-      - target: FirstRoads
+      - target: Baxi
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
 schemes:
-  FirstRoads:
+  Baxi:
     build:
       targets:
-        FirstRoads: all
-        FirstRoadsTests: [test]
+        Baxi: all
+        BaxiTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - FirstRoadsTests
+        - BaxiTests

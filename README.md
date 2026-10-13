@@ -1,6 +1,6 @@
-# FirstRoads
+# Baxi
 
-Navigation built for new drivers. Google Maps tells you where to turn; FirstRoads tells an Indiana
+Navigation built for new drivers. Google Maps tells you where to turn; Baxi tells an Indiana
 teen with a learner's permit what to do, early enough to stay calm: which lane to be in, said half a
 mile early; how many traffic lights until the turn; which roundabout exit and which lane; where the
 speed limit drops; where the crash-heavy corridors are. Before the drive, a preview shows the hardest
@@ -20,10 +20,10 @@ Requirements: a Mac with Xcode 26 or newer, and [XcodeGen](https://github.com/yo
 (`brew install xcodegen`).
 
 ```
-git clone <this repo>
-cd firstroads
+git clone https://github.com/Bob18734/baxi.git
+cd baxi
 xcodegen generate
-open FirstRoads.xcodeproj
+open Baxi.xcodeproj
 ```
 
 Pick an iPhone simulator and press Run. Tap **Try the Carmel demo** on the Home tab; everything the demo
@@ -32,7 +32,7 @@ needs is bundled, so it works with no network.
 To run on your own iPhone: select your phone as the destination, set your personal team under
 Signing & Capabilities, and press Run. No paid developer account is needed.
 
-Tests: Product > Test (Cmd-U). The student-module tests live in `FirstRoadsTests/`.
+Tests: Product > Test (Cmd-U). The student-module tests live in `BaxiTests/`.
 
 ## Data
 
@@ -49,11 +49,11 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 
 ## Code map
 
-- `FirstRoads/Models` — plain data types (OSM cache, features, tiers, drives).
-- `FirstRoads/Core` — the logic: feature extractor, geometry, and the four student-owned modules
+- `Baxi/Models` — plain data types (OSM cache, features, tiers, drives).
+- `Baxi/Core` — the logic: feature extractor, geometry, and the four student-owned modules
   (`RoundaboutClassifier`, `LanePicker`, `RouteScorer`, `ApproachHeading`).
-- `FirstRoads/Services` — bundled data loading, routing clients.
-- `FirstRoads/Screens` — SwiftUI screens: Home, Plan, Walkthrough, Drive, Debrief, Log.
+- `Baxi/Services` — bundled data loading, routing clients.
+- `Baxi/Screens` — SwiftUI screens: Home, Plan, Walkthrough, Drive, Debrief, Log.
 - `scripts/` — Python scripts that build the bundled data.
 
 ## AI disclosure

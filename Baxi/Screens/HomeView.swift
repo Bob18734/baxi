@@ -45,7 +45,7 @@ struct HomeView: View {
                     Text(store.dataStatus).font(.footnote).foregroundStyle(.secondary)
                 } header: { Text("Practice area") }
             }
-            .navigationTitle("FirstRoads")
+            .navigationTitle("Baxi")
         }
     }
 }

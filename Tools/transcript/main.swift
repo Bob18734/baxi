@@ -5,6 +5,7 @@
 //   swift run baxi-transcript preset_highway new      one preset, one experience level
 //   swift run baxi-transcript preset_highway new 4400 start 4400 m along, like the Home demo
 //   BAXI_WHY=1 swift run baxi-transcript ...          also print the data behind each roundabout's lane advice
+//   BAXI_TIME=1 swift run -c release -Xswiftc -enable-testing baxi-transcript   also time loading and cue building
 @testable import Baxi
 import Foundation
 
@@ -19,14 +20,22 @@ let presets = args.first.map { [$0] } ?? RouteService.presets.map(\.id)
 let level = args.dropFirst().first.flatMap { a in ExperienceLevel.allCases.first { $0.rawValue.lowercased().hasPrefix(a.lowercased()) } }
     ?? .gettingComfortable
 
-let cache = try BundledData.carmelCache()
-let features = FeatureExtractor.extract(from: cache)
-let hin = try? BundledData.highInjuryNetwork()
+let timing = ProcessInfo.processInfo.environment["BAXI_TIME"] != nil
+func timed<T>(_ label: String, _ work: () throws -> T) rethrows -> T {
+    let start = Date()
+    let value = try work()
+    if timing { print(String(format: "time %-28@ %7.1f ms", label as NSString, Date().timeIntervalSince(start) * 1000)) }
+    return value
+}
+
+let cache = try timed("load Carmel cache") { try BundledData.carmelCache() }
+let features = timed("extract features") { FeatureExtractor.extract(from: cache) }
+let hin = timed("load High Injury Network") { try? BundledData.highInjuryNetwork() }
 
 for id in presets {
     let route = try RouteService.preset(id)
-    let session = DriveSession(route: route, cache: cache, features: features, highInjury: hin, level: level,
-                               mode: .replay(speedMultiplier: 1), speaker: Recorder())
+    let session = timed("build cues: \(id)") { DriveSession(route: route, cache: cache, features: features, highInjury: hin, level: level,
+                               mode: .replay(speedMultiplier: 1), speaker: Recorder()) }
     if let from = args.dropFirst(2).first.flatMap(Double.init) { session.skip(toMeters: from) }
     let said = session.simulateWholeRoute()
     print("\n== \(route.name) (\(id)), \(level.title): \(String(format: "%.1f", route.distanceMeters / 1609.34)) mi, \(said.count) cues, CueScheduler \(CueScheduler.isImplemented ? "student version" : "stub")")

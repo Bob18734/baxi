@@ -9,14 +9,20 @@ import Observation
 final class DriveSession {
     enum Mode: Equatable { case live, replay(speedMultiplier: Double) }
 
-    let route: PlannedRoute
+    private(set) var route: PlannedRoute
     let level: ExperienceLevel
     let mode: Mode
     private(set) var cues: [Cue]
-    private let signals: [Double]
-    private let follower: RouteFollower
+    private var signals: [Double]
+    private var speeds: [(along: Double, mph: Int)]
+    private var follower: RouteFollower
     private var scheduler = CueScheduler()
     private let speaker = Speaker()
+    private let cache: OSMCache
+    private let features: [RoadFeature]
+    private let highInjury: HighInjuryNetwork?
+    /// Where the drive began, for the sunset split.
+    let startCoordinate: Coordinate?
 
     // What the Drive screen shows.
     private(set) var progress: RouteProgress?
@@ -29,6 +35,11 @@ final class DriveSession {
     private(set) var isFinished = false
     private(set) var startedAt = Date()
     private(set) var endedAt: Date?
+    private(set) var isRerouting = false
+    private(set) var rerouteCount = 0
+    /// Meters driven on routes replaced by a reroute.
+    private var metersBeforeReroute = 0.0
+    private var lastRerouteAttempt: TimeInterval = -.infinity
 
     private var replayTimer: Timer?
     private var replayMeters = 0.0
@@ -45,12 +56,37 @@ final class DriveSession {
         self.route = route
         self.level = level
         self.mode = mode
-        let built = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
-        let targets = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters).sorted()
-        cues = CueScheduler.plan(built, level: level, maneuverTargets: targets)
-        signals = CueListBuilder.signalAlongs(line: route.polyline, cache: cache)
+        self.cache = cache
+        self.features = features
+        self.highInjury = highInjury
+        startCoordinate = route.polyline.points.first
+        (cues, signals, speeds) = Self.prepare(route, cache: cache, features: features, highInjury: highInjury, level: level)
         follower = RouteFollower(polyline: route.polyline)
         position = route.polyline.points.first
+    }
+
+    private static func prepare(_ route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?,
+                                level: ExperienceLevel) -> ([Cue], [Double], [(along: Double, mph: Int)]) {
+        let built = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
+        let targets = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters).sorted()
+        return (CueScheduler.plan(built, level: level, maneuverTargets: targets),
+                CueListBuilder.signalAlongs(line: route.polyline, cache: cache),
+                CueListBuilder.speedProfile(line: route.polyline, cache: cache))
+    }
+
+    /// Total meters driven this drive, across reroutes.
+    var drivenMeters: Double { metersBeforeReroute + (progress?.alongMeters ?? 0) }
+
+    /// The posted limit where the car is, from OpenStreetMap maxspeed tags. nil where untagged.
+    var speedLimitMph: Int? {
+        let along = progress?.alongMeters ?? 0
+        return speeds.last { $0.along <= along }?.mph ?? (along < 50 ? speeds.first?.mph : nil)
+    }
+
+    /// A school zone or crash-heavy corridor the car is in or about to enter, shown as a chip.
+    var activeAlert: Cue? {
+        let along = progress?.alongMeters ?? 0
+        return cues.first { ($0.kind == .schoolZone || $0.kind == .crashCorridor) && along >= $0.targetMeters - 150 && along <= $0.targetMeters + 500 }
     }
 
     // MARK: The next maneuver, for the big card
@@ -147,8 +183,9 @@ final class DriveSession {
         if p.isOffRoute {
             if lastCueText != "Off the route" {
                 lastCueText = "Off the route"
-                speaker.say("You are off the route. Keep driving safely, I will pick it up when you are back on it.")
+                speaker.say("You are off the route. Keep driving safely, I am finding a new way.")
             }
+            if mode == .live, !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
         }
 
@@ -170,6 +207,37 @@ final class DriveSession {
     }
 
     private var lastLaneCue: Cue?
+
+    // MARK: Reroute (live drives only)
+
+    /// Asks for a new route from where the car is to the same destination, then swaps it in.
+    /// Retries at most every 30 s. Replays never go off the route, so they never get here.
+    private func reroute(from location: Coordinate, at time: TimeInterval) {
+        guard let destination = route.polyline.points.last else { return }
+        isRerouting = true
+        lastRerouteAttempt = time
+        let name = route.name
+        Task { @MainActor [weak self] in
+            let new = try? await RouteService.route(from: location, to: destination, name: name)
+            guard let self, !self.isFinished else { return }
+            self.isRerouting = false
+            guard let new else { return }
+            self.install(new)
+            self.speaker.say("New route. \(new.maneuvers.first { $0.kind != .depart }?.instruction ?? "Follow the line on the map").")
+        }
+    }
+
+    private func install(_ new: PlannedRoute) {
+        metersBeforeReroute += progress?.alongMeters ?? 0
+        route = new
+        (cues, signals, speeds) = Self.prepare(new, cache: cache, features: features, highInjury: highInjury, level: level)
+        follower = RouteFollower(polyline: new.polyline)
+        scheduler = CueScheduler()
+        progress = nil
+        laneStrip = nil; lastLaneCue = nil
+        lastCueText = "New route"
+        rerouteCount += 1
+    }
 
     private func lightsFor(_ cue: Cue, along: Double) -> Int? {
         guard let mid = cue.maneuverId, let m = route.maneuvers.first(where: { $0.id == mid }), m.needsLaneChoice else { return nil }

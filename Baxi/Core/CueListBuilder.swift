@@ -26,10 +26,7 @@ enum CueListBuilder {
         var cues: [Cue] = []
 
         // Speed limits along the route, then changes.
-        let speeds: [(along: Double, mph: Int)] = samples.compactMap { s in
-            wayIndex.nearest(to: s.point, within: speedWayMatchMeters) { $0.maxspeedMph != nil && !$0.isRoundabout }
-                .flatMap { w in w.maxspeedMph.map { (s.alongMeters, $0) } }
-        }
+        let speeds = speedProfile(samples: samples, wayIndex: wayIndex)
         func speed(at along: Double) -> Int? {
             speeds.last { $0.along <= along }?.mph ?? speeds.first?.mph
         }
@@ -211,6 +208,19 @@ enum CueListBuilder {
 
     /// Along-route positions of every traffic light on the route, one per intersection
     /// (OSM often maps a signal node on each approach).
+    /// Posted limits along the route, one entry per 25 m sample that matches a road with a maxspeed tag.
+    static func speedProfile(line: Polyline, cache: OSMCache) -> [(along: Double, mph: Int)] {
+        let wayIndex = GeoIndex(ways: cache.ways.filter { $0.highway != nil && !($0.geometry ?? []).isEmpty })
+        return speedProfile(samples: line.samples(everyMeters: sampleStepMeters), wayIndex: wayIndex)
+    }
+
+    private static func speedProfile(samples: [(alongMeters: Double, point: Coordinate)], wayIndex: GeoIndex) -> [(along: Double, mph: Int)] {
+        samples.compactMap { s in
+            wayIndex.nearest(to: s.point, within: speedWayMatchMeters) { $0.maxspeedMph != nil && !$0.isRoundabout }
+                .flatMap { w in w.maxspeedMph.map { (s.alongMeters, $0) } }
+        }
+    }
+
     static func signalAlongs(line: Polyline, cache: OSMCache) -> [Double] {
         let nodes = cache.nodes.filter { $0.tags["highway"] == "traffic_signals" }.map(\.coordinate)
         return dedupe(onRoute(nodes, line: line, within: signalMatchMeters), within: 40)

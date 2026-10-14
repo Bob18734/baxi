@@ -15,6 +15,37 @@ enum BundledData {
     static func highInjuryNetwork() throws -> HighInjuryNetwork { try load("hin_2026") }
     static func intersectionStudies() throws -> IntersectionStudies { try load("intersection_studies") }
     static func farsCrashes() throws -> FARSCrashes { try load("fars_2023_hamilton") }
+
+    /// The students' briefing notes, keyed by feature kind. Entries still blank are left out.
+    static func briefings() -> [FeatureKind: Briefing] {
+        guard let file: BriefingFile = try? load("briefings") else { return [:] }
+        var out: [FeatureKind: Briefing] = [:]
+        for e in file.entries {
+            guard let kind = FeatureKind(rawValue: e.kind), !e.title.isEmpty, !e.howTo.isEmpty else { continue }
+            out[kind] = e
+        }
+        return out
+    }
+}
+
+/// One entry in Resources/Content/briefings.json. Written by hand by the students, each one citing
+/// the Indiana Driver's Manual by chapter and page.
+struct Briefing: Codable, Equatable {
+    let kind: String
+    let title: String
+    let howTo: String
+    let manualChapter: Int?
+    let manualPage: Int?
+    let quote: String
+
+    var citation: String? {
+        guard let manualChapter, let manualPage else { return nil }
+        return "Indiana Driver's Manual, chapter \(manualChapter), page \(manualPage)"
+    }
+}
+
+struct BriefingFile: Codable {
+    let entries: [Briefing]
 }
 
 struct HighInjuryNetwork: Codable {

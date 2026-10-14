@@ -11,6 +11,7 @@ struct RouteView: View {
     @State private var searching = false
     @State private var session: DriveSession?
     @State private var replaySpeed: Double = 4
+    @State private var showPreview = false
 
     var body: some View {
         NavigationStack {
@@ -41,6 +42,13 @@ struct RouteView: View {
         .onAppear { store.loadCarmelDemo() }
         .fullScreenCover(item: $session) { s in
             DriveView(session: s) { session = nil }
+        }
+        .sheet(isPresented: $showPreview) {
+            if let r = store.route {
+                PreviewView(routeName: r.name, spots: store.hardSpots(), route: r) {
+                    session = store.makeSession(replay: nil)
+                }
+            }
         }
     }
 
@@ -90,6 +98,10 @@ struct RouteView: View {
             if let err = store.routeError { Text(err).font(.footnote).foregroundStyle(.red) }
             if let r = store.route {
                 Text(summary(r)).font(.footnote).foregroundStyle(.secondary)
+                Button { showPreview = true } label: {
+                    Label("Preview the hard spots", systemImage: "binoculars.fill").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered).controlSize(.large)
                 HStack {
                     Button { session = store.makeSession(replay: nil) } label: {
                         Label("Start drive", systemImage: "car.fill").frame(maxWidth: .infinity)

@@ -10,7 +10,8 @@ struct DriveView: View {
     var onClose: () -> Void
     @Environment(\.modelContext) private var context
     @State private var camera: MapCameraPosition = .automatic
-    @State private var saved = false
+    @State private var saved: DriveRecord?
+    @State private var didSave = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -18,16 +19,31 @@ struct DriveView: View {
             VStack(spacing: 10) {
                 instructionCard
                 if !session.lastCueText.isEmpty { saidBanner }
+                HStack(alignment: .top) {
+                    if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph) }
+                    Spacer()
+                    if let alert = session.activeAlert { alertChip(alert) }
+                }
                 Spacer()
                 bottomBar
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .onAppear { session.start(); follow() }
+        .onAppear {
+            // The phone is mounted for the whole drive, so the screen must not lock.
+            UIApplication.shared.isIdleTimerDisabled = true
+            session.start(); follow()
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            if !session.isFinished { session.end() }
+        }
         .onChange(of: session.position) { _, _ in follow() }
         .onChange(of: session.isFinished) { _, done in if done { save() } }
-        .sheet(isPresented: .constant(session.isFinished)) { arrived }
+        .sheet(isPresented: .constant(session.isFinished)) {
+            ArrivedView(session: session, record: saved, onDone: onClose)
+        }
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
     }
@@ -113,6 +129,7 @@ struct DriveView: View {
             Image(systemName: session.progress?.isOffRoute == true ? "exclamationmark.triangle.fill" : "speaker.wave.2.fill")
             Text(session.lastCueText).font(.headline).lineLimit(2)
             Spacer(minLength: 0)
+            if session.isRerouting { ProgressView() }
         }
         .padding(12)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -139,38 +156,29 @@ struct DriveView: View {
         }
     }
 
-    // MARK: Arrived
-
-    private var arrived: some View {
-        NavigationStack {
-            List {
-                Section {
-                    LabeledContent("Route", value: session.route.name)
-                    LabeledContent("Time", value: "\(Int(session.minutes.rounded())) min")
-                    LabeledContent("Distance", value: Self.distance(session.progress?.alongMeters ?? 0))
-                    LabeledContent("Cues spoken", value: "\(session.spokenLog.count)")
-                }
-                Section("What Baxi said") {
-                    ForEach(Array(session.spokenLog.enumerated()), id: \.offset) { _, e in
-                        Text(e.text).font(.callout)
-                    }
-                }
-            }
-            .navigationTitle("Arrived")
-            .toolbar { Button("Done") { onClose() } }
-        }
-        .interactiveDismissDisabled()
+    private func alertChip(_ cue: Cue) -> some View {
+        Label(cue.kind == .schoolZone ? "School zone" : "Crash-heavy road",
+              systemImage: cue.kind == .schoolZone ? "figure.walk" : "exclamationmark.triangle.fill")
+            .font(.headline)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(cue.kind == .schoolZone ? Color.yellow : Color.orange, in: Capsule())
+            .foregroundStyle(.black)
     }
 
+    // MARK: Save
+
     private func save() {
-        guard !saved else { return }
-        saved = true
-        let mins = Int(session.minutes.rounded())
+        guard !didSave else { return }
+        didSave = true
+        let end = session.endedAt ?? Date()
         // A replay is a demo, not a supervised drive, so it never counts toward the 50 hours.
-        guard session.mode == .live, mins > 0 else { return }
-        context.insert(DriveRecord(start: session.startedAt, end: Date(), dayMinutes: mins, nightMinutes: 0,
-                                   level: session.level, routeTitle: session.route.name,
-                                   distanceMeters: session.progress?.alongMeters ?? 0, cuesSpoken: session.spokenLog.count))
+        guard session.mode == .live, end.timeIntervalSince(session.startedAt) >= 60 else { return }
+        let split = Daylight.split(start: session.startedAt, end: end, at: session.startCoordinate ?? AppStore.carmelDemoHome)
+        let record = DriveRecord(start: session.startedAt, end: end, dayMinutes: split.day, nightMinutes: split.night,
+                                 level: session.level, routeTitle: session.route.name,
+                                 distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count)
+        context.insert(record)
+        saved = record
     }
 
     // MARK: Formatting
@@ -217,5 +225,22 @@ struct LaneStripView: View {
             }
         }
         .accessibilityLabel("Lane \(strip.highlighted.first.map { $0 + 1 } ?? 0) of \(strip.laneCount)")
+    }
+}
+
+/// A US-style speed limit sign, readable at a glance.
+struct SpeedLimitSign: View {
+    let mph: Int
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("SPEED\nLIMIT").font(.system(size: 10, weight: .heavy)).multilineTextAlignment(.center)
+            Text("\(mph)").font(.system(size: 28, weight: .heavy)).monospacedDigit()
+        }
+        .foregroundStyle(.black)
+        .frame(width: 58, height: 70)
+        .background(.white, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).inset(by: 3).stroke(.black, lineWidth: 2))
+        .shadow(radius: 4)
+        .accessibilityLabel("Speed limit \(mph)")
     }
 }

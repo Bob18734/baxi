@@ -50,6 +50,13 @@ final class AppStore {
         catch { routeError = "No route found: \(error.localizedDescription)" }
     }
 
+    /// The hard spots on the chosen route, for the Preview screen.
+    func hardSpots() -> [HardSpot] {
+        guard let route, let cache else { return [] }
+        let cues = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
+        return HardSpots.find(route: route, cues: cues, features: features)
+    }
+
     func makeSession(replay: Double?) -> DriveSession? {
         guard let route, let cache else { return nil }
         return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,

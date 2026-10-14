@@ -5,8 +5,7 @@ struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
 
-    private var dayMinutes: Int { drives.map(\.dayMinutes).reduce(0, +) }
-    private var nightMinutes: Int { drives.map(\.nightMinutes).reduce(0, +) }
+    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
 
     var body: some View {
         @Bindable var store = store
@@ -27,8 +26,8 @@ struct HomeView: View {
 
                 Section {
                     HStack(spacing: 24) {
-                        ProgressRing(title: "Day", value: dayMinutes, goal: 40 * 60)
-                        ProgressRing(title: "Night", value: nightMinutes, goal: 10 * 60)
+                        ProgressRing(title: "Total", value: totals.minutes, goal: DriveLog.requiredMinutes)
+                        ProgressRing(title: "Night", value: totals.nightMinutes, goal: DriveLog.requiredNightMinutes)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)

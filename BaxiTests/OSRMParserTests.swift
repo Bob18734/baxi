@@ -65,3 +65,18 @@ struct OSRMParserTests {
         }
     }
 }
+
+struct HardSpotTests {
+    @Test func highwayPresetPreviewHasRampsAndARoundaboutInOrder() throws {
+        let cache = try BundledData.carmelCache()
+        let features = FeatureExtractor.extract(from: cache)
+        let r = try RouteService.preset("preset_highway")
+        let cues = CueListBuilder.build(route: r, cache: cache, features: features)
+        let spots = HardSpots.find(route: r, cues: cues, features: features)
+        #expect(spots.contains { $0.kind == .ramp })
+        #expect(spots.contains { $0.kind == .roundabout && $0.title.contains("exit") })
+        #expect(spots.map(\.alongMeters) == spots.map(\.alongMeters).sorted())
+        #expect(spots.allSatisfy { !$0.spoken.isEmpty && !$0.spoken.contains("{") })
+        #expect(Set(spots.map(\.id)).count == spots.count)
+    }
+}

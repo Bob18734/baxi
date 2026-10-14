@@ -40,7 +40,7 @@ struct DriveSessionTests {
         #expect(s.isFinished)
         #expect(abs(s.drivenMeters - s.route.polyline.lengthMeters) < 20)
         #expect(s.passedManeuvers.count == s.route.maneuvers.filter { $0.alongMeters > 0 && $0.kind != .arrive }.count)
-        #expect(said.last?.text == "You have arrived")
+        #expect(said.last?.text == "You've arrived")
         #expect(said.allSatisfy { !$0.text.contains("{") && !$0.text.contains("}") })
 
         // Every roundabout's exit is announced before the car reaches it.

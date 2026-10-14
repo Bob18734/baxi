@@ -46,11 +46,13 @@ enum CueListBuilder {
                 let runEnd = speeds[i...].firstIndex { $0.mph != speeds[i].mph } ?? speeds.count
                 if runEnd - i >= 10 || runEnd == speeds.count {
                     let from = speeds[runStart].mph, to = speeds[i].mph
-                    let verb = to < from ? "drops to" : "goes up to"
-                    cues.append(Cue(id: "speed-\(Int(speeds[i].along))", kind: .speedChange, targetMeters: speeds[i].along,
-                                    spokenTemplate: "Speed limit \(verb) \(to) in a quarter mile",
-                                    cardTemplate: "Speed limit \(verb) \(to)", laneStrip: nil,
-                                    roadSpeedMph: from, maneuverId: nil))
+                    // Only a drop is spoken: it asks the driver to do something. A rise shows on the sign.
+                    if to < from {
+                        cues.append(Cue(id: "speed-\(Int(speeds[i].along))", kind: .speedChange, targetMeters: speeds[i].along,
+                                        spokenTemplate: "Speed limit drops to \(to) ahead",
+                                        cardTemplate: "Speed limit drops to \(to)", laneStrip: nil,
+                                        roadSpeedMph: from, maneuverId: nil))
+                    }
                     runStart = i
                 }
                 i = max(i + 1, runEnd)
@@ -71,40 +73,42 @@ enum CueListBuilder {
                 let onto = m.roadName.map { " onto \($0)" } ?? ""
                 let what: String
                 switch (m.kind, dir) {
-                case (.offRamp, _): what = "Take the exit on the \(dir.sideWord), slow down on the ramp, not before"
-                case (_, .uturn): what = "Make a U-turn ahead"
+                case (.offRamp, _): what = "Take the exit on the \(dir.sideWord)"
+                case (_, .uturn): what = "Make a U-turn"
                 case (_, .straight): what = "Continue straight\(onto)"
                 case (.fork, _): what = "Keep \(dir.sideWord)\(onto)"
                 default: what = "Turn \(dir.spokenWord)\(onto)"
                 }
-                var spokenWhat = what
+                var spokenWhat = "{in}" + what.prefix(1).lowercased() + what.dropFirst()
+                if m.kind == .offRamp { spokenWhat += ". Slow down once you're on the ramp" }
                 if m.kind == .turn, i + 1 < route.maneuvers.count {
                     let next = route.maneuvers[i + 1]
                     if next.kind == .turn, next.alongMeters - m.alongMeters < chainedTurnMeters,
                        let nd = next.direction, nd != .straight, nd != .uturn {
-                        spokenWhat += ", then right away turn \(nd.spokenWord)"
+                        spokenWhat += ", then an immediate \(nd.spokenWord)"
                         chained.insert(next.id)
                     }
                 }
                 let lane = laneCue(for: m, direction: dir, line: line, wayIndex: wayIndex, features: features, mph: mph)
                 // Said again with the turn, in case the early lane cue was too close to the last maneuver to fire.
-                if let label = lane?.laneLabel, m.kind != .offRamp { spokenWhat += ", from \(LanePicker.spoken(label))" }
+                if let label = lane?.laneLabel, m.kind != .offRamp { spokenWhat += ". Use \(LanePicker.spoken(label))" }
                 cues.append(Cue(id: "turn-\(m.id)", kind: .turn, targetMeters: m.alongMeters,
                                 spokenTemplate: spokenWhat, cardTemplate: what, laneStrip: lane?.laneStrip, roadSpeedMph: mph, maneuverId: m.id))
                 if let cue = lane?.cue { cues.append(cue) }
             case .roundabout where m.exitNumber == nil:
                 // The router gave no exit number: say nothing it cannot back up (no exit, no lane).
                 cues.append(Cue(id: "rb-\(m.id)", kind: .roundabout, targetMeters: m.alongMeters,
-                                spokenTemplate: "Roundabout ahead, yield to traffic already inside, then follow the map to your exit",
+                                spokenTemplate: "{in}roundabout. Yield to traffic inside, then follow the map to your exit",
                                 cardTemplate: "Roundabout: follow the map", laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
             case .roundabout:
                 let exit = m.exitNumber ?? 1
                 let lanes = roundabout(near: m, features: features)?.lanes ?? 1
                 let lane = laneCue(for: m, direction: m.direction ?? .straight, line: line, wayIndex: wayIndex, features: features, mph: mph)
-                var spoken = "Roundabout ahead, take the \(ordinal(exit)) exit"
-                if let adviceLabel = lane?.laneLabel { spoken += ", stay in \(LanePicker.spoken(adviceLabel))" }
-                else if lanes >= 2 { spoken += ", either lane" }
-                if lanes >= 2 { spoken += ". Pick your lane now, no lane changes inside" }
+                var spoken = "{in}at the roundabout, take the \(ordinal(exit)) exit"
+                if let adviceLabel = lane?.laneLabel { spoken += ". Use \(LanePicker.spoken(adviceLabel))" }
+                else if lanes >= 2 { spoken += ". Either lane works" }
+                // "No lane changes inside" is said at the first two-lane roundabout of a drive (DriveSession).
+                if lanes >= 2 { spoken += "{reminder}" }
                 let card = "Roundabout: \(ordinal(exit)) exit" + (lane?.laneLabel.map { ", \($0)" } ?? "")
                 cues.append(Cue(id: "rb-\(m.id)", kind: .roundabout, targetMeters: m.alongMeters,
                                 spokenTemplate: spoken, cardTemplate: card, laneStrip: lane?.laneStrip,
@@ -112,8 +116,8 @@ enum CueListBuilder {
                 if let cue = lane?.cue { cues.append(cue) }
             case .merge, .onRamp:
                 let text = m.kind == .onRamp
-                    ? "Ramp ahead on the \((m.direction ?? .right).sideWord), speed up on the ramp to match traffic"
-                    : "Merge ahead, match the speed of traffic, then merge when there is a gap"
+                    ? "{in}take the ramp on the \((m.direction ?? .right).sideWord). Speed up on it to match traffic"
+                    : "{in}merge. Match the speed of traffic, then find a gap"
                 cues.append(Cue(id: "ramp-\(m.id)", kind: .ramp, targetMeters: m.alongMeters,
                                 spokenTemplate: text, cardTemplate: m.kind == .onRamp ? "Ramp: speed up to match traffic" : "Merge: match speed, find a gap",
                                 laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
@@ -137,19 +141,19 @@ enum CueListBuilder {
             // Past the last turn there is nothing to count down to; the light still shows on the map.
             guard let next = nextLaneManeuver(after: along) else { continue }
             cues.append(Cue(id: "signal-\(Int(along))", kind: .signal, targetMeters: along,
-                            spokenTemplate: "{lights} to go", cardTemplate: "{lights} to your turn", laneStrip: nil,
+                            spokenTemplate: "{lights}", cardTemplate: "{lights}", laneStrip: nil,
                             roadSpeedMph: speed(at: along), maneuverId: next.id))
         }
         // Railroad crossings (OpenStreetMap railway=level_crossing on the road).
         let crossings = cache.nodes.filter { $0.tags["railway"] == "level_crossing" }.map(\.coordinate)
         for along in dedupe(onRoute(crossings, line: line, within: railMatchMeters), within: 80) {
             cues.append(Cue(id: "rail-\(Int(along))", kind: .railroad, targetMeters: along,
-                            spokenTemplate: "Railroad crossing ahead. Slow down, look and listen both ways",
+                            spokenTemplate: "Railroad crossing ahead. Look and listen both ways",
                             cardTemplate: "Railroad crossing", laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
         }
         for along in dedupe(onRoute(stopNodes.map(\.coordinate), line: line, within: stopMatchMeters), within: stopPairMeters) {
             cues.append(Cue(id: "stop-\(Int(along))", kind: .stopSign, targetMeters: along,
-                            spokenTemplate: "Stop sign at the next street, come to a complete stop",
+                            spokenTemplate: "Stop sign ahead",
                             cardTemplate: "Stop sign ahead", laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
         }
 
@@ -158,7 +162,7 @@ enum CueListBuilder {
             if let s = samples.first(where: { Geo.distanceMeters($0.point, school.coordinate) <= schoolMatchMeters }) {
                 let name = school.name.map { " near \($0)" } ?? ""
                 cues.append(Cue(id: "school-\(school.id)", kind: .schoolZone, targetMeters: s.alongMeters,
-                                spokenTemplate: "School zone ahead\(name), slow down when children are present",
+                                spokenTemplate: "School zone ahead\(name). Slow down when kids are around",
                                 cardTemplate: "School zone\(name)", laneStrip: nil,
                                 roadSpeedMph: speed(at: s.alongMeters), maneuverId: nil))
             }
@@ -177,7 +181,7 @@ enum CueListBuilder {
             let name = seg.route ?? "this road"
             let fatal = Int(seg.fatalCrashes ?? 0), serious = Int(seg.seriousInjuryCrashes ?? 0)
             cues.append(Cue(id: "hin-\(seg.id)", kind: .crashCorridor, targetMeters: first.alongMeters,
-                            spokenTemplate: "Crash-heavy stretch on \(name) for the next \(milesPhrase(lengthM)), hold your speed and keep your distance",
+                            spokenTemplate: "The next \(milesPhrase(lengthM)) of \(name) has a lot of crashes. Keep your distance",
                             cardTemplate: "\(name): \(fatal) fatal, \(serious) serious-injury crashes (MPO High Injury Network 2026)",
                             laneStrip: nil, roadSpeedMph: speed(at: first.alongMeters), maneuverId: nil))
         }
@@ -190,7 +194,7 @@ enum CueListBuilder {
             for along in line.passes(near: at, within: studyMatchMeters) {
                 let fatal = Int(study.fatal ?? 0), serious = Int(study.incapacitating ?? 0)
                 cues.append(Cue(id: "study-\(study.id)-\(Int(along))", kind: .crashCorridor, targetMeters: along,
-                                spokenTemplate: "Crash-heavy intersection ahead at \(Self.spokenPlace(name)), watch for cross traffic and turning cars",
+                                spokenTemplate: "Crash-heavy intersection ahead at \(Self.spokenPlace(name)). Watch for turning cars",
                                 cardTemplate: "\(name): \(fatal) fatal, \(serious) serious-injury crashes (MPO safety study)",
                                 laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
             }
@@ -251,7 +255,7 @@ enum CueListBuilder {
         default: "for your turn"
         }
         let cue = Cue(id: "lane-\(m.id)", kind: .laneChange, targetMeters: m.alongMeters,
-                      spokenTemplate: "Move to \(LanePicker.spoken(advice.laneLabel)) now \(what){lightsClause}",
+                      spokenTemplate: "Get in \(LanePicker.spoken(advice.laneLabel)) \(what){lightsClause}{ahead}",
                       cardTemplate: "\(advice.laneLabel.prefix(1).uppercased() + advice.laneLabel.dropFirst()) now{lightsClause}", laneStrip: strip,
                       roadSpeedMph: mph, maneuverId: m.id)
         return (advice.laneLabel, strip, cue)

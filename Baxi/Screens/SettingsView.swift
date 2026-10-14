@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Speaker.rateKey) private var rate = 1.0
+    @AppStorage(DriveSession.detailKey) private var detail = "everything"
     @State private var speaker: Speaker?
 
     var body: some View {
@@ -23,6 +24,11 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("Baxi says", selection: $detail) {
+                        Text("Everything").tag("everything")
+                        Text("Just directions").tag("directions")
+                    }
+                    LabeledContent("Voice", value: Speaker.voiceDescription.name)
                     VStack(alignment: .leading, spacing: BaxiSpace.sm) {
                         HStack {
                             Text("Speaking speed")
@@ -42,7 +48,9 @@ struct SettingsView: View {
                 } header: {
                     Text("Voice")
                 } footer: {
-                    Text("For a clearer voice, download an Enhanced English voice in Settings > Accessibility > Spoken Content > Voices.")
+                    Text(Speaker.voiceDescription.isBasic
+                         ? "This is the basic voice. For a far more natural one, download Ava (Premium) in the iPhone's Settings > Accessibility > Spoken Content > Voices > English, then reopen Baxi."
+                         : "\"Just directions\" leaves out speed, school, stop-sign, crash and low-sun lines; the screen still shows them.")
                 }
 
                 Section("About") {

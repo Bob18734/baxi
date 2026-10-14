@@ -71,7 +71,9 @@ struct CueListBuilderTests {
         #expect(lane?.laneStrip?.laneCount == 3)
         #expect(lane?.laneStrip?.labels == ["←", "↑", "↑→"])
         let turn = Self.cues.first { $0.kind == .turn }
-        #expect(turn?.spokenTemplate == "Turn right onto Main St, from the right lane")
+        #expect(turn?.spokenTemplate == "{in}turn right onto Main St. Use the right lane")
+        #expect(turn?.spoken(lights: nil, metersAway: 400) == "In a quarter mile, turn right onto Main St. Use the right lane")
+        #expect(turn?.spoken(lights: nil, metersAway: 60) == "Turn right onto Main St. Use the right lane")
     }
 
     @Test func speedChangeSchoolStopAndArriveArePlaced() {
@@ -87,10 +89,12 @@ struct CueListBuilderTests {
 
     @Test func placeholdersFill() {
         let lane = Self.cues.first { $0.kind == .laneChange }!
-        #expect(lane.spoken(lights: 2) == "Move to the right lane now for your turn, your turn is in 2 lights")
-        #expect(lane.spoken(lights: nil) == "Move to the right lane now for your turn")
+        #expect(lane.spoken(lights: 2) == "Get in the right lane for your turn. It's at the second light")
+        #expect(lane.spoken(lights: nil, metersAway: 800) == "Get in the right lane for your turn, half a mile ahead")
+        #expect(lane.spoken(lights: nil) == "Get in the right lane for your turn")
         let signal = Self.cues.first { $0.kind == .signal }!
-        #expect(signal.spoken(lights: 1) == "1 light to go")
-        #expect(signal.spoken(lights: 0) == "Last light, your turn is next")
+        #expect(signal.spoken(lights: 2) == "2 more lights")
+        #expect(signal.spoken(lights: 1) == "One more light")
+        #expect(signal.spoken(lights: 0) == "That's the last light. Your turn is next")
     }
 }

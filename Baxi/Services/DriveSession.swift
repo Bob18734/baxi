@@ -24,6 +24,18 @@ final class DriveSession {
     /// 0 at the start of the active zone, 1 where the driver must be in the lane.
     var laneZoneProgress: Double { activeLaneZone.map { LaneZones.progress($0, at: progress?.alongMeters ?? 0) } ?? 0 }
 
+    /// "Just directions" (Settings > Voice): only what to do at each turn, lane, roundabout, ramp, railroad
+    /// crossing and arrival. Speed, school, stop-sign, crash and glare lines are left out; the screen still shows them.
+    static let detailKey = "voiceDetail"
+    static func filtered(_ cues: [Cue]) -> [Cue] {
+        guard UserDefaults.standard.string(forKey: detailKey) == "directions" else { return cues }
+        let quiet: Set<CueKind> = [.speedChange, .schoolZone, .stopSign, .crashCorridor, .glare]
+        return cues.map { c in
+            guard quiet.contains(c.kind) else { return c }
+            var c = c; c.fireAtMeters = nil; return c
+        }
+    }
+
     private func rebuildLaneZones() {
         laneZones = LaneZones.build(cues: cues, route: route)
         laneZoneCoordinates = Dictionary(uniqueKeysWithValues: laneZones.map {
@@ -101,7 +113,7 @@ final class DriveSession {
         startCoordinate = route.polyline.points.first
         let p = prep.flatMap { $0.routeId == route.id ? $0 : nil }
             ?? RoutePrep.make(route: route, cache: cache, features: features, highInjury: highInjury)
-        (cues, signals, speeds) = (p.planned(for: level, route: route), p.signals, p.speeds)
+        (cues, signals, speeds) = (Self.filtered(p.planned(for: level, route: route)), p.signals, p.speeds)
         follower = RouteFollower(polyline: route.polyline)
         rebuildLaneZones()
         position = route.polyline.points.first
@@ -151,9 +163,9 @@ final class DriveSession {
         let from = progress?.alongMeters ?? 0
         let glare = CueScheduler.plan(SunGlare.cues(SunGlare.stretches(route: route, start: startedAt, from: from), speeds: speeds),
                                       level: level, maneuverTargets: RoutePrep.boundaries(route))
-        cues += glare
+        cues += Self.filtered(glare)
         for c in glare where (c.fireAtMeters ?? 0) < from { scheduler.markFired(c.id) }
-        speaker.say("Starting \(route.name). The driver keeps hands on the wheel, I will call everything out.")
+        speaker.say("Here we go. I'll tell you about each turn early.")
         if let weatherLine { speaker.say(weatherLine); spokenLog.append((0, weatherLine)) }
         switch mode {
         case .replay(let mult): startReplay(multiplier: mult)
@@ -281,7 +293,7 @@ final class DriveSession {
         if p.isOffRoute {
             if lastCueText != "Off the route" {
                 lastCueText = "Off the route"
-                speaker.say("You are off the route. Keep driving safely, I am finding a new way.")
+                speaker.say("You're off the route. Keep driving, I'm finding a new way.")
             }
             if mode == .live, !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
@@ -300,12 +312,17 @@ final class DriveSession {
 
         if let cue = scheduler.due(from: cues, alongMeters: p.alongMeters, now: time) {
             let lights = lightsFor(cue, along: p.alongMeters)
-            let spoken = cue.spoken(lights: lights)
+            var spoken = cue.spoken(lights: lights, metersAway: cue.targetMeters - p.alongMeters)
+            if cue.spokenTemplate.contains("{reminder}"), !saidRoundaboutReminder {
+                // Once per drive, at the first two-lane roundabout.
+                saidRoundaboutReminder = true
+                spoken += ". No lane changes inside the roundabout"
+            }
             lastCue = cue
             lastCueText = cue.card(lights: lights)
             if let s = cue.laneStrip { laneStrip = s; lastLaneCue = cue }
             spokenLog.append((p.alongMeters, spoken))
-            speaker.say(spoken)
+            speaker.say(spoken, chime: true)
             // The line as actually said (light counts filled in), at the voice speed the user chose, on the
             // session clock (a replay at 4x runs the clock 4 times faster than the voice).
             let rate = UserDefaults.standard.object(forKey: Speaker.rateKey) as? Double ?? 1
@@ -321,8 +338,8 @@ final class DriveSession {
             arrivalCreditMeters = max(0, destination - p.alongMeters)
             passedAlong = destination
             lastCueText = "Arrived"
-            spokenLog.append((p.alongMeters, "You have arrived"))
-            speaker.say("You have arrived")
+            spokenLog.append((p.alongMeters, "You've arrived"))
+            speaker.say("You've arrived", chime: true)
             end(stopSpeech: false)
         }
         previousAlong = p.alongMeters
@@ -330,6 +347,7 @@ final class DriveSession {
 
     static let arrivalMeters = 30.0
     private var lastLaneCue: Cue?
+    private var saidRoundaboutReminder = false
     private var previousAlong = 0.0
     private var saidGetToStart = false
 
@@ -373,7 +391,7 @@ final class DriveSession {
         route = new
         let p = prep.flatMap { $0.routeId == new.id ? $0 : nil }
             ?? RoutePrep.make(route: new, cache: cache, features: features, highInjury: highInjury)
-        (cues, signals, speeds) = (p.planned(for: level, route: new), p.signals, p.speeds)
+        (cues, signals, speeds) = (Self.filtered(p.planned(for: level, route: new)), p.signals, p.speeds)
         rebuildLaneZones()
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()

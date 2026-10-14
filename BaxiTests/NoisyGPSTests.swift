@@ -121,9 +121,18 @@ struct NoisyGPSTests {
         // comes due with a maneuver, which goes first depends on the second each fix lands.
         // Light countdowns and the "destination is just ahead" heads-up depend on timing and are left out:
         // a car stopped at a light has time for a countdown a car rolling through does not.
-        func optional(_ s: String) -> Bool { s.hasSuffix("to go") || s.hasPrefix("Last light") || s.hasPrefix("Your destination") }
+        func optional(_ s: String) -> Bool { s.hasSuffix("more lights") || s == "One more light" || s.hasPrefix("That's the last light") || s.hasPrefix("Your destination") }
         func isAdvisory(_ s: String) -> Bool { s.hasPrefix("Speed limit") || s.hasPrefix("School zone") || s.hasPrefix("Stop sign") || s.hasPrefix("Crash-heavy") }
-        let must = noisy.filter { !optional($0) && !isAdvisory($0) }, expected = clean.filter { !optional($0) && !isAdvisory($0) }
+        // "In a quarter mile" versus "In 1,000 feet" depends on exactly where a fix lands, so the distance
+        // phrase is set aside; the instruction itself must match word for word.
+        func instruction(_ s: String) -> String {
+            let d = "(500 feet|1,000 feet|a quarter mile|half a mile|three quarters of a mile|a mile|2 miles)"
+            let t = s.replacingOccurrences(of: "^In \(d), ", with: "", options: .regularExpression)
+                .replacingOccurrences(of: ", \(d) ahead$", with: "", options: .regularExpression)
+            return t.prefix(1).uppercased() + t.dropFirst()
+        }
+        let must = noisy.filter { !optional($0) && !isAdvisory($0) }.map(instruction)
+        let expected = clean.filter { !optional($0) && !isAdvisory($0) }.map(instruction)
         #expect(must == expected, "\(zip(must, expected).first { $0 != $1 }.map { "noisy: \($0.0)\nclean: \($0.1)" } ?? "lengths \(must.count) vs \(expected.count)")")
         #expect(noisy.filter(isAdvisory).sorted() == clean.filter(isAdvisory).sorted())
     }

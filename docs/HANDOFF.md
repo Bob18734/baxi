@@ -12,4 +12,4 @@ Next, in order:
    the cards filling the panel and the route overview camera. Not yet seen: the refit when switching
    routes by tapping a card (needs a click), and pins stacking on out-and-back roads (roundabout loop
    pins 1-7 sit under 15-21).
-3. Update the plan doc's day table; then wait on signing to test on the iPhone.
+3. Done: plan doc's Oct 14 row updated. Now waiting on signing to test on the iPhone.

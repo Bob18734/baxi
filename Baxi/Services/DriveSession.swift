@@ -17,7 +17,7 @@ final class DriveSession {
     private var speeds: [(along: Double, mph: Int)]
     private var follower: RouteFollower
     private var scheduler = CueScheduler()
-    private let speaker = Speaker()
+    private let speaker: SpeechOutput
     private let cache: OSMCache
     private let features: [RoadFeature]
     private let highInjury: HighInjuryNetwork?
@@ -52,7 +52,8 @@ final class DriveSession {
     }
 
     init(route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?,
-         level: ExperienceLevel, mode: Mode) {
+         level: ExperienceLevel, mode: Mode, speaker: SpeechOutput = Speaker()) {
+        self.speaker = speaker
         self.route = route
         self.level = level
         self.mode = mode
@@ -152,6 +153,20 @@ final class DriveSession {
         heading = route.polyline.bearing(atMeters: replayMeters) ?? heading
         for cue in cues where cue.targetMeters < replayMeters { scheduler.markFired(cue.id) }
         position = c
+    }
+
+    /// Drives the whole route at once, no timer: a fix every `step` meters at the replay speed.
+    /// For tests and the transcript tool (`swift run baxi-transcript`). Returns what was spoken.
+    @discardableResult
+    func simulateWholeRoute(step: Double = 5) -> [(meters: Double, text: String)] {
+        var meters = 0.0, t = 0.0
+        while !isFinished && meters < route.polyline.lengthMeters {
+            meters = min(route.polyline.lengthMeters, meters + step)
+            t += step / replaySpeed(at: meters)
+            if let c = route.polyline.coordinate(atMeters: meters) { feed(c, at: t) }
+        }
+        if !isFinished { end() }
+        return spokenLog
     }
 
     private func replaySpeed(at meters: Double) -> Double {

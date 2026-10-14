@@ -4,7 +4,7 @@ import Foundation
 /// meters along the route. Built once before the drive. CueScheduler decides when each fires.
 enum CueListBuilder {
     static let signalMatchMeters = 20.0
-    static let stopMatchMeters = 15.0
+    static let stopMatchMeters = 4.0
     static let laneWayMatchMeters = 20.0
     static let speedWayMatchMeters = 15.0
     static let schoolMatchMeters = 150.0
@@ -13,6 +13,10 @@ enum CueListBuilder {
     static let sampleStepMeters = 25.0
     /// A signal this close to a turn is that turn's own light.
     static let turnLightMeters = 30.0
+    static let chainedTurnMeters = 60.0
+    /// Two stop signs this close on the route are the two sides of one intersection; the second
+    /// one faces oncoming traffic, so only the first is ours.
+    static let stopPairMeters = 60.0
 
     static func build(route: PlannedRoute, cache: OSMCache, features: [RoadFeature],
                       highInjury: HighInjuryNetwork? = nil) -> [Cue] {
@@ -33,9 +37,10 @@ enum CueListBuilder {
         var runStart = 0, i = 1
         while i < speeds.count {
             if speeds[i].mph != speeds[runStart].mph {
-                // A change counts when the new limit holds for at least 100 m (4 samples).
+                // A change counts when the new limit holds for at least 250 m (10 samples), so a short
+                // advisory tag on a roundabout approach does not produce "drops to 15" then "goes up to 35".
                 let runEnd = speeds[i...].firstIndex { $0.mph != speeds[i].mph } ?? speeds.count
-                if runEnd - i >= 4 || runEnd == speeds.count {
+                if runEnd - i >= 10 || runEnd == speeds.count {
                     let from = speeds[runStart].mph, to = speeds[i].mph
                     let verb = to < from ? "drops to" : "goes up to"
                     cues.append(Cue(id: "speed-\(Int(speeds[i].along))", kind: .speedChange, targetMeters: speeds[i].along,
@@ -48,8 +53,12 @@ enum CueListBuilder {
             } else { i += 1 }
         }
 
-        // Maneuvers: turns, roundabouts, ramps, lane cues, arrive.
-        for m in route.maneuvers {
+        // Maneuvers: turns, roundabouts, ramps, lane cues, arrive. Two turns closer than
+        // chainedTurnMeters become one line ("Turn left, then right away turn right"), since there is
+        // no time to say the second one after the first.
+        var chained: Set<Int> = []
+        for (i, m) in route.maneuvers.enumerated() {
+            if chained.contains(m.id) { continue }
             // The approach speed: 30 m before the maneuver, so a limit that changes at the corner does not win.
             let mph = speed(at: max(0, m.alongMeters - 30))
             switch m.kind {
@@ -63,8 +72,17 @@ enum CueListBuilder {
                 case (_, .straight): what = "Continue straight\(onto)"
                 default: what = "Turn \(dir.spokenWord)\(onto)"
                 }
+                var spokenWhat = what
+                if m.kind == .turn, i + 1 < route.maneuvers.count {
+                    let next = route.maneuvers[i + 1]
+                    if next.kind == .turn, next.alongMeters - m.alongMeters < chainedTurnMeters,
+                       let nd = next.direction, nd != .straight, nd != .uturn {
+                        spokenWhat += ", then right away turn \(nd.spokenWord)"
+                        chained.insert(next.id)
+                    }
+                }
                 cues.append(Cue(id: "turn-\(m.id)", kind: .turn, targetMeters: m.alongMeters,
-                                spokenTemplate: what, cardTemplate: what, laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
+                                spokenTemplate: spokenWhat, cardTemplate: what, laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
                 if let lane = laneCue(for: m, direction: dir, line: line, wayIndex: wayIndex, features: features, mph: mph) {
                     cues.append(lane.cue)
                 }
@@ -112,7 +130,7 @@ enum CueListBuilder {
                             spokenTemplate: "{lights} to go", cardTemplate: "{lights} to your turn", laneStrip: nil,
                             roadSpeedMph: speed(at: along), maneuverId: next?.id))
         }
-        for along in dedupe(onRoute(stopNodes.map(\.coordinate), line: line, within: stopMatchMeters), within: 30) {
+        for along in dedupe(onRoute(stopNodes.map(\.coordinate), line: line, within: stopMatchMeters), within: stopPairMeters) {
             cues.append(Cue(id: "stop-\(Int(along))", kind: .stopSign, targetMeters: along,
                             spokenTemplate: "Stop sign at the next street, come to a complete stop",
                             cardTemplate: "Stop sign ahead", laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
@@ -179,7 +197,12 @@ enum CueListBuilder {
             strip = LaneStrip(laneCount: count, highlighted: valid, labels: Array(repeating: "", count: count))
         }
         guard let advice, advice.laneCount > 1 else { return nil }
-        let what = m.kind == .roundabout ? "for the roundabout" : "for your turn"
+        let what = switch m.kind {
+        case .roundabout: "for the roundabout"
+        case .offRamp: "for your exit"
+        case .fork: "for the fork"
+        default: "for your turn"
+        }
         let cue = Cue(id: "lane-\(m.id)", kind: .laneChange, targetMeters: m.alongMeters,
                       spokenTemplate: "Move to the \(advice.laneLabel) now \(what){lightsClause}",
                       cardTemplate: "\(advice.laneLabel.capitalized) now{lightsClause}", laneStrip: strip,

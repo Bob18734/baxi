@@ -11,9 +11,15 @@ let package = Package(
             name: "Baxi",
             path: "Baxi",
             exclude: ["App", "Screens", "Info.plist", "Resources/Assets.xcassets", "Resources/Content",
-                      "Services/DriveSession.swift", "Services/Speaker.swift"],
+                      ],
             sources: ["Core", "Models", "Services"],
             resources: [.process("Resources/Data"), .process("Resources/Routes")],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "baxi-transcript",
+            dependencies: ["Baxi"],
+            path: "Tools/transcript",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

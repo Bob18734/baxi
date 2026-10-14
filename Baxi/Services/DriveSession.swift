@@ -225,18 +225,21 @@ final class DriveSession {
 
     // MARK: Reroute (live drives only)
 
-    /// Asks for a new route from where the car is to the same destination, then swaps it in.
+    /// Asks for a way from where the car is back onto the planned route (a little ahead of where it
+    /// left, or its start if the drive has not reached it yet), then swaps in approach + rest of route.
     /// Retries at most every 30 s. Replays never go off the route, so they never get here.
     private func reroute(from location: Coordinate, at time: TimeInterval) {
-        guard let destination = route.polyline.points.last else { return }
+        let original = route
+        let rejoin = original.rejoinMeters(leftAt: progress?.alongMeters ?? 0)
+        guard let target = original.polyline.coordinate(atMeters: rejoin) else { return }
         isRerouting = true
         lastRerouteAttempt = time
-        let name = route.name
         Task { @MainActor [weak self] in
-            let new = try? await RouteService.route(from: location, to: destination, name: name)
+            let approach = try? await RouteService.route(from: location, to: target, name: original.name)
             guard let self, !self.isFinished else { return }
             self.isRerouting = false
-            guard let new else { return }
+            guard let approach else { return }
+            let new = original.rejoined(by: approach, at: rejoin)
             self.install(new)
             self.speaker.say("New route. \(new.maneuvers.first { $0.kind != .depart }?.instruction ?? "Follow the line on the map").")
         }

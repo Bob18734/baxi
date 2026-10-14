@@ -11,6 +11,7 @@ struct RouteView: View {
     @State private var searching = false
     @State private var replaySpeed: Double = 4
     @State private var showPreview = false
+    @State private var startAfterPreview = false
 
     var body: some View {
         NavigationStack {
@@ -39,11 +40,12 @@ struct RouteView: View {
             }
         }
         .onAppear { store.loadCarmelDemo() }
-        .sheet(isPresented: $showPreview) {
+        .sheet(isPresented: $showPreview, onDismiss: {
+            // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
+            if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
+        }) {
             if let r = store.route {
-                PreviewView(routeName: r.name, spots: store.hardSpots(), route: r) {
-                    store.activeSession = store.makeSession(replay: nil)
-                }
+                PreviewView(routeName: r.name, spots: store.hardSpots(), route: r) { startAfterPreview = true }
             }
         }
     }

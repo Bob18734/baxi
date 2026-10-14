@@ -66,6 +66,17 @@ struct DriveView: View {
         Map(position: $camera, interactionModes: []) {
             MapPolyline(coordinates: session.routeCoordinates)
                 .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
+            // Where to change lanes, in the lane strip's yellow: from the lane cue to "be in the lane by here".
+            ForEach(zonesAhead) { z in
+                if let line = session.laneZoneCoordinates[z.id], line.count > 1 {
+                    // A dark edge under the yellow, so it stands out on Apple Maps' own yellow freeways.
+                    MapPolyline(coordinates: line)
+                        .stroke(BaxiColor.signInk, style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round))
+                    MapPolyline(coordinates: line)
+                        .stroke(BaxiColor.warning, style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round))
+                    Annotation("", coordinate: line[line.count - 1]) { InLaneMarker(zone: z) }
+                }
+            }
             if traveled.count > 1 {
                 MapPolyline(coordinates: traveled)
                     .stroke(.gray.opacity(0.75), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
@@ -87,7 +98,7 @@ struct DriveView: View {
                 }
             }
         }
-        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll)) // 3D freeways would cover the route and lane zones
         .ignoresSafeArea()
     }
 
@@ -105,10 +116,18 @@ struct DriveView: View {
         return Array(line.points.prefix(upTo + 1)) + [end]
     }
 
+    /// Lane zones not yet passed and within 3 km, so the map is not cluttered with the whole route's.
+    private var zonesAhead: [LaneZone] {
+        let along = session.progress?.alongMeters ?? 0
+        return session.laneZones.filter { $0.endMeters > along && $0.startMeters < along + 3_000 }
+    }
+
     private func follow() {
         guard let p = session.position else { return }
+        // Closer while changing lanes, so the yellow stretch and its end marker are easy to read.
+        let distance: Double = session.activeLaneZone == nil ? 700 : 420
         withAnimation(.linear(duration: 0.25)) {
-            camera = .camera(MapCamera(centerCoordinate: p.clLocation, distance: 700, heading: session.heading, pitch: 50))
+            camera = .camera(MapCamera(centerCoordinate: p.clLocation, distance: distance, heading: session.heading, pitch: 50))
         }
     }
 
@@ -169,7 +188,11 @@ private struct ManeuverSign: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            if let strip = session.laneStrip {
+            if let zone = session.activeLaneZone {
+                LaneChangePanel(zone: zone, progress: session.laneZoneProgress,
+                                metersLeft: zone.endMeters - (session.progress?.alongMeters ?? zone.startMeters))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            } else if let strip = session.laneStrip {
                 LaneStripView(strip: strip).transition(.move(edge: .top).combined(with: .opacity))
             }
             HStack(alignment: .center, spacing: BaxiSpace.md) {
@@ -199,6 +222,7 @@ private struct ManeuverSign: View {
         .signPanel(radius: BaxiRadius.xl, deep: night)
         .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
         .animation(.snappy, value: session.laneStrip)
+        .animation(.snappy, value: session.activeLaneZone?.id)
         .animation(.snappy, value: session.nextManeuver?.id)
     }
 }
@@ -289,6 +313,107 @@ private struct DriveBottomBar: View {
             }
             .accessibilityLabel("End drive")
         }
+    }
+}
+
+/// While the car is in a lane zone: the lanes as seen from above, the lane to be in lit yellow, chevrons
+/// in the other lanes sweeping toward it, and a bar for the room left to make the change. The lane lines
+/// are dashed while changing is fine and turn solid at "be in the lane by here", as they do on the road.
+private struct LaneChangePanel: View {
+    let zone: LaneZone
+    let progress: Double
+    let metersLeft: Double
+    @State private var sweep = false
+
+    private var committed: Bool { metersLeft <= 0 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(committed ? "Stay in this lane" : zone.instruction).font(BaxiFont.signFace(22))
+                Spacer(minLength: BaxiSpace.sm)
+                if !committed {
+                    Text("\(DriveView.distance(metersLeft)) to do it").font(BaxiFont.signFace(14, weight: "Bold"))
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: Int(metersLeft / 15))
+                }
+            }
+            road
+            // Room left to change lanes: full at the start of the zone, empty at the end.
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(BaxiColor.onSign.opacity(0.18))
+                    Capsule().fill(BaxiColor.warning).frame(width: max(6, geo.size.width * (1 - progress)))
+                        .opacity(committed ? 0 : 1)
+                }
+            }
+            .frame(height: 6)
+        }
+        .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: false)) { sweep = true } }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(committed ? "Stay in this lane" : "\(zone.instruction), \(DriveView.distance(metersLeft)) left to do it. "
+                            + LaneStripView.spoken(zone.strip))
+    }
+
+    private var road: some View {
+        let s = zone.strip
+        let lit = Set(s.highlighted)
+        return HStack(spacing: 0) {
+            ForEach(0..<s.laneCount, id: \.self) { i in
+                ZStack {
+                    Rectangle().fill(lit.contains(i) ? BaxiColor.warning : BaxiColor.onSign.opacity(0.10))
+                    LaneArrows(label: i < s.labels.count ? s.labels[i] : "", size: 22)
+                        .foregroundStyle(lit.contains(i) ? BaxiColor.signInk : BaxiColor.onSign.opacity(0.5))
+                    if !lit.contains(i) && !committed, let toward = direction(from: i, lit: lit) {
+                        Image(systemName: toward > 0 ? "chevron.right.2" : "chevron.left.2")
+                            .font(BaxiFont.headline.weight(.heavy))
+                            .foregroundStyle(BaxiColor.warning)
+                            .offset(x: sweep ? CGFloat(toward) * 18 : CGFloat(-toward) * 10)
+                            .opacity(sweep ? 0.15 : 1)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                if i < s.laneCount - 1 {
+                    LaneLine(solid: committed).frame(width: 3)
+                }
+            }
+        }
+        .frame(height: 58)
+        .clipShape(RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous))
+    }
+
+    /// +1 when the lane to be in is to the right of lane `i`, -1 when to the left.
+    private func direction(from i: Int, lit: Set<Int>) -> Int? {
+        guard let lo = lit.min(), let hi = lit.max() else { return nil }
+        return i < lo ? 1 : (i > hi ? -1 : nil)
+    }
+}
+
+/// A lane line: dashed where changing lanes is allowed, solid where it is not.
+private struct LaneLine: View {
+    let solid: Bool
+    var body: some View {
+        GeometryReader { geo in
+            Path { p in p.move(to: CGPoint(x: geo.size.width / 2, y: 0)); p.addLine(to: CGPoint(x: geo.size.width / 2, y: geo.size.height)) }
+                .stroke(BaxiColor.onSign, style: StrokeStyle(lineWidth: geo.size.width, dash: solid ? [] : [9, 7]))
+        }
+    }
+}
+
+/// Where the lane change must be done: a yellow tab at the end of the zone on the map.
+private struct InLaneMarker: View {
+    let zone: LaneZone
+    var body: some View {
+        HStack(spacing: BaxiSpace.xs) {
+            Image(systemName: zone.side == .left ? "arrow.left.to.line" : zone.side == .right ? "arrow.right.to.line" : "arrow.up.to.line")
+            Text(zone.laneLabel.map { "In the \($0)" } ?? "In lane")
+        }
+        .font(BaxiFont.caption.weight(.bold))
+        .foregroundStyle(BaxiColor.signInk)
+        .padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
+        .background(BaxiColor.warning, in: Capsule())
+        .overlay(Capsule().stroke(.white, lineWidth: 2))
+        .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
     }
 }
 

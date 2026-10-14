@@ -12,6 +12,22 @@ final class DriveSession {
     private(set) var route: PlannedRoute { didSet { routeCoordinates = route.polyline.points.map(\.clLocation) } }
     /// The route line for the map, converted once per route rather than on every location fix.
     private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
+    /// Where to change lanes on this route, for the map and the lane panel. Rebuilt with the cues.
+    private(set) var laneZones: [LaneZone] = []
+    /// Each zone's stretch of road, ready for the map (built once, not on every fix).
+    private(set) var laneZoneCoordinates: [String: [CLLocationCoordinate2D]] = [:]
+
+    /// The lane zone the car is in or about to enter.
+    var activeLaneZone: LaneZone? { LaneZones.active(laneZones, at: progress?.alongMeters ?? -1_000) }
+    /// 0 at the start of the active zone, 1 where the driver must be in the lane.
+    var laneZoneProgress: Double { activeLaneZone.map { LaneZones.progress($0, at: progress?.alongMeters ?? 0) } ?? 0 }
+
+    private func rebuildLaneZones() {
+        laneZones = LaneZones.build(cues: cues, route: route)
+        laneZoneCoordinates = Dictionary(uniqueKeysWithValues: laneZones.map {
+            ($0.id, route.polyline.slice(from: $0.startMeters, to: $0.endMeters).map(\.clLocation))
+        })
+    }
     let level: ExperienceLevel
     let mode: Mode
     private(set) var cues: [Cue]
@@ -85,6 +101,7 @@ final class DriveSession {
             ?? RoutePrep.make(route: route, cache: cache, features: features, highInjury: highInjury)
         (cues, signals, speeds) = (p.planned(for: level, route: route), p.signals, p.speeds)
         follower = RouteFollower(polyline: route.polyline)
+        rebuildLaneZones()
         position = route.polyline.points.first
     }
 
@@ -348,6 +365,7 @@ final class DriveSession {
         let p = prep.flatMap { $0.routeId == new.id ? $0 : nil }
             ?? RoutePrep.make(route: new, cache: cache, features: features, highInjury: highInjury)
         (cues, signals, speeds) = (p.planned(for: level, route: new), p.signals, p.speeds)
+        rebuildLaneZones()
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()
         progress = nil

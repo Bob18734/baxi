@@ -45,6 +45,13 @@ struct RouteView: View {
             if let r = store.route {
                 MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
                     .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                // Where to change lanes, as on the Drive screen.
+                ForEach(store.laneZones, id: \.zone.id) { z in
+                    MapPolyline(coordinates: z.line)
+                        .stroke(BaxiColor.signInk, style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .round))
+                    MapPolyline(coordinates: z.line)
+                        .stroke(BaxiColor.warning, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+                }
                 ForEach(Array(spots.enumerated()), id: \.element.id) { i, spot in
                     Annotation(spot.title, coordinate: spot.location.clLocation) {
                         SpotPin(number: i + 1, kind: spot.kind)
@@ -241,7 +248,8 @@ private struct RouteFacts: View {
                 HStack(spacing: BaxiSpace.md) { facts }
                 VStack(alignment: .leading, spacing: BaxiSpace.xs) { facts }
             }
-            Text(route.source == "apple" ? "Apple directions: no lane data on this route." : "Lanes and roundabout exits from OpenStreetMap.")
+            Text(route.source == "apple" ? "Apple directions: no lane data on this route."
+                 : "Yellow on the map: where to change lanes. Lanes and roundabout exits from OpenStreetMap.")
                 .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
         }
     }

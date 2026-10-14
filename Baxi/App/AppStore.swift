@@ -117,6 +117,20 @@ final class AppStore {
         }.value
     }
 
+    /// Where to change lanes on the chosen route at the current level, with each zone's stretch of road,
+    /// for the Routes map. Empty until the route's prep is built.
+    var laneZones: [(zone: LaneZone, line: [CLLocationCoordinate2D])] {
+        guard let route, let prep, prep.routeId == route.id else { return [] }
+        let key = "\(route.id)|\(level.rawValue)"
+        if let cached = zoneCache, cached.key == key { return cached.zones }
+        let zones = LaneZones.build(cues: prep.planned(for: level, route: route), route: route).map {
+            (zone: $0, line: route.polyline.slice(from: $0.startMeters, to: $0.endMeters).map(\.clLocation))
+        }
+        zoneCache = (key, zones)
+        return zones
+    }
+    @ObservationIgnored private var zoneCache: (key: String, zones: [(zone: LaneZone, line: [CLLocationCoordinate2D])])?
+
     /// The hard spots on the chosen route, for the Preview screen. Empty until the route's prep is built.
     func hardSpots() -> [HardSpot] {
         guard let route, let prep, prep.routeId == route.id else { return [] }

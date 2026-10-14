@@ -22,6 +22,43 @@ enum RouteService {
 
     static let osrmBase = "https://router.project-osrm.org/route/v1/driving/"
 
+    /// A route to choose, with how much of it is on fast, busy roads (nil when the router did not say).
+    struct Option: Identifiable {
+        let route: PlannedRoute
+        let fastMeters: Double?
+        var id: String { route.id }
+    }
+
+    /// The fastest route plus OSRM's alternatives, for offering a calmer one; Apple directions alone if
+    /// OSRM fails.
+    static func options(from a: Coordinate, to b: Coordinate, name: String) async throws -> [Option] {
+        do {
+            let coords = "\(a.lon),\(a.lat);\(b.lon),\(b.lat)"
+            var req = URLRequest(url: URL(string: osrmBase + coords
+                + "?overview=full&geometries=geojson&steps=true&alternatives=2&annotations=speed,distance")!)
+            req.timeoutInterval = 15
+            req.setValue("baxi-cac-2026/0.1", forHTTPHeaderField: "User-Agent")
+            let (data, _) = try await URLSession.shared.data(for: req)
+            let all = try OSRMParser.parseAll(data, name: name)
+            guard !all.isEmpty else { throw OSRMParser.ParseError.noRoute }
+            return all.map { Option(route: $0.route, fastMeters: $0.fastMeters) }
+        } catch {
+            return [Option(route: try await apple(from: a, to: b, name: name), fastMeters: nil)]
+        }
+    }
+
+    /// The option to offer as calmer: at least 800 m less on fast roads than the fastest, and no more
+    /// than 30% slower. nil when no alternative is meaningfully calmer.
+    static func calmer(in options: [Option]) -> Option? {
+        guard let fastest = options.first, let fastestFast = fastest.fastMeters else { return nil }
+        return options.dropFirst()
+            .filter { o in
+                guard let f = o.fastMeters else { return false }
+                return f <= fastestFast - 800 && o.route.durationSeconds <= fastest.route.durationSeconds * 1.3
+            }
+            .min { ($0.fastMeters ?? 0) < ($1.fastMeters ?? 0) }
+    }
+
     static func route(from a: Coordinate, to b: Coordinate, name: String) async throws -> PlannedRoute {
         do {
             return try await osrm(from: a, to: b, name: name)

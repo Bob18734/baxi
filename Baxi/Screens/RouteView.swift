@@ -130,6 +130,13 @@ struct RouteView: View {
     }
 
     @ViewBuilder private func selected(_ r: PlannedRoute) -> some View {
+        if let calmerId = store.calmerOptionId, let fastest = store.routeOptions.first,
+           let calmer = store.routeOptions.first(where: { $0.id == calmerId }) {
+            HStack(spacing: BaxiSpace.sm) {
+                RouteChoice(title: "Fastest", option: fastest, selected: r.id == fastest.id) { switchTo(fastest.id) }
+                RouteChoice(title: "Calmer", option: calmer, selected: r.id == calmer.id) { switchTo(calmer.id) }
+            }
+        }
         RouteFacts(route: r, spots: spots)
         if let w = store.weather { WeatherLine(weather: w) }
         if let note = store.roadDataNote {
@@ -178,6 +185,10 @@ struct RouteView: View {
                 }
             }
         }
+    }
+
+    private func switchTo(_ id: String) {
+        Task { routing = true; await store.chooseOption(id); routing = false }
     }
 
     /// Built in the background with the route's cues; empty for a moment after a route is picked.
@@ -306,6 +317,32 @@ private struct WeatherLine: View {
             Label(weather.summary, systemImage: symbol).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// One of the two route choices: its time and how much of it is on roads posted 45 mph or more.
+private struct RouteChoice: View {
+    let title: String
+    let option: RouteService.Option
+    let selected: Bool
+    var choose: () -> Void
+
+    var body: some View {
+        Button(action: choose) {
+            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                Text(title).font(BaxiFont.bodyBold)
+                Text("\(Int((option.route.durationSeconds / 60).rounded())) min").font(BaxiFont.footnote.weight(.semibold))
+                if let fast = option.fastMeters {
+                    Text(String(format: "%.1f mi at 45+ mph", fast / 1609.34)).font(BaxiFont.caption)
+                }
+            }
+            .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(BaxiSpace.md)
+            .background(selected ? BaxiColor.sign : BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

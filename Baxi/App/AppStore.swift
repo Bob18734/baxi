@@ -105,7 +105,7 @@ final class AppStore {
     }
 
     func choosePreset(_ id: String) {
-        do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil }
+        do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
         catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
         refreshPrep()
     }
@@ -123,30 +123,49 @@ final class AppStore {
         return cache.map { ($0, features) }
     }
 
+    /// The fastest route and, when one exists, a calmer one (less on fast, busy roads), for a searched
+    /// destination. Empty for presets.
+    private(set) var routeOptions: [RouteService.Option] = []
+    private(set) var calmerOptionId: String?
+
     func routeTo(_ destination: Coordinate, name: String) async {
         await ensureLoaded()
-        defer { refreshPrep() }
         do {
-            let found = try await RouteService.route(from: home ?? Self.carmelDemoHome, to: destination, name: name)
+            let options = try await RouteService.options(from: home ?? Self.carmelDemoHome, to: destination, name: name)
             routeError = nil
-            roadDataNote = nil
-            // Lanes, roundabouts, lights and limits along this route, from OpenStreetMap, before the drive.
-            isFetchingRoads = true
-            if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
-                let merged = OverpassService.combine(base, corridor)
-                let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
-                routeRoads = (found.id, merged, f)
-            } else {
-                roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
-                    + "Turn-by-turn still works."
-            }
-            isFetchingRoads = false
-            route = found
-        }
-        catch {
+            routeOptions = options
+            let calmer = RouteService.calmer(in: options)
+            calmerOptionId = calmer?.id
+            // New drivers start on the calmer route; everyone can switch.
+            let pick = (level == .new ? calmer : nil) ?? options[0]
+            await use(pick.route)
+        } catch {
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
             print("Routing failed: \(error)")
         }
+    }
+
+    /// Switches between the fastest and the calmer route.
+    func chooseOption(_ id: String) async {
+        guard let o = routeOptions.first(where: { $0.id == id }), o.id != route?.id else { return }
+        await use(o.route)
+    }
+
+    /// Makes `found` the route: downloads its road data from OpenStreetMap first, then builds its prep.
+    private func use(_ found: PlannedRoute) async {
+        roadDataNote = nil
+        isFetchingRoads = true
+        if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
+            let merged = OverpassService.combine(base, corridor)
+            let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
+            routeRoads = (found.id, merged, f)
+        } else {
+            roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
+                + "Turn-by-turn still works."
+        }
+        isFetchingRoads = false
+        route = found
+        refreshPrep()
     }
 
     /// The skills each preset route contains, for suggesting what to drive next. Built in the background

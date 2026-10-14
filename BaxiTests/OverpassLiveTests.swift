@@ -5,6 +5,17 @@ import Testing
 /// Live network check of the Overpass corridor fetch. Skipped unless BAXI_LIVE=1, so `swift test` stays offline.
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["BAXI_LIVE"] != nil, "set BAXI_LIVE=1 to hit Overpass"))
 struct OverpassLiveTests {
+    @Test func routeOptionsMeasureFastRoads() async throws {
+        let opts = try await RouteService.options(from: Coordinate(lat: 39.9765, lon: -86.1281),
+                                                  to: Coordinate(lat: 39.9077, lon: -86.1080), name: "Fashion Mall")
+        for o in opts {
+            print("LIVE option: \(Int(o.route.durationSeconds / 60)) min, \(String(format: "%.1f", o.route.distanceMeters / 1609.34)) mi,",
+                  "\(o.fastMeters.map { String(format: "%.1f", $0 / 1609.34) } ?? "?") mi at 45+")
+        }
+        if let c = RouteService.calmer(in: opts) { print("LIVE calmer: \(Int(c.route.durationSeconds / 60)) min") } else { print("LIVE no calmer option") }
+        #expect(!opts.isEmpty && opts[0].fastMeters != nil)
+    }
+
     @Test func carmelWeatherFromTheNationalWeatherService() async throws {
         let w = try await WeatherService.weather(at: Coordinate(lat: 39.9765, lon: -86.1281))
         print("LIVE weather: \(w.summary), \(w.condition), alerts \(w.alerts), spoken: \(w.spoken ?? "nothing")")
@@ -75,5 +86,22 @@ struct WeatherParseTests {
                       {"properties": {"event": "Wind Advisory", "severity": "Minor"}}]}
         """#
         #expect(try WeatherService.alertNames(Data(json.utf8)) == ["Winter Storm Warning", "Wind Advisory"])
+    }
+}
+
+struct CalmerRouteTests {
+    func option(_ minutes: Double, fastMiles: Double?) -> RouteService.Option {
+        RouteService.Option(route: PlannedRoute(id: UUID().uuidString, name: "r", polyline: TestRoute.line, maneuvers: [],
+                                                distanceMeters: 2000, durationSeconds: minutes * 60, source: "osrm"),
+                            fastMeters: fastMiles.map { $0 * 1609.34 })
+    }
+
+    @Test func calmerMustBeMeaningfullyCalmerAndNotMuchSlower() {
+        let fastest = option(14, fastMiles: 3.6)
+        #expect(RouteService.calmer(in: [fastest, option(14, fastMiles: 3.1)]) == nil)          // 0.5 mi: not enough
+        let calm = option(17, fastMiles: 0.4)
+        #expect(RouteService.calmer(in: [fastest, calm])?.id == calm.id)                        // 3 min longer, 3.2 mi less
+        #expect(RouteService.calmer(in: [fastest, option(25, fastMiles: 0)]) == nil)             // 79% slower
+        #expect(RouteService.calmer(in: [option(14, fastMiles: nil), calm]) == nil)              // fastest unmeasured
     }
 }

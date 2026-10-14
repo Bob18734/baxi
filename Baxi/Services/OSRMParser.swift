@@ -19,7 +19,9 @@ enum OSRMParser {
         let legs: [Leg]
     }
     private struct Geometry: Decodable { let coordinates: [[Double]] }
-    private struct Leg: Decodable { let steps: [Step] }
+    private struct Leg: Decodable { let steps: [Step]; let annotation: Annotation? }
+    /// Per-segment values when requested with annotations=speed,distance.
+    private struct Annotation: Decodable { let speed: [Double]?; let distance: [Double]? }
     private struct Step: Decodable {
         let distance: Double
         let name: String?
@@ -38,10 +40,31 @@ enum OSRMParser {
     }
     private struct Lane: Decodable { let valid: Bool; let indications: [String] }
 
-    static func parse(_ data: Data, id: String? = nil, name: String? = nil, source: String = "osrm") throws -> PlannedRoute {
+    /// Roads posted 45 mph or more: highways and fast arterials, the busy roads. OSRM's car profile
+    /// expects about 80% of the posted limit (Keystone Parkway, posted 50, comes back as 18.5 m/s on
+    /// Oct 14, 2026), so 45 mph posted is about 16 m/s here.
+    static let fastMetersPerSecond = 16.0
+
+    /// Every route in the response (the first is OSRM's fastest; more when asked for alternatives), each
+    /// with its meters at 45 mph or more when the response carries speed annotations.
+    static func parseAll(_ data: Data, name: String) throws -> [(route: PlannedRoute, fastMeters: Double?)] {
         let r = try JSONDecoder().decode(Response.self, from: data)
         guard r.code == "Ok" else { throw ParseError.notOk(r.message ?? r.code) }
-        guard let route = r.routes?.first else { throw ParseError.noRoute }
+        return try (r.routes ?? []).indices.map { i in
+            let route = try parse(data, index: i, id: UUID().uuidString, name: name)
+            let fast: Double? = r.routes![i].legs.reduce(Optional(0.0)) { total, leg in
+                guard let total, let s = leg.annotation?.speed, let d = leg.annotation?.distance, s.count == d.count else { return nil }
+                return total + zip(s, d).filter { $0.0 >= fastMetersPerSecond }.map(\.1).reduce(0, +)
+            }
+            return (route, fast)
+        }
+    }
+
+    static func parse(_ data: Data, index: Int = 0, id: String? = nil, name: String? = nil, source: String = "osrm") throws -> PlannedRoute {
+        let r = try JSONDecoder().decode(Response.self, from: data)
+        guard r.code == "Ok" else { throw ParseError.notOk(r.message ?? r.code) }
+        guard let routes = r.routes, index < routes.count else { throw ParseError.noRoute }
+        let route = routes[index]
 
         let line = Polyline(route.geometry.coordinates.compactMap { $0.count >= 2 ? Coordinate(lat: $0[1], lon: $0[0]) : nil })
         // OSRM's step distances and our haversine length differ by a fraction of a percent; scale to match.

@@ -5,7 +5,7 @@ enum BundledData {
     enum LoadError: Error { case missing(String) }
 
     static func load<T: Decodable>(_ name: String, as type: T.Type = T.self) throws -> T {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "json") else {
+        guard let url = Bundle.baxi.url(forResource: name, withExtension: "json") else {
             throw LoadError.missing(name)
         }
         return try JSONDecoder().decode(T.self, from: Data(contentsOf: url))
@@ -70,4 +70,15 @@ struct FARSCrashes: Codable {
     }
     let source: String
     let crashes: [Crash]
+}
+
+extension Bundle {
+    /// The app bundle, or the resource bundle when the logic is built by Package.swift for Mac tests.
+    static var baxi: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }
 }

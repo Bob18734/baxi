@@ -9,3 +9,6 @@ build/
 # Raw downloads are rebuilt by scripts/; the bundled JSON in Baxi/Resources/Data is committed.
 data/raw/*.zip
 data/raw/FARS*/
+.build/
+.swiftpm/
+Package.resolved

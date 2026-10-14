@@ -16,7 +16,7 @@ enum RouteService {
     ]
 
     static func preset(_ id: String) throws -> PlannedRoute {
-        guard let url = Bundle.main.url(forResource: id, withExtension: "json") else { throw BundledData.LoadError.missing(id) }
+        guard let url = Bundle.baxi.url(forResource: id, withExtension: "json") else { throw BundledData.LoadError.missing(id) }
         return try OSRMParser.parse(Data(contentsOf: url), source: "preset")
     }
 

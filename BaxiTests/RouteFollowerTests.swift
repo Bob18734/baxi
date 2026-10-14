@@ -76,6 +76,16 @@ struct RouteFollowerTests {
         #expect(!back.isOffRoute)
         #expect(abs(back.alongMeters - 900) < 1.5)
     }
+
+    @Test func rejoiningBehindDoesNotRewindProgress() {
+        let f = RouteFollower(polyline: TestRoute.line)
+        _ = f.update(location: TestRoute.point(metersEast: 500), at: 0)
+        _ = f.update(location: TestRoute.point(metersEast: 500, metersNorth: 100), at: 1)
+        _ = f.update(location: TestRoute.point(metersEast: 400, metersNorth: 100), at: 12)
+        let back = f.update(location: TestRoute.point(metersEast: 300), at: 20)!
+        #expect(!back.isOffRoute)
+        #expect(abs(back.alongMeters - 500) < 2)
+    }
 }
 
 struct GPXTests {

@@ -1,4 +1,11 @@
-# Where the build stopped (Oct 14, 12:15 pm)
+# Latest handoff: Oct 14 implementation audit
+
+See [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) for the repo-backed feature inventory,
+reliability fixes, verification and ordered next steps. Student modules and manual briefings are
+still incomplete; `python3 scripts/check-readiness.py` reports these separately from passing logic
+tests. The official-form export is also still pending. Codex changes are local and await student review.
+
+## Earlier handoff (Oct 14, 12:15 pm)
 
 Committed and pushed: the full redesign (Baxi/Design, every screen), the Mac screenshot harness,
 design lint, DESIGN.md, SHIP-CHECKLIST.md, the DriveSession distance fix, explicit SwiftData saves,

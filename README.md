@@ -5,7 +5,8 @@ teen with a learner's permit what to do, early enough to stay calm: which lane t
 mile early; how many traffic lights until the turn; which roundabout exit and which lane; where the
 speed limit drops; where the crash-heavy corridors are. Before the drive, a preview shows the hardest
 spots as Look Around imagery with the rule from the Indiana Driver's Manual. Every drive logs toward
-the 50 supervised hours (10 at night) the BMV requires, exporting the official State Form 54706.
+the 50 supervised hours (10 at night) the BMV requires. The current export is a summary PDF and CSV;
+filling the official State Form 54706 is still planned.
 
 Built for the 2026 Congressional App Challenge, Indiana's 5th District, by Vardaan Goel and [partner].
 
@@ -39,6 +40,11 @@ checks that every screen uses the design tokens.
 Tests: `swift test` in the repo root runs every logic test on the Mac, no Simulator needed
 (`Package.swift` builds only the Core, Models and data services). Product > Test in Xcode runs the same
 files. The student-module tests live in `BaxiTests/` and are skipped until each module is written.
+
+Current implementation gaps and the next work are tracked in [docs/IMPLEMENTATION-STATUS.md](docs/IMPLEMENTATION-STATUS.md).
+Run `python3 scripts/check-readiness.py` to check the four student implementation flags and required
+briefing entries. It currently exits with status 1 because that work is incomplete. A passing logic
+suite alone does not mean the student modules or driving guidance are ready.
 
 ## Data
 
@@ -79,5 +85,6 @@ questions a judge is likely to ask. `swift run baxi-transcript` prints everythin
 
 ## AI disclosure
 
-See [AI_DISCLOSURE.md](AI_DISCLOSURE.md). The four modules listed there are written by the students
-without AI; everything else was built with Claude Code and reviewed by us.
+See [AI_DISCLOSURE.md](AI_DISCLOSURE.md). The four modules listed there are reserved for the students
+and currently contain AI scaffolding. The surrounding app was built with Claude Code; Codex has
+also implemented the reliability fixes and checks recorded in the disclosure. Student review is pending.

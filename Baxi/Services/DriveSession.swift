@@ -134,6 +134,7 @@ final class DriveSession {
 
     /// `stopSpeech` is false on arrival, so "You have arrived" is heard to the end.
     func end(stopSpeech: Bool = true) {
+        guard !isFinished else { return }
         replayTimer?.invalidate(); replayTimer = nil
         locationDelegate?.manager.stopUpdatingLocation(); locationDelegate = nil
         if stopSpeech { speaker.stop() }
@@ -234,7 +235,7 @@ final class DriveSession {
             passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= p.alongMeters }
         }
         passedAlong = max(passedAlong, p.alongMeters)
-        position = p.isOffRoute ? location : p.snapped
+        position = p.crossTrackMeters > RouteFollower.offRouteMeters ? location : p.snapped
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading
 
         if p.isOffRoute {
@@ -245,6 +246,10 @@ final class DriveSession {
             if mode == .live, !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
         }
+
+        // The timeout filters GPS noise before declaring a missed route. It does not make
+        // instructions on the old line valid while the car is already away from that line.
+        guard p.crossTrackMeters <= RouteFollower.offRouteMeters else { return }
 
         if lastCueText == "Off the route" { lastCueText = "" }
 
@@ -292,13 +297,20 @@ final class DriveSession {
         }
     }
 
-    private func install(_ new: PlannedRoute) {
-        metersBeforeReroute += progress?.alongMeters ?? 0
+    /// Replace the route while retaining completed distance, not its untraveled starting offset.
+    /// Internal so tests can exercise reroute transitions without a network request.
+    func install(_ new: PlannedRoute) {
+        guard !isFinished else { return }
+        metersBeforeReroute = drivenMeters
+        firstAlongMeters = nil
+        passedAlong = 0
+        previousAlong = 0
         route = new
         (cues, signals, speeds) = Self.prepare(new, cache: cache, features: features, highInjury: highInjury, level: level)
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()
         progress = nil
+        lastCue = nil
         laneStrip = nil; lastLaneCue = nil
         lastCueText = "New route"
         rerouteCount += 1

@@ -53,10 +53,10 @@ final class RouteFollower {
 
         // Back on the line.
         offRouteSince = nil
-        let wasOffRoute = isOffRoute
         isOffRoute = false
-        // Forward only, unless we just re-found the route somewhere else.
-        alongMeters = wasOffRoute ? p.alongMeters : max(alongMeters, p.alongMeters)
+        // Returning behind the previous fix must not rewind distance or re-count maneuvers.
+        // A newly installed route gets its own follower and starts its own progress at zero.
+        alongMeters = max(alongMeters, p.alongMeters)
         lastSegment = p.segmentIndex
         return RouteProgress(alongMeters: alongMeters, crossTrackMeters: p.crossTrackMeters,
                              segmentIndex: p.segmentIndex, snapped: p.point,

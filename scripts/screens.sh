@@ -17,10 +17,10 @@ else shift; fi
 shoot() { # name, args...
   local name="$1"; shift
   rm -f "$OUT/$name.png"
-  "$APP/Contents/MacOS/Baxi" --phone-window --snap "$PWD/$OUT/$name.png" "$@" >/dev/null 2>&1 &
-  local pid=$!
+  # -g opens it behind your other windows so it never takes focus; the app quits after its snapshot.
+  open -g -n "$APP" --args --phone-window --snap "$PWD/$OUT/$name.png" "$@"
   for _ in $(seq 1 40); do [ -f "$OUT/$name.png" ] && break; sleep 0.5; done
-  kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
+  sleep 1; pkill -f "$APP/Contents/MacOS/Baxi" 2>/dev/null || true
   [ -f "$OUT/$name.png" ] && echo "shot $name" || echo "MISSING $name"
 }
 if [ $# -ge 1 ]; then shoot "$@"; exit; fi

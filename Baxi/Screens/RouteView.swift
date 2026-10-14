@@ -68,7 +68,10 @@ struct RouteView: View {
         }
         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
         .onChange(of: store.route) { _, r in
-            if let r { withAnimation(.smooth) { camera = Self.overview(r) } }
+            // .automatic again is no change to SwiftUI, so step through the route's region first.
+            guard let r else { return }
+            withAnimation(.smooth) { camera = .region(Self.region(r)) }
+            Task { await Task.yield(); withAnimation(.smooth) { camera = Self.overview(r) } }
         }
     }
 
@@ -90,6 +93,7 @@ struct RouteView: View {
                     .padding(.horizontal, BaxiSpace.page)
                 }
                 .padding(.horizontal, -BaxiSpace.page)
+                .fixedSize(horizontal: false, vertical: true) // otherwise the row grows to fill the screen
                 .onAppear { if let id = store.route?.id { reader.scrollTo(id, anchor: .center) } }
                 .onChange(of: store.route?.id) { _, id in if let id { withAnimation { reader.scrollTo(id, anchor: .center) } } }
             }
@@ -169,18 +173,14 @@ struct RouteView: View {
         results = (try? await MKLocalSearch(request: req).start().mapItems) ?? []
     }
 
-    /// A top-down camera over the whole route, leaving room for the panel at the bottom.
-    static func overview(_ r: PlannedRoute) -> MapCameraPosition {
-        let box = rect(for: r.polyline.points)
-        let center = MKMapPoint(x: box.midX, y: box.midY + box.height * 0.18).coordinate
-        let meters = max(box.width, box.height) * MKMetersPerMapPointAtLatitude(center.latitude)
-        return .camera(MapCamera(centerCoordinate: center, distance: meters * 2.4, heading: 0, pitch: 0))
-    }
+    /// Fits the route line and its pins in the part of the map the panel leaves visible.
+    static func overview(_ r: PlannedRoute) -> MapCameraPosition { .automatic }
 
-    static func rect(for pts: [Coordinate]) -> MKMapRect {
-        let rects = pts.map { MKMapRect(origin: MKMapPoint($0.clLocation), size: MKMapSize(width: 1, height: 1)) }
-        let r = rects.reduce(MKMapRect.null) { $0.union($1) }
-        return r.insetBy(dx: -r.width * 0.12, dy: -r.height * 0.15)
+    static func region(_ r: PlannedRoute) -> MKCoordinateRegion {
+        let rect = r.polyline.points.reduce(MKMapRect.null) {
+            $0.union(MKMapRect(origin: MKMapPoint($1.clLocation), size: MKMapSize(width: 1, height: 1)))
+        }
+        return MKCoordinateRegion(rect)
     }
 }
 
@@ -194,13 +194,11 @@ private struct PresetCard: View {
         Button(action: choose) {
             VStack(alignment: .leading, spacing: BaxiSpace.xs) {
                 Text(preset.name).font(BaxiFont.headline)
-                Text(preset.summary).font(BaxiFont.caption).lineLimit(2).opacity(selected ? 0.9 : 1)
+                // Two lines reserved so every card is the same height.
+                Text(preset.summary).font(BaxiFont.caption).lineLimit(2, reservesSpace: true).opacity(selected ? 0.9 : 1)
                     .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
             }
             .frame(width: 220, alignment: .topLeading)
-            .frame(minHeight: 60, alignment: .topLeading)
             .padding(.vertical, BaxiSpace.md)
             .padding(.horizontal, BaxiSpace.lg)
             .modifier(PresetBackground(selected: selected))

@@ -33,16 +33,28 @@ enum Geo {
 
     /// Distance from p to the segment ab using a local flat projection.
     static func distanceMeters(from p: Coordinate, toSegment a: Coordinate, _ b: Coordinate) -> Double {
+        projectOntoSegment(p, a, b).distanceMeters
+    }
+
+    /// Projects p onto the segment ab. `t` is 0 at a and 1 at b, clamped to the segment.
+    static func projectOntoSegment(_ p: Coordinate, _ a: Coordinate, _ b: Coordinate)
+        -> (t: Double, distanceMeters: Double, point: Coordinate) {
         let kx = cos(a.lat.radians) * earthRadiusMeters * Double.pi / 180
         let ky = earthRadiusMeters * Double.pi / 180
-        let ax = 0.0, ay = 0.0
         let bx = (b.lon - a.lon) * kx, by = (b.lat - a.lat) * ky
         let px = (p.lon - a.lon) * kx, py = (p.lat - a.lat) * ky
-        let len2 = (bx - ax) * (bx - ax) + (by - ay) * (by - ay)
-        var t = len2 == 0 ? 0 : ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len2
+        let len2 = bx * bx + by * by
+        var t = len2 == 0 ? 0 : (px * bx + py * by) / len2
         t = max(0, min(1, t))
-        let cx = ax + t * (bx - ax), cy = ay + t * (by - ay)
-        return sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy))
+        let cx = t * bx, cy = t * by
+        let dist = sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy))
+        let point = Coordinate(lat: a.lat + cy / ky, lon: a.lon + cx / kx)
+        return (t, dist, point)
+    }
+
+    /// A point `fraction` of the way from a to b (straight interpolation, fine at city scale).
+    static func interpolate(_ a: Coordinate, _ b: Coordinate, fraction: Double) -> Coordinate {
+        Coordinate(lat: a.lat + (b.lat - a.lat) * fraction, lon: a.lon + (b.lon - a.lon) * fraction)
     }
 
     /// Mean of a set of coordinates.

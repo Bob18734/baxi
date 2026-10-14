@@ -1,10 +1,13 @@
 import Foundation
 
-// OWNER: partner. Second of the partner's two modules. Tests: BaxiTests/ApproachHeadingTests.swift.
+// OWNER: partner. Second of the partner's two modules (the other is RoundaboutClassifier).
+// Tests: BaxiTests/ApproachHeadingTests.swift. Flip `isImplemented` to true when your code is in.
 
 enum ApproachHeading {
+    static let isImplemented = false
+
     /// The compass bearing a driver faces when arriving at `spot` along `route`.
-    /// Used to aim the Look Around camera on each walkthrough card.
+    /// Used to aim the Look Around camera on each Preview card.
     /// Rules the tests check:
     /// 1. Find the route point nearest the spot (call its index i).
     /// 2. Walk backwards from i until the walked distance is at least `lookBackMeters` (default 40) or the route starts; call that index j.

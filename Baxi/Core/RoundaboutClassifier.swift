@@ -1,9 +1,9 @@
 import Foundation
 
-// OWNER: Vardaan. This file is one of the two modules Vardaan writes himself.
+// OWNER: partner. First of the partner's two modules (the other is ApproachHeading).
 // Claude wrote the types, the doc comments, the stub, and the tests in
-// BaxiTests/RoundaboutClassifierTests.swift. Replace the body of `classify` with your own logic
-// and make every test pass. Keep the signature.
+// BaxiTests/RoundaboutClassifierTests.swift. Replace the body of `classify` with your own logic,
+// flip `isImplemented` to true so the tests run, and make every test pass. Keep the signature.
 
 /// One roundabout as it appears in OpenStreetMap: one or more ways tagged junction=roundabout that
 /// share nodes, plus every other highway way that touches any of those nodes.
@@ -34,6 +34,9 @@ struct RoundaboutClassification: Equatable {
 }
 
 enum RoundaboutClassifier {
+    /// Flip to true when your implementation is in. The tests are skipped while this is false.
+    static let isImplemented = false
+
     /// Rules the implementation must follow (the tests check these):
     /// 1. `lanes` is the maximum `lanes` tag across the circle ways. No tag anywhere: guess 1 and set lanesTagged=false.
     /// 2. `legs` counts touching ways by distinct name (or by id when unnamed). A way whose highway tag
@@ -41,7 +44,7 @@ enum RoundaboutClassifier {
     /// 3. `interchange` when any touching way has highway `motorway_link` or `trunk_link`.
     ///    Otherwise `multiLane` when lanes >= 2, else `singleLane`.
     static func classify(_ input: RoundaboutInput) -> RoundaboutClassification {
-        // STUB so the app runs before Vardaan's version lands. Replace everything below.
+        // STUB so the app runs before the partner's version lands. Replace everything below.
         let tagged = input.circleWays.compactMap(\.lanes).max()
         let lanes = tagged ?? 1
         let cls: RoundaboutClass = lanes >= 2 ? .multiLane : .singleLane

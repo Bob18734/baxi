@@ -49,11 +49,15 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 
 ## Code map
 
-- `Baxi/Models` — plain data types (OSM cache, features, tiers, drives).
-- `Baxi/Core` — the logic: feature extractor, geometry, and the four student-owned modules
-  (`RoundaboutClassifier`, `LanePicker`, `RouteScorer`, `ApproachHeading`).
-- `Baxi/Services` — bundled data loading, routing clients.
-- `Baxi/Screens` — SwiftUI screens: Home, Plan, Walkthrough, Drive, Debrief, Log.
+- `Baxi/Models` — plain data types: OSM cache, road features, `PlannedRoute` and `Maneuver`, `Cue`,
+  `ExperienceLevel`, drives.
+- `Baxi/Core` — the logic. `Polyline` (meters along a route), `RouteFollower` (snaps each location fix to the
+  route, forward only, off-route after 60 m for 10 s), `CueListBuilder` (places every cue along a route from the
+  road data), `FeatureExtractor`, `Geo`, and the four student-owned modules: `LanePicker` and `CueScheduler`
+  (Vardaan), `RoundaboutClassifier` and `ApproachHeading` (partner). Each student module has a stub, a rule list
+  in its doc comment, and a test suite in `BaxiTests/` that is skipped until `isImplemented` is flipped to true.
+- `Baxi/Services` — bundled data loading, GPX parse and replay, routing clients.
+- `Baxi/Screens` — SwiftUI screens: Home, Route, Preview, Drive, Arrived, Log.
 - `scripts/` — Python scripts that build the bundled data.
 
 ## AI disclosure

@@ -24,6 +24,11 @@
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

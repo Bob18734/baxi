@@ -8,16 +8,20 @@ protocol SpeechOutput: AnyObject {
 }
 
 /// Speaks one cue at a time with the system voice. Other audio (music) ducks while it talks.
-final class Speaker: SpeechOutput {
+final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
     static let rateKey = "voiceRate"
     private let synth = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice?
-    var isMuted = false
+    var isMuted = false {
+        didSet { if isMuted { synth.stopSpeaking(at: .word) } }
+    }
 
-    init() {
+    override init() {
         // The best US English voice installed: premium, then enhanced, then the default.
         let us = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
         voice = us.max { $0.quality.rawValue < $1.quality.rawValue } ?? AVSpeechSynthesisVoice(language: "en-US")
+        super.init()
+        synth.delegate = self
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .voicePrompt,
                                                          options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
@@ -39,4 +43,15 @@ final class Speaker: SpeechOutput {
     }
 
     func stop() { synth.stopSpeaking(at: .immediate) }
+
+    // When the queue is empty, give the audio back so the driver's music comes back to full volume.
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { releaseAudioIfIdle() }
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { releaseAudioIfIdle() }
+
+    private func releaseAudioIfIdle() {
+        #if os(iOS)
+        guard !synth.isSpeaking else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
+    }
 }

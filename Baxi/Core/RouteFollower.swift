@@ -26,7 +26,15 @@ final class RouteFollower {
 
     func update(location: Coordinate, at time: TimeInterval) -> RouteProgress? {
         // Near the last known segment while on route; the whole line when lost or at the start.
-        var proj = polyline.project(location, near: isOffRoute ? nil : lastSegment)
+        var proj: Polyline.Projection?
+        if lastSegment == nil, !isOffRoute, let start = polyline.project(location, expectedAlong: 0, tolerance: 300),
+           start.crossTrackMeters <= Self.offRouteMeters {
+            // First fix: prefer the start. A loop ends where it begins, so a whole-line search
+            // could snap to the last segment and finish the drive at once.
+            proj = start
+        } else {
+            proj = polyline.project(location, near: isOffRoute ? nil : lastSegment)
+        }
         guard var p = proj else { return nil }
 
         if p.crossTrackMeters > Self.offRouteMeters {

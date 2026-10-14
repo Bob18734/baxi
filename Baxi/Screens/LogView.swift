@@ -99,8 +99,9 @@ private struct AddDriveView: View {
     var body: some View {
         NavigationStack {
             Form {
-                DatePicker("Started", selection: $start, in: ...Date())
-                DatePicker("Ended", selection: $end, in: start...Date())
+                // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
+                DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
+                DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
                 TextField("Where (optional)", text: $note)
                 Section {
                     LabeledContent("Day", value: DriveLog.hm(split.day))

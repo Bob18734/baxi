@@ -1,11 +1,10 @@
 import SwiftUI
-import CoreLocation
 
 /// First launch: what Baxi is, the safety rules, and the location permission. Shown once.
 struct WelcomeView: View {
     var onDone: () -> Void
     @State private var page = 0
-    @State private var location = CLLocationManager()
+    @Environment(AppStore.self) private var store
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +27,7 @@ struct WelcomeView: View {
 
             Button {
                 if page < 2 { withAnimation { page += 1 } }
-                else { location.requestWhenInUseAuthorization(); onDone() }
+                else { store.locationPermission.requestWhenInUseAuthorization(); onDone() }
             } label: {
                 Text(page < 2 ? "Next" : "Allow location and start").font(.headline).frame(maxWidth: .infinity)
             }

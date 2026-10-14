@@ -99,3 +99,18 @@ struct GPXTests {
         #expect(pts.allSatisfy { $0.time != nil })
     }
 }
+
+struct LoopStartTests {
+    @Test func firstFixOnALoopSnapsToTheStartNotTheEnd() throws {
+        // A square loop about 400 m a side whose last point stops 30 m short of the start.
+        let pts = [Coordinate(lat: 39.9700, lon: -86.1300), Coordinate(lat: 39.9736, lon: -86.1300),
+                   Coordinate(lat: 39.9736, lon: -86.1253), Coordinate(lat: 39.9700, lon: -86.1253),
+                   Coordinate(lat: 39.9700, lon: -86.12965)]
+        let line = Polyline(pts)
+        // The car waits 9 m from the loop's last point and 21 m from its first segment.
+        let car = Coordinate(lat: 39.96998, lon: -86.12975)
+        #expect(try #require(line.project(car)).alongMeters > line.lengthMeters - 50)   // a whole-line search picks the end
+        let f = RouteFollower(polyline: line)
+        #expect(try #require(f.update(location: car, at: 0)).alongMeters < 50)          // the follower picks the start
+    }
+}

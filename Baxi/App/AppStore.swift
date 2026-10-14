@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CoreLocation
 
 /// App-wide state: the loaded road data, the experience level, the chosen route.
 /// Kept small on purpose; drives live in SwiftData.
@@ -18,6 +19,8 @@ final class AppStore {
     var routeError: String?
     /// The drive on screen, if any. RootView presents it full screen.
     var activeSession: DriveSession?
+    /// Lives as long as the app, so the permission prompt is not torn down with the welcome sheet.
+    @ObservationIgnored let locationPermission = CLLocationManager()
 
     /// The judge demo: the US 31 loop replayed at 4x, starting just before the merge onto the highway,
     /// so a merge, two exit ramps, the interchange roundabout and multi-lane roundabouts happen in about three minutes.

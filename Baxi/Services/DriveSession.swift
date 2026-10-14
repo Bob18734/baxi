@@ -35,6 +35,7 @@ final class DriveSession {
     private(set) var isFinished = false
     private(set) var startedAt = Date()
     private(set) var endedAt: Date?
+    static let locationOffText = "Location is off. Turn it on in Settings."
     private(set) var isRerouting = false
     private(set) var rerouteCount = 0
     /// Meters driven on routes replaced by a reroute.
@@ -49,9 +50,8 @@ final class DriveSession {
     private var clock: TimeInterval = 0
     private var locationDelegate: LocationDelegate?
 
-    var muted: Bool {
-        get { speaker.isMuted }
-        set { speaker.isMuted = newValue }
+    var muted = false {
+        didSet { speaker.isMuted = muted }
     }
 
     init(route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?,
@@ -121,10 +121,11 @@ final class DriveSession {
         }
     }
 
-    func end() {
+    /// `stopSpeech` is false on arrival, so "You have arrived" is heard to the end.
+    func end(stopSpeech: Bool = true) {
         replayTimer?.invalidate(); replayTimer = nil
         locationDelegate?.manager.stopUpdatingLocation(); locationDelegate = nil
-        speaker.stop()
+        if stopSpeech { speaker.stop() }
         endedAt = Date()
         isFinished = true
     }
@@ -180,11 +181,15 @@ final class DriveSession {
     }
 
     private func startLive() {
-        let d = LocationDelegate { [weak self] loc in
+        let d = LocationDelegate(onFix: { [weak self] loc in
             guard let self else { return }
             self.clock = loc.timestamp.timeIntervalSince(self.startedAt)
             self.feed(Coordinate(loc.coordinate), at: self.clock)
-        }
+        }, onDenied: { [weak self] in
+            guard let self, self.lastCueText != Self.locationOffText else { return }
+            self.lastCueText = Self.locationOffText
+            self.speaker.say("Location is off for Baxi. Pull over, then turn it on in Settings.")
+        })
         locationDelegate = d
         d.manager.requestWhenInUseAuthorization()
         d.manager.startUpdatingLocation()
@@ -197,8 +202,9 @@ final class DriveSession {
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters, !isRerouting,
            time - lastRerouteAttempt > 30 {
+            position = location
             lastCueText = "Getting you to the start"
-            speaker.say("First, let's get you to the start of the route.")
+            if !saidGetToStart { saidGetToStart = true; speaker.say("First, let's get you to the start of the route.") }
             reroute(from: location, at: time)
             return
         }
@@ -215,6 +221,8 @@ final class DriveSession {
             return
         }
 
+        if lastCueText == "Off the route" { lastCueText = "" }
+
         // A lane strip stays up from its cue until the maneuver is passed.
         if let c = lastLaneCue, p.alongMeters > c.targetMeters + 10 {
             laneStrip = nil; lastLaneCue = nil
@@ -229,10 +237,13 @@ final class DriveSession {
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken)
         }
-        if p.remainingMeters < 15 && !isFinished { end() }
+        if p.remainingMeters < 15, previousAlong > route.polyline.lengthMeters - 300, !isFinished { end(stopSpeech: false) }
+        previousAlong = p.alongMeters
     }
 
     private var lastLaneCue: Cue?
+    private var previousAlong = 0.0
+    private var saidGetToStart = false
 
     // MARK: Reroute (live drives only)
 
@@ -284,13 +295,29 @@ final class DriveSession {
 private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     let manager = CLLocationManager()
     let onFix: (CLLocation) -> Void
+    let onDenied: () -> Void
 
-    init(onFix: @escaping (CLLocation) -> Void) {
+    init(onFix: @escaping (CLLocation) -> Void, onDenied: @escaping () -> Void) {
         self.onFix = onFix
+        self.onDenied = onDenied
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         manager.activityType = .automotiveNavigation
+        // Waiting at a long light must not pause updates; iOS is slow to resume them.
+        manager.pausesLocationUpdatesAutomatically = false
+        #if os(iOS)
+        // Keeps cues going if the screen locks anyway (UIBackgroundModes location + audio in project.yml).
+        manager.allowsBackgroundLocationUpdates = true
+        manager.showsBackgroundLocationIndicator = true
+        #endif
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .denied, .restricted: onDenied()
+        default: break
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

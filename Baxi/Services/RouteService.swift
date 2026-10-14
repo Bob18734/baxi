@@ -55,7 +55,7 @@ enum RouteService {
             // An Apple step's instruction applies where the step starts.
             defer { along += step.distance }
             let text = step.instructions
-            guard !text.isEmpty else { continue }
+            guard !text.isEmpty, step.polyline.pointCount > 0 else { continue }
             let lower = text.lowercased()
             let kind: Maneuver.Kind = i == r.steps.count - 1 ? .arrive
                 : lower.contains("roundabout") ? .roundabout

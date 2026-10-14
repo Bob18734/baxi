@@ -19,6 +19,10 @@ struct RootView: View {
 
     enum AppTab { case home, route, log }
 
+    /// Launched with --demo-drive or --skip-welcome: never show the welcome sheet, so it cannot
+    /// collide with the drive's full-screen cover.
+    static let launchedForDemo = ProcessInfo.processInfo.arguments.contains { $0 == "--demo-drive" || $0 == "--skip-welcome" }
+
     var body: some View {
         TabView(selection: $tab) {
             Tab("Home", systemImage: "house.fill", value: .home) { HomeView() }
@@ -27,8 +31,8 @@ struct RootView: View {
         }
         .environment(store)
         .fullScreenCover(item: Bindable(store).activeSession) { s in DriveView(session: s) { store.activeSession = nil } }
-        .sheet(isPresented: .constant(!didFinishWelcome)) {
-            WelcomeView { didFinishWelcome = true }.interactiveDismissDisabled()
+        .sheet(isPresented: .constant(!didFinishWelcome && !Self.launchedForDemo)) {
+            WelcomeView { didFinishWelcome = true }.environment(store).interactiveDismissDisabled()
         }
         .onAppear {
             // Launch arguments for screenshots, testing and the video:

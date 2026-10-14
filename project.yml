@@ -29,6 +29,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone."
         ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes: [location, audio]
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1"

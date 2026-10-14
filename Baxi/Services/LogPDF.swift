@@ -10,7 +10,7 @@ enum LogPDF {
         let margin: CGFloat = 48
         let rowHeight: CGFloat = 20
         let sorted = rows.sorted { $0.start < $1.start }
-        let perPage = 28
+        let perPage = 22   // leaves room for totals and the signature block above the footer
         let pages = max(1, Int((Double(sorted.count) / Double(perPage)).rounded(.up)))
         let date = DateFormatter()
         date.timeZone = timeZone; date.dateFormat = "MM/dd/yyyy"

@@ -31,9 +31,15 @@ enum OverpassService {
                         ways: Array(ways.values), nodes: Array(nodes.values))
     }
 
-    /// The route as points every ~80 m (enough for a 40 m corridor), in pieces that overlap by one point.
+    /// The route's ends are not sent: the first and last 200 m stay on the phone, so neither the start
+    /// (often home) nor the destination address goes to the Overpass server.
+    static let privateEndMeters = 200.0
+
+    /// The route as points every ~80 m (enough for a 40 m corridor), its private ends left out, in pieces
+    /// that overlap by one point.
     static func pieces(of line: Polyline) -> [[Coordinate]] {
-        let pts = line.samples(everyMeters: 80).map(\.point)
+        let keep = (privateEndMeters, line.lengthMeters - privateEndMeters)
+        let pts = line.samples(everyMeters: 80).filter { $0.alongMeters >= keep.0 && $0.alongMeters <= keep.1 }.map(\.point)
         guard pts.count > 1 else { return pts.isEmpty ? [] : [pts] }
         var out: [[Coordinate]] = [], i = 0
         while i < pts.count - 1 {

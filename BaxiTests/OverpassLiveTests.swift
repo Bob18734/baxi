@@ -45,5 +45,8 @@ struct OverpassParseTests {
         let pieces = OverpassService.pieces(of: line)
         #expect(pieces.count > 1 && pieces.allSatisfy { $0.count <= OverpassService.pointsPerQuery })
         for (a, b) in zip(pieces, pieces.dropFirst()) { #expect(a.last == b.first) }
+        // The ends stay private: nothing sent within 200 m of the start or the end.
+        let sent = pieces.flatMap { $0 }
+        #expect(sent.allSatisfy { Geo.distanceMeters($0, line.points.first!) >= 199 && Geo.distanceMeters($0, line.points.last!) >= 199 })
     }
 }

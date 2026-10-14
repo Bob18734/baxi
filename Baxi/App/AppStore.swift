@@ -25,11 +25,11 @@ final class AppStore {
 
     /// The judge demo: the US 31 loop replayed at 4x, starting just before the merge onto the highway,
     /// so a merge, two exit ramps, the interchange roundabout and multi-lane roundabouts happen in about three minutes.
-    static let demoPreset = "preset_highway"
-    static let demoStartMeters = 4_400.0
+    nonisolated static let demoPreset = "preset_highway"
+    nonisolated static let demoStartMeters = 4_400.0
 
     /// Carmel City Center: the demo home point and the start of every preset route.
-    static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
+    nonisolated static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
 
     /// Starts loading the bundled Carmel data in the background (decoding and feature extraction take a
     /// noticeable moment); safe to call again.

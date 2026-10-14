@@ -56,6 +56,7 @@ struct CueScheduler {
             case .stopSign: lead = level.speaksStopSigns ? 100 : nil
             case .speedChange: lead = level.speaksSpeedChanges ? 400 : nil
             case .schoolZone: lead = level.speaksSchoolZones ? 300 : nil
+            case .glare: lead = 250
             case .signal: lead = counted.contains(c.id) ? 0 : nil
             }
             guard var lead else { c.fireAtMeters = nil; return c }

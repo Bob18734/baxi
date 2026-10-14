@@ -62,6 +62,7 @@ struct PreviewView: View {
         if let n = counts[.laneTurn] { parts.append("\(n) lane choice\(n == 1 ? "" : "s")") }
         if let n = counts[.schoolZone] { parts.append("\(n) school zone\(n == 1 ? "" : "s")") }
         if let n = counts[.crashCorridor] { parts.append("\(n) crash-heavy stretch\(n == 1 ? "" : "es")") }
+        if let n = counts[.glare] { parts.append("\(n) low-sun stretch\(n == 1 ? "" : "es") if you leave now") }
         return parts.isEmpty ? "No hard spots." : parts.joined(separator: ", ") + "."
     }
 }

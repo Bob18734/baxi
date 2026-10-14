@@ -147,6 +147,12 @@ final class DriveSession {
 
     func start() {
         startedAt = Date()
+        // Low sun depends on when the drive happens, so its cues are added now, from where the car is.
+        let from = progress?.alongMeters ?? 0
+        let glare = CueScheduler.plan(SunGlare.cues(SunGlare.stretches(route: route, start: startedAt, from: from), speeds: speeds),
+                                      level: level, maneuverTargets: RoutePrep.boundaries(route))
+        cues += glare
+        for c in glare where (c.fireAtMeters ?? 0) < from { scheduler.markFired(c.id) }
         speaker.say("Starting \(route.name). The driver keeps hands on the wheel, I will call everything out.")
         if let weatherLine { speaker.say(weatherLine); spokenLog.append((0, weatherLine)) }
         switch mode {

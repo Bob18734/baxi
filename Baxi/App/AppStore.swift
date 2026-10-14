@@ -188,7 +188,7 @@ final class AppStore {
     /// The hard spots on the chosen route, for the Preview screen. Empty until the route's prep is built.
     func hardSpots() -> [HardSpot] {
         guard let route, let prep, prep.routeId == route.id else { return [] }
-        return prep.spots
+        return (prep.spots + HardSpots.glare(route: route, start: Date())).sorted { $0.alongMeters < $1.alongMeters }
     }
 
     /// Starts a replay once the road data and the route's prep are ready (both build in the background).

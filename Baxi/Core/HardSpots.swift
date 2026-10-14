@@ -3,7 +3,7 @@ import Foundation
 /// The spots on a route worth previewing before the drive: roundabouts, merges and ramps, turns that
 /// need a lane choice on a multi-lane road, school zones and crash-heavy corridors. In route order.
 struct HardSpot: Identifiable, Equatable {
-    enum Kind: String { case roundabout, ramp, laneTurn, schoolZone, crashCorridor }
+    enum Kind: String { case roundabout, ramp, laneTurn, schoolZone, crashCorridor, glare }
 
     let id: String
     let kind: Kind
@@ -90,6 +90,21 @@ enum HardSpots {
             }
         }
         return out.sorted { $0.alongMeters < $1.alongMeters }
+    }
+}
+
+extension HardSpots {
+    /// Low-sun stretches for a drive starting at `start`, as Preview spots (they depend on the time,
+    /// so they are added when the Preview opens, not with the route's other spots).
+    static func glare(route: PlannedRoute, start: Date) -> [HardSpot] {
+        SunGlare.stretches(route: route, start: start).compactMap { s in
+            guard let at = route.polyline.coordinate(atMeters: s.startMeters) else { return nil }
+            let when = start.addingTimeInterval(s.startMeters / max(1, route.polyline.lengthMeters) * route.durationSeconds)
+            return HardSpot(id: "glare-\(Int(s.startMeters))", kind: .glare,
+                            title: "Low sun ahead around \(when.formatted(date: .omitted, time: .shortened)) if you leave now",
+                            alongMeters: s.startMeters, location: at,
+                            spoken: "Low sun ahead. Traffic lights and brake lights may be hard to see", featureKind: nil)
+        }
     }
 }
 

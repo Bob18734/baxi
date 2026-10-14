@@ -10,6 +10,7 @@ enum CueKind: String, Codable, CaseIterable {
     case crashCorridor
     case speedChange
     case schoolZone
+    case glare
     case signal
     case stopSign
     case arrive

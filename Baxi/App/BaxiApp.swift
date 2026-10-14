@@ -77,11 +77,9 @@ struct RootView: View {
             switch value("--tab") { case "route": tab = .route; case "log": tab = .log; default: break }
             if let preset = value("--demo-drive") {
                 didFinishWelcome = true
-                store.choosePreset(preset)
                 tab = .route
-                let speed = value("--replay-speed").flatMap(Double.init) ?? 4
-                store.activeSession = store.makeSession(replay: speed)
-                if let start = value("--replay-start").flatMap(Double.init) { store.activeSession?.skip(toMeters: start) }
+                store.startDemoDrive(preset: preset, speed: value("--replay-speed").flatMap(Double.init) ?? 4,
+                                     startMeters: value("--replay-start").flatMap(Double.init))
             }
         }
     }

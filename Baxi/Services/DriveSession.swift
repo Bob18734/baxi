@@ -71,7 +71,7 @@ final class DriveSession {
     }
 
     init(route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?,
-         level: ExperienceLevel, mode: Mode, speaker: SpeechOutput = Speaker()) {
+         level: ExperienceLevel, mode: Mode, speaker: SpeechOutput = Speaker(), prep: RoutePrep? = nil) {
         self.speaker = speaker
         self.route = route
         self.routeCoordinates = route.polyline.points.map(\.clLocation)
@@ -81,18 +81,11 @@ final class DriveSession {
         self.features = features
         self.highInjury = highInjury
         startCoordinate = route.polyline.points.first
-        (cues, signals, speeds) = Self.prepare(route, cache: cache, features: features, highInjury: highInjury, level: level)
+        let p = prep.flatMap { $0.routeId == route.id ? $0 : nil }
+            ?? RoutePrep.make(route: route, cache: cache, features: features, highInjury: highInjury)
+        (cues, signals, speeds) = (p.planned(for: level, route: route), p.signals, p.speeds)
         follower = RouteFollower(polyline: route.polyline)
         position = route.polyline.points.first
-    }
-
-    private static func prepare(_ route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?,
-                                level: ExperienceLevel) -> ([Cue], [Double], [(along: Double, mph: Int)]) {
-        let built = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
-        let targets = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters).sorted()
-        return (CueScheduler.plan(built, level: level, maneuverTargets: targets),
-                CueListBuilder.signalAlongs(line: route.polyline, cache: cache),
-                CueListBuilder.speedProfile(line: route.polyline, cache: cache))
     }
 
     /// Total meters driven this drive, across reroutes.
@@ -328,10 +321,16 @@ final class DriveSession {
         Task { @MainActor [weak self] in
             let approach = try? await RouteService.route(from: location, to: target, name: original.name)
             guard let self, !self.isFinished else { return }
-            self.isRerouting = false
-            guard let approach else { return }
+            guard let approach else { self.isRerouting = false; return }
             let new = original.rejoined(by: approach, at: rejoin)
-            self.install(new)
+            // Cue building takes a moment; do it off the main thread so fixes keep flowing meanwhile.
+            let (cache, features, hin) = (self.cache, self.features, self.highInjury)
+            let prep = await Task.detached(priority: .userInitiated) {
+                RoutePrep.make(route: new, cache: cache, features: features, highInjury: hin)
+            }.value
+            guard !self.isFinished else { return }
+            self.isRerouting = false
+            self.install(new, prep: prep)
             // The next instruction comes from the cues at its usual distance, not all at once here.
             self.speaker.say("New route")
         }
@@ -339,14 +338,16 @@ final class DriveSession {
 
     /// Replace the route while retaining completed distance, not its untraveled starting offset.
     /// Internal so tests can exercise reroute transitions without a network request.
-    func install(_ new: PlannedRoute) {
+    func install(_ new: PlannedRoute, prep: RoutePrep? = nil) {
         guard !isFinished else { return }
         metersBeforeReroute = drivenMeters
         firstAlongMeters = nil
         passedAlong = 0
         previousAlong = 0
         route = new
-        (cues, signals, speeds) = Self.prepare(new, cache: cache, features: features, highInjury: highInjury, level: level)
+        let p = prep.flatMap { $0.routeId == new.id ? $0 : nil }
+            ?? RoutePrep.make(route: new, cache: cache, features: features, highInjury: highInjury)
+        (cues, signals, speeds) = (p.planned(for: level, route: new), p.signals, p.speeds)
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()
         progress = nil

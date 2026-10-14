@@ -78,8 +78,10 @@ enum HardSpots {
         }
         // Where a fatal crash happened on the route. Shown in the Preview only: Baxi never says it aloud,
         // because a death read out mid-drive distracts more than it helps. `spoken` is empty for these.
+        let routeBox = GeoBox(route.polyline.points).expanded(by: fatalMatchMeters)
         for crash in fatalCrashes {
             let at = Coordinate(lat: crash.lat, lon: crash.lon)
+            guard routeBox.contains(at) else { continue }
             for along in route.polyline.passes(near: at, within: fatalMatchMeters) {
                 let when = DateFormatter().monthSymbols[max(0, min(11, crash.month - 1))]
                 out.append(HardSpot(id: "fars-\(crash.case)-\(Int(along))", kind: .crashCorridor,

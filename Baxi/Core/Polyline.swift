@@ -60,11 +60,11 @@ struct Polyline: Equatable {
     /// Along-route distance of every pass the line makes within `within` meters of `p`. A loop that
     /// goes through the same intersection twice has two passes; one pass is the closest point of a run
     /// of nearby segments, and runs further apart than `gapMeters` along the line are separate passes.
-    func passes(near p: Coordinate, within: Double, gapMeters: Double = 60) -> [Double] {
+    func passes(near p: Coordinate, within: Double, gapMeters: Double = 60, grid: SegmentGrid? = nil) -> [Double] {
         guard segmentCount > 0 else { return [] }
         var out: [Double] = []
         var run: (along: Double, d: Double, end: Double)?
-        for i in 0..<segmentCount {
+        for i in grid?.candidates(near: p) ?? Array(0..<segmentCount) {
             let r = Geo.projectOntoSegment(p, points[i], points[i + 1])
             guard r.distanceMeters <= within else { continue }
             let along = cumulative[i] + r.t * (cumulative[i + 1] - cumulative[i])
@@ -132,3 +132,27 @@ struct Polyline: Equatable {
         return out
     }
 }
+
+/// Which segments of a line pass through each ~110 m cell, so "is this point near the route" checks a
+/// handful of segments instead of all of them. Candidates come back in route order.
+struct SegmentGrid {
+    private let cell = 0.001
+    private var buckets: [Int64: [Int]] = [:]
+
+    init(_ line: Polyline, padMeters: Double) {
+        guard line.segmentCount > 0 else { return }
+        for i in 0..<line.segmentCount {
+            let box = GeoBox([line.points[i], line.points[i + 1]]).expanded(by: padMeters)
+            for la in key(box.minLat)...key(box.maxLat) {
+                for lo in key(box.minLon)...key(box.maxLon) { buckets[la << 32 | (lo & 0xFFFF_FFFF), default: []].append(i) }
+            }
+        }
+    }
+
+    private func key(_ deg: Double) -> Int64 { Int64((deg / cell).rounded(.down)) }
+
+    func candidates(near p: Coordinate) -> [Int] {
+        buckets[key(p.lat) << 32 | (key(p.lon) & 0xFFFF_FFFF)] ?? []
+    }
+}
+

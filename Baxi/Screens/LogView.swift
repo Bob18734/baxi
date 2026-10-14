@@ -27,7 +27,7 @@ struct LogView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                Section { SkillsPanel(done: Practice.total(drives.map(\.skills)), routes: store.presetSkills()) }
+                Section { SkillsPanel(done: Practice.total(drives.map(\.skills)), routes: store.presetSkills) }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)

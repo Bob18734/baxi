@@ -50,6 +50,7 @@ struct DriveView: View {
             if !session.isFinished { session.end() }
         }
         .onChange(of: session.position) { _, _ in follow() }
+        .onChange(of: traveledStep) { _, _ in traveled = traveledPoints?.map(\.clLocation) ?? [] }
         .onChange(of: session.isFinished) { _, done in if done { save() } }
         .sheet(isPresented: .constant(session.isFinished)) {
             ArrivedView(session: session, record: saved, onDone: onClose)
@@ -65,8 +66,8 @@ struct DriveView: View {
         Map(position: $camera, interactionModes: []) {
             MapPolyline(coordinates: session.routeCoordinates)
                 .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
-            if let traveled = traveledPoints, traveled.count > 1 {
-                MapPolyline(coordinates: traveled.map(\.clLocation))
+            if traveled.count > 1 {
+                MapPolyline(coordinates: traveled)
                     .stroke(.gray.opacity(0.75), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
             }
             if let m = session.nextManeuver {
@@ -90,10 +91,18 @@ struct DriveView: View {
         .ignoresSafeArea()
     }
 
+    @State private var traveled: [CLLocationCoordinate2D] = []
+    private var traveledStep: Int { Int((session.progress?.alongMeters ?? 0) / 50) }
+
+    /// The driven part of the route, redrawn every 50 m rather than on every fix: rebuilding a long map
+    /// overlay several times a second is what makes the map stutter.
     private var traveledPoints: [Coordinate]? {
         guard let p = session.progress else { return nil }
         let line = session.route.polyline
-        return Array(line.points.prefix(p.segmentIndex + 1)) + [p.snapped]
+        let step = (p.alongMeters / 50).rounded(.down) * 50
+        guard step > 0, let end = line.coordinate(atMeters: step) else { return nil }
+        let upTo = line.cumulative.lastIndex { $0 <= step } ?? 0
+        return Array(line.points.prefix(upTo + 1)) + [end]
     }
 
     private func follow() {

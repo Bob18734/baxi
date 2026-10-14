@@ -69,3 +69,24 @@ extension Double {
     var radians: Double { self * .pi / 180 }
     var degrees: Double { self * 180 / .pi }
 }
+
+/// A latitude/longitude box, for skipping far-away geometry before any distance math.
+struct GeoBox {
+    var minLat = Double.infinity, maxLat = -Double.infinity, minLon = Double.infinity, maxLon = -Double.infinity
+
+    init<S: Sequence>(_ points: S) where S.Element == Coordinate {
+        for p in points { minLat = min(minLat, p.lat); maxLat = max(maxLat, p.lat); minLon = min(minLon, p.lon); maxLon = max(maxLon, p.lon) }
+    }
+
+    /// Grown by `meters` on every side.
+    func expanded(by meters: Double) -> GeoBox {
+        var b = self
+        let dLat = meters / 111_195, dLon = meters / (111_195 * max(0.2, cos(((minLat + maxLat) / 2) * .pi / 180)))
+        b.minLat -= dLat; b.maxLat += dLat; b.minLon -= dLon; b.maxLon += dLon
+        return b
+    }
+
+    func contains(_ p: Coordinate) -> Bool { p.lat >= minLat && p.lat <= maxLat && p.lon >= minLon && p.lon <= maxLon }
+    func intersects(_ o: GeoBox) -> Bool { minLat <= o.maxLat && maxLat >= o.minLat && minLon <= o.maxLon && maxLon >= o.minLon }
+}
+

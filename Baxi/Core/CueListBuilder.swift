@@ -157,10 +157,13 @@ enum CueListBuilder {
         }
 
         // High Injury Network corridors the route runs along.
+        let routeBox = GeoBox(line.points).expanded(by: corridorMatchMeters)
         for seg in highInjury?.segments ?? [] {
-            let polys = seg.polylines.filter { !$0.isEmpty }
+            // Boxes first: almost every corridor in the region is nowhere near this route.
+            let polys = seg.polylines.filter { !$0.isEmpty }.map { ($0, GeoBox($0).expanded(by: corridorMatchMeters)) }
+                .filter { $0.1.intersects(routeBox) }
             guard !polys.isEmpty else { continue }
-            let hits = samples.filter { s in polys.contains { Geo.distanceMeters(from: s.point, toPolyline: $0) <= corridorMatchMeters } }
+            let hits = samples.filter { s in polys.contains { $0.1.contains(s.point) && Geo.distanceMeters(from: s.point, toPolyline: $0.0) <= corridorMatchMeters } }
             guard let first = hits.first, let last = hits.last, hits.count >= 4 else { continue }
             let lengthM = last.alongMeters - first.alongMeters + sampleStepMeters
             let name = seg.route ?? "this road"
@@ -174,7 +177,9 @@ enum CueListBuilder {
         // Intersections the Indianapolis MPO studied for their crash history, where the route goes through one.
         for study in studies {
             guard let lat = study.lat, let lon = study.lon, let name = study.name else { continue }
-            for along in line.passes(near: Coordinate(lat: lat, lon: lon), within: studyMatchMeters) {
+            let at = Coordinate(lat: lat, lon: lon)
+            guard routeBox.contains(at) else { continue }
+            for along in line.passes(near: at, within: studyMatchMeters) {
                 let fatal = Int(study.fatal ?? 0), serious = Int(study.incapacitating ?? 0)
                 cues.append(Cue(id: "study-\(study.id)-\(Int(along))", kind: .crashCorridor, targetMeters: along,
                                 spokenTemplate: "Crash-heavy intersection ahead at \(Self.spokenPlace(name)), watch for cross traffic and turning cars",
@@ -308,7 +313,9 @@ enum CueListBuilder {
     /// Along-route distances of the points that lie within `within` meters of the line, once per
     /// pass, so a loop that goes through the same light twice counts it twice.
     static func onRoute(_ points: [Coordinate], line: Polyline, within: Double) -> [Double] {
-        points.flatMap { line.passes(near: $0, within: within) }.sorted()
+        let grid = SegmentGrid(line, padMeters: within)
+        let box = GeoBox(line.points).expanded(by: within)
+        return points.filter(box.contains).flatMap { line.passes(near: $0, within: within, grid: grid) }.sorted()
     }
 
     /// Collapses sorted distances closer than `within` into their first value.

@@ -9,7 +9,6 @@ struct RouteView: View {
     @State private var query = ""
     @State private var results: [MKMapItem] = []
     @State private var routing = false
-    @State private var spots: [HardSpot] = []
     @State private var showPreview = false
     @State private var startAfterPreview = false
 
@@ -25,11 +24,10 @@ struct RouteView: View {
                 .searchSuggestions { suggestions }
         }
         .onAppear {
-            store.loadCarmelDemo(); refreshSpots()
+            store.loadCarmelDemo(); store.refreshPrep()
             if let r = store.route { camera = Self.overview(r) }
             else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
         }
-        .onChange(of: store.route) { _, _ in refreshSpots() }
         .sheet(isPresented: $showPreview, onDismiss: {
             // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
             if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
@@ -123,6 +121,7 @@ struct RouteView: View {
                 Label(spots.isEmpty ? "Preview" : "Preview \(spots.count) spots", systemImage: "binoculars.fill")
             }
             .buttonStyle(.baxiSecondary)
+            .disabled(store.isPreparing)
             Menu {
                 Section("Replay the route (not logged)") {
                     ForEach([1.0, 4, 8, 16], id: \.self) { s in
@@ -141,6 +140,7 @@ struct RouteView: View {
             Label("Start drive", systemImage: "car.fill")
         }
         .buttonStyle(.baxiPrimary)
+        .disabled(store.isPreparing)
         Label("Mount the phone first. The driver never touches it.", systemImage: "hand.raised.fill")
             .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
     }
@@ -163,7 +163,8 @@ struct RouteView: View {
         }
     }
 
-    private func refreshSpots() { spots = store.hardSpots() }
+    /// Built in the background with the route's cues; empty for a moment after a route is picked.
+    private var spots: [HardSpot] { store.hardSpots() }
 
     private func search() async {
         let req = MKLocalSearch.Request()

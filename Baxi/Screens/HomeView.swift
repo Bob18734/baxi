@@ -14,15 +14,16 @@ struct HomeView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Tier \(store.tier.rawValue): \(store.tier.title)").font(.title3.bold())
-                        Text(store.tier.summary).foregroundStyle(.secondary)
-                        Picker("Tier", selection: $store.tier) {
-                            ForEach(Tier.allCases) { t in Text("\(t.rawValue)").tag(t) }
+                        Picker("Experience", selection: $store.level) {
+                            ForEach(ExperienceLevel.allCases) { l in Text(l.title).tag(l) }
                         }
                         .pickerStyle(.segmented)
+                        Text(store.level.summary).font(.footnote).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
-                } header: { Text("Skill level") }
+                } header: { Text("How much warning") } footer: {
+                    Text("Cue timing is Baxi's own design. The driving rules in each cue come from the Indiana Driver's Manual.")
+                }
 
                 Section {
                     HStack(spacing: 24) {
@@ -39,9 +40,9 @@ struct HomeView: View {
                     Button {
                         store.loadCarmelDemo()
                     } label: {
-                        Label("Try the Carmel demo", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Load Carmel", systemImage: "arrow.triangle.2.circlepath")
                     }
-                    .disabled(store.isLoading)
+                    .disabled(store.isLoading || store.cache != nil)
                     Text(store.dataStatus).font(.footnote).foregroundStyle(.secondary)
                 } header: { Text("Practice area") }
             }

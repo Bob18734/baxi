@@ -11,6 +11,8 @@ enum CueListBuilder {
     static let corridorMatchMeters = 30.0
     static let roundaboutMatchMeters = 80.0
     static let sampleStepMeters = 25.0
+    /// A signal this close to a turn is that turn's own light.
+    static let turnLightMeters = 30.0
 
     static func build(route: PlannedRoute, cache: OSMCache, features: [RoadFeature],
                       highInjury: HighInjuryNetwork? = nil) -> [Cue] {
@@ -85,9 +87,11 @@ enum CueListBuilder {
                                 roadSpeedMph: mph, maneuverId: m.id))
                 if let lane { cues.append(lane.cue) }
             case .merge, .onRamp:
-                let text = "Ramp ahead, match the speed of traffic, then merge when there is a gap"
+                let text = m.kind == .onRamp
+                    ? "Ramp ahead on the \((m.direction ?? .right).sideWord), speed up on the ramp to match traffic"
+                    : "Merge ahead, match the speed of traffic, then merge when there is a gap"
                 cues.append(Cue(id: "ramp-\(m.id)", kind: .ramp, targetMeters: m.alongMeters,
-                                spokenTemplate: text, cardTemplate: "Merge ahead: match speed, find a gap",
+                                spokenTemplate: text, cardTemplate: m.kind == .onRamp ? "Ramp: speed up to match traffic" : "Merge: match speed, find a gap",
                                 laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
             case .arrive:
                 cues.append(Cue(id: "arrive", kind: .arrive, targetMeters: m.alongMeters,
@@ -101,12 +105,11 @@ enum CueListBuilder {
                             cardTemplate: "Arrived", laneStrip: nil, roadSpeedMph: nil, maneuverId: nil))
         }
 
-        // Signals and stop signs on the route, deduplicated (OSM often maps one node per approach).
-        let signalNodes = cache.nodes.filter { $0.tags["highway"] == "traffic_signals" }
+        // Signals on the route. The light at a turn is the turn itself, so it gets no countdown cue,
+        // but it still counts in "your turn is in N lights" (see lightsBefore).
         let stopNodes = cache.nodes.filter { $0.tags["highway"] == "stop" }
-        var signalAlongs = onRoute(signalNodes.map(\.coordinate), line: line, within: signalMatchMeters)
-        signalAlongs = dedupe(signalAlongs, within: 40)
-        for along in signalAlongs {
+        for along in signalAlongs(line: line, cache: cache)
+        where !laneManeuvers.contains(where: { abs($0.alongMeters - along) <= turnLightMeters }) {
             let next = nextLaneManeuver(after: along)
             cues.append(Cue(id: "signal-\(Int(along))", kind: .signal, targetMeters: along,
                             spokenTemplate: "{lights} to go", cardTemplate: "{lights} to your turn", laneStrip: nil,
@@ -205,6 +208,19 @@ enum CueListBuilder {
     }
 
     // MARK: Helpers
+
+    /// Along-route positions of every traffic light on the route, one per intersection
+    /// (OSM often maps a signal node on each approach).
+    static func signalAlongs(line: Polyline, cache: OSMCache) -> [Double] {
+        let nodes = cache.nodes.filter { $0.tags["highway"] == "traffic_signals" }.map(\.coordinate)
+        return dedupe(onRoute(nodes, line: line, within: signalMatchMeters), within: 40)
+    }
+
+    /// Lights between `along` and a maneuver, counting the maneuver's own light. This is the N in
+    /// "your turn is in N lights", worked out when a cue fires.
+    static func lightsBefore(maneuverAt target: Double, from along: Double, signals: [Double]) -> Int {
+        signals.filter { $0 > along + 5 && $0 <= target + turnLightMeters }.count
+    }
 
     /// Along-route distances of the points that lie within `within` meters of the line.
     static func onRoute(_ points: [Coordinate], line: Polyline, within: Double) -> [Double] {

@@ -41,6 +41,10 @@ struct CueScheduler {
     private(set) var fired: Set<String> = []
     private(set) var lastFireTime: TimeInterval?
 
+    /// Marks a cue as already handled without speaking it (a replay that starts partway along).
+    /// Written by Claude, not part of Vardaan's rules; keep it when you replace the stub.
+    mutating func markFired(_ id: String) { fired.insert(id) }
+
     /// Returns the one cue to speak now, or nil. Rules the tests check:
     /// 1. A cue is due when fireAtMeters != nil, it has not fired, and alongMeters >= fireAtMeters.
     /// 2. A due cue whose target is more than `staleMeters` behind alongMeters is marked fired and skipped.

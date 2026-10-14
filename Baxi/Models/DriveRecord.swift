@@ -1,7 +1,8 @@
 import Foundation
 import SwiftData
 
-/// One supervised practice drive, stored on the phone. Day and night minutes are split by sunset.
+/// One supervised practice drive, stored on the phone. Day and night minutes are split by sunset
+/// (the sunset split lands Oct 18 per the plan; until then every minute counts as day).
 @Model
 final class DriveRecord {
     var id: UUID
@@ -9,24 +10,19 @@ final class DriveRecord {
     var end: Date
     var dayMinutes: Int
     var nightMinutes: Int
-    var tier: Int
+    var level: String
     var routeTitle: String
-    var spotResults: [SpotResult]
+    var distanceMeters: Double
+    var cuesSpoken: Int
 
-    init(start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, tier: Tier, routeTitle: String, spotResults: [SpotResult] = []) {
+    init(start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: ExperienceLevel, routeTitle: String,
+         distanceMeters: Double, cuesSpoken: Int) {
         id = UUID()
         self.start = start; self.end = end
         self.dayMinutes = dayMinutes; self.nightMinutes = nightMinutes
-        self.tier = tier.rawValue
+        self.level = level.rawValue
         self.routeTitle = routeTitle
-        self.spotResults = spotResults
+        self.distanceMeters = distanceMeters
+        self.cuesSpoken = cuesSpoken
     }
-}
-
-/// What the passenger tapped for one briefed spot.
-struct SpotResult: Codable, Hashable {
-    enum Outcome: String, Codable { case smooth, neededHelp, skipped }
-    var featureId: String
-    var kind: FeatureKind
-    var outcome: Outcome
 }

@@ -1,41 +1,58 @@
 import Foundation
 import Observation
 
-/// App-wide state: the loaded road data, the home point, the driver's tier.
+/// App-wide state: the loaded road data, the experience level, the chosen route.
 /// Kept small on purpose; drives live in SwiftData.
 @Observable
 final class AppStore {
-    var tier: Tier = .multiLaneRoundabouts
+    var level: ExperienceLevel = .gettingComfortable
     var home: Coordinate? = nil
     var homeLabel: String = ""
+    var cache: OSMCache?
     var features: [RoadFeature] = []
+    var highInjury: HighInjuryNetwork?
     var dataStatus: String = "No area loaded"
     var isLoading = false
 
-    /// Carmel City Center: the demo home point. Everything the demo needs is bundled.
+    var route: PlannedRoute?
+    var routeError: String?
+
+    /// Carmel City Center: the demo home point and the start of every preset route.
     static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
 
     func loadCarmelDemo() {
+        guard cache == nil else { return }
         isLoading = true
         defer { isLoading = false }
         do {
-            let cache = try BundledData.carmelCache()
-            features = FeatureExtractor.extract(from: cache)
+            let c = try BundledData.carmelCache()
+            cache = c
+            features = FeatureExtractor.extract(from: c)
+            highInjury = try? BundledData.highInjuryNetwork()
             home = Self.carmelDemoHome
             homeLabel = "Carmel City Center (demo)"
             let roundabouts = features.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
-            dataStatus = "Carmel demo: \(features.count) features, \(roundabouts) roundabouts, OSM data from \(cache.fetched)"
+            dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
         } catch {
-            dataStatus = "Could not load the Carmel demo: \(error)"
+            dataStatus = "Could not load the Carmel data: \(error)"
         }
     }
 
-    /// Features inside the current tier's search radius around home.
-    var nearbyFeatures: [RoadFeature] {
-        guard let home else { return [] }
-        let r = tier.searchRadiusMeters
-        return features.filter { Geo.distanceMeters(home, $0.coordinate) <= r }
+    func choosePreset(_ id: String) {
+        loadCarmelDemo()
+        do { route = try RouteService.preset(id); routeError = nil }
+        catch { routeError = "Could not load that route: \(error)" }
     }
 
-    func count(of kind: FeatureKind) -> Int { nearbyFeatures.filter { $0.kind == kind }.count }
+    func routeTo(_ destination: Coordinate, name: String) async {
+        loadCarmelDemo()
+        do { route = try await RouteService.route(from: home ?? Self.carmelDemoHome, to: destination, name: name); routeError = nil }
+        catch { routeError = "No route found: \(error.localizedDescription)" }
+    }
+
+    func makeSession(replay: Double?) -> DriveSession? {
+        guard let route, let cache else { return nil }
+        return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+                            mode: replay.map { .replay(speedMultiplier: $0) } ?? .live)
+    }
 }

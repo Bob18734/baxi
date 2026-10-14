@@ -47,12 +47,12 @@ struct Cue: Identifiable, Codable, Equatable {
     /// Fills the placeholders. `lights` is the number of signals between the driver and the
     /// maneuver this cue sets up, counted at fire time by the Drive screen.
     /// {lightsClause} becomes ", your turn is in 2 lights" or nothing; {lights} becomes "2 lights".
-    /// A signal cue with 0 lights left means the turn is at this light.
+    /// A signal cue with 0 lights left means no lights remain before the turn.
     func spoken(lights: Int?) -> String { Self.fill(spokenTemplate, kind: kind, lights: lights) }
     func card(lights: Int?) -> String { Self.fill(cardTemplate, kind: kind, lights: lights) }
 
     static func fill(_ s: String, kind: CueKind, lights: Int?) -> String {
-        if kind == .signal, lights == 0 { return s.contains("{lights}") ? "Your turn is at this light" : s }
+        if kind == .signal, lights == 0 { return s.contains("{lights}") ? "Last light, your turn is next" : s }
         let word = lights.map { $0 == 1 ? "1 light" : "\($0) lights" }
         return s.replacingOccurrences(of: "{lightsClause}", with: word.map { ", your turn is in \($0)" } ?? "")
                 .replacingOccurrences(of: "{lights}", with: word ?? "")

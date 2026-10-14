@@ -45,6 +45,20 @@ struct CueListBuilderTests {
         #expect(signals.count == 2)
         #expect(abs(signals[0].targetMeters - 400) < 3 && abs(signals[1].targetMeters - 800) < 3)
         #expect(signals.allSatisfy { $0.maneuverId == 1 })   // both count toward the right turn
+        let all = CueListBuilder.signalAlongs(line: Self.route.polyline, cache: Self.cache)
+        #expect(CueListBuilder.lightsBefore(maneuverAt: 1000, from: 100, signals: all) == 2)
+        #expect(CueListBuilder.lightsBefore(maneuverAt: 1000, from: 600, signals: all) == 1)
+    }
+
+    @Test func theLightAtTheTurnGetsNoCountdownCueButStillCounts() {
+        var cache = Self.cache
+        let atTurn = TestRoute.point(metersEast: 995)
+        cache = OSMCache(source: "", bbox: "", fetched: "", ways: cache.ways,
+                         nodes: cache.nodes + [OSMNode(id: 15, tags: ["highway": "traffic_signals"], lat: atTurn.lat, lon: atTurn.lon)])
+        let cues = CueListBuilder.build(route: Self.route, cache: cache, features: [])
+        #expect(cues.filter { $0.kind == .signal }.count == 2)
+        let all = CueListBuilder.signalAlongs(line: Self.route.polyline, cache: cache)
+        #expect(CueListBuilder.lightsBefore(maneuverAt: 1000, from: 100, signals: all) == 3)
     }
 
     @Test func turnGetsALaneCueFromTheApproachTag() {
@@ -75,6 +89,6 @@ struct CueListBuilderTests {
         #expect(lane.spoken(lights: nil) == "Move to the right lane now for your turn")
         let signal = Self.cues.first { $0.kind == .signal }!
         #expect(signal.spoken(lights: 1) == "1 light to go")
-        #expect(signal.spoken(lights: 0) == "Your turn is at this light")
+        #expect(signal.spoken(lights: 0) == "Last light, your turn is next")
     }
 }

@@ -49,6 +49,21 @@ struct Polyline: Equatable {
         return best
     }
 
+    /// Nearest point on the line among segments whose span comes within `tolerance` meters of
+    /// `expectedAlong`. Used to place a maneuver when a loop route passes the same spot twice.
+    func project(_ p: Coordinate, expectedAlong: Double, tolerance: Double = 250) -> Projection? {
+        guard segmentCount > 0 else { return nil }
+        var best: Projection?
+        for i in 0..<segmentCount where cumulative[i + 1] >= expectedAlong - tolerance && cumulative[i] <= expectedAlong + tolerance {
+            let r = Geo.projectOntoSegment(p, points[i], points[i + 1])
+            if best == nil || r.distanceMeters < best!.crossTrackMeters {
+                best = Projection(segmentIndex: i, t: r.t, point: r.point, crossTrackMeters: r.distanceMeters,
+                                  alongMeters: cumulative[i] + r.t * (cumulative[i + 1] - cumulative[i]))
+            }
+        }
+        return best ?? project(p)
+    }
+
     /// The point `meters` from the start, clamped to the line.
     func coordinate(atMeters meters: Double) -> Coordinate? {
         guard let first = points.first else { return nil }

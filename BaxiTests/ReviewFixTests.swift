@@ -103,4 +103,34 @@ struct ReviewFixTests {
         #expect(spot != nil && spot!.spoken.isEmpty && spot!.title == "Fatal crash here, March 2023, in daylight")
         #expect(!cues.contains { $0.spokenTemplate.lowercased().contains("fatal") })
     }
+
+    // GPS gaps.
+
+    private func gapSession() -> DriveSession {
+        DriveSession(route: CueListBuilderTests.route, cache: CueListBuilderTests.cache, features: [], highInjury: nil,
+                     level: .gettingComfortable, mode: .live, speaker: QuietSpeech())
+    }
+
+    @Test func dropoutOnTheRouteCountsTheDistanceAndTheTurn() {
+        let s = gapSession()
+        for i in 0...30 { s.feed(TestRoute.point(metersEast: Double(i) * 20), at: Double(i)) }        // to 600 m at 45 mph
+        s.feed(TestRoute.point(metersEast: 1_100), at: 56)                                              // 25 s gap, 500 m on
+        #expect(s.passedManeuvers.contains { $0.id == 1 })                                              // the turn at 1000 m
+        #expect(abs(s.drivenMeters - 1_100) < 5)
+    }
+
+    @Test func leavingTheRouteThenADropoutDoesNotCreditWhatWasSkipped() {
+        let s = gapSession()
+        for i in 0...30 { s.feed(TestRoute.point(metersEast: Double(i) * 20), at: Double(i)) }
+        for i in 1...5 { s.feed(TestRoute.point(metersEast: 600, metersNorth: Double(i) * 30), at: 30 + Double(i)) } // turns off
+        s.feed(TestRoute.point(metersEast: 1_300), at: 66)                                              // back on, far ahead
+        #expect(!s.passedManeuvers.contains { $0.id == 1 })
+        #expect(s.drivenMeters < 700)
+    }
+}
+
+private final class QuietSpeech: SpeechOutput {
+    var isMuted = false
+    func say(_ text: String) {}
+    func stop() {}
 }

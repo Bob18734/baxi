@@ -98,6 +98,12 @@ struct CueScheduler {
     /// When the last line returned by `due` should finish being spoken.
     private(set) var speechEndsAt: TimeInterval?
 
+    /// Replaces the estimate from `due` with the line as it was actually said. `rate` is the user's voice
+    /// speed (1 = normal); `clockScale` is how much faster than real time the caller's clock runs.
+    mutating func noteSpeech(_ text: String, at now: TimeInterval, rate: Double = 1, clockScale: Double = 1) {
+        speechEndsAt = now + Self.speechSeconds(text) / max(0.5, rate) * clockScale
+    }
+
     /// About how long a line takes to say at the normal voice speed.
     static func speechSeconds(_ text: String) -> Double {
         Double(text.split(whereSeparator: { $0 == " " }).count) / wordsPerSecond + 0.4

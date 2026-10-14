@@ -55,6 +55,7 @@ final class DriveSession {
     /// More progress than this in one location fix is a jump along the route, not driving.
     static let maxJumpMeters = 250.0
     private var lastFeedTime: TimeInterval?
+    private var lastFixOnRoute = true
     private var lastRerouteAttempt: TimeInterval = -.infinity
     /// False until the car is first within 30 m of the route; a live drive started from somewhere
     /// else (a preset loop started from home) is guided to the route's start right away.
@@ -238,8 +239,12 @@ final class DriveSession {
         progress = p
         // After a GPS gap (a bridge, a dead zone) the car may legitimately be far ahead: up to 40 m/s
         // (about 90 mph) for the time the signal was gone counts as driven, not as a shortcut.
-        let gapAllowance = lastFeedTime.map { max(0, time - $0 - 2) * 40 } ?? 0
+        // Only if the car was on the route when the signal went, at no more than 1.3 times the posted
+        // limit (25 m/s where untagged), and for at most 60 s of gap.
+        let limit = (CueListBuilder.speed(at: passedAlong, in: speeds)).map { Double($0) * 0.44704 * 1.3 } ?? 25
+        let gapAllowance = lastFeedTime.map { last in lastFixOnRoute ? min(60, max(0, time - last - 2)) * limit : 0 } ?? 0
         lastFeedTime = time
+        lastFixOnRoute = p.crossTrackMeters <= RouteFollower.offRouteMeters
         if p.alongMeters - passedAlong > Self.maxJumpMeters + gapAllowance {
             // The car joined the route further along (another road, a shortcut): what it skipped was
             // neither driven nor handled.
@@ -282,6 +287,11 @@ final class DriveSession {
             if let s = cue.laneStrip { laneStrip = s; lastLaneCue = cue }
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken)
+            // The line as actually said (light counts filled in), at the voice speed the user chose, on the
+            // session clock (a replay at 4x runs the clock 4 times faster than the voice).
+            let rate = UserDefaults.standard.object(forKey: Speaker.rateKey) as? Double ?? 1
+            let clockScale: Double = if case .replay(let m) = mode { m } else { 1 }
+            scheduler.noteSpeech(spoken, at: time, rate: rate, clockScale: clockScale)
         }
         // Within 30 m of the end counts as there: GPS is often 10 to 20 m off, and people park short.
         if p.remainingMeters < Self.arrivalMeters, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
@@ -341,6 +351,7 @@ final class DriveSession {
         scheduler = CueScheduler()
         progress = nil
         lastCue = nil
+        lastFeedTime = nil; lastFixOnRoute = true
         laneStrip = nil; lastLaneCue = nil
         lastCueText = "New route"
         rerouteCount += 1

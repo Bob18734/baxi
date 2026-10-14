@@ -159,7 +159,7 @@ final class DriveSession {
     /// For tests and the transcript tool (`swift run baxi-transcript`). Returns what was spoken.
     @discardableResult
     func simulateWholeRoute(step: Double = 5) -> [(meters: Double, text: String)] {
-        var meters = 0.0, t = 0.0
+        var meters = replayMeters, t = 0.0
         while !isFinished && meters < route.polyline.lengthMeters {
             meters = min(route.polyline.lengthMeters, meters + step)
             t += step / replaySpeed(at: meters)

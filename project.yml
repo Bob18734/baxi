@@ -27,7 +27,7 @@ targets:
         CFBundleDisplayName: Baxi
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocationWhenInUseUsageDescription: "Baxi shows the passenger where the car is on the practice route. The driver never uses the phone."
+        NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone."
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:

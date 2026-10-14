@@ -12,6 +12,14 @@ struct HomeView: View {
         NavigationStack {
             List {
                 Section {
+                    Button { store.startDemoDrive() } label: {
+                        Label("Watch a demo drive", systemImage: "play.circle.fill").font(.headline)
+                    }
+                    Text("Replays the US 31 loop in Carmel from just before the merge: a highway merge, two exit ramps and multi-lane roundabouts, about three minutes. Replays are never logged.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                } header: { Text("Try it") }
+
+                Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Picker("Experience", selection: $store.level) {
                             ForEach(ExperienceLevel.allCases) { l in Text(l.title).tag(l) }
@@ -44,6 +52,8 @@ struct HomeView: View {
                     .disabled(store.isLoading || store.cache != nil)
                     Text(store.dataStatus).font(.footnote).foregroundStyle(.secondary)
                 } header: { Text("Practice area") }
+
+                VoiceSettingsSection()
             }
             .navigationTitle("Baxi")
         }

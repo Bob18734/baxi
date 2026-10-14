@@ -3,6 +3,7 @@
 //
 //   swift run baxi-transcript                         all presets, Getting comfortable
 //   swift run baxi-transcript preset_highway new      one preset, one experience level
+//   swift run baxi-transcript preset_highway new 4400 start 4400 m along, like the Home demo
 @testable import Baxi
 import Foundation
 
@@ -25,6 +26,7 @@ for id in presets {
     let route = try RouteService.preset(id)
     let session = DriveSession(route: route, cache: cache, features: features, highInjury: hin, level: level,
                                mode: .replay(speedMultiplier: 1), speaker: Recorder())
+    if let from = args.dropFirst(2).first.flatMap(Double.init) { session.skip(toMeters: from) }
     let said = session.simulateWholeRoute()
     print("\n== \(route.name) (\(id)), \(level.title): \(String(format: "%.1f", route.distanceMeters / 1609.34)) mi, \(said.count) cues, CueScheduler \(CueScheduler.isImplemented ? "student version" : "stub")")
     for e in said {

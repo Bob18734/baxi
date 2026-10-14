@@ -12,6 +12,7 @@ struct DriveView: View {
     @State private var camera: MapCameraPosition = .automatic
     @State private var saved: DriveRecord?
     @State private var didSave = false
+    @State private var isNight = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -33,6 +34,10 @@ struct DriveView: View {
         .onAppear {
             // The phone is mounted for the whole drive, so the screen must not lock.
             UIApplication.shared.isIdleTimerDisabled = true
+            // After sunset the whole screen goes dark so it does not glare in the driver's eyes.
+            if let s = Daylight.sunriseSunset(on: Date(), at: session.startCoordinate ?? AppStore.carmelDemoHome) {
+                isNight = Date() < s.sunrise || Date() >= s.sunset
+            }
             session.start(); follow()
         }
         .onDisappear {
@@ -44,6 +49,7 @@ struct DriveView: View {
         .sheet(isPresented: .constant(session.isFinished)) {
             ArrivedView(session: session, record: saved, onDone: onClose)
         }
+        .preferredColorScheme(isNight ? .dark : nil)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
     }

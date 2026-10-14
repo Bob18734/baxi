@@ -9,7 +9,6 @@ struct RouteView: View {
     @State private var query = ""
     @State private var results: [MKMapItem] = []
     @State private var searching = false
-    @State private var session: DriveSession?
     @State private var replaySpeed: Double = 4
     @State private var showPreview = false
 
@@ -40,13 +39,10 @@ struct RouteView: View {
             }
         }
         .onAppear { store.loadCarmelDemo() }
-        .fullScreenCover(item: $session) { s in
-            DriveView(session: s) { session = nil }
-        }
         .sheet(isPresented: $showPreview) {
             if let r = store.route {
                 PreviewView(routeName: r.name, spots: store.hardSpots(), route: r) {
-                    session = store.makeSession(replay: nil)
+                    store.activeSession = store.makeSession(replay: nil)
                 }
             }
         }
@@ -103,13 +99,13 @@ struct RouteView: View {
                 }
                 .buttonStyle(.bordered).controlSize(.large)
                 HStack {
-                    Button { session = store.makeSession(replay: nil) } label: {
+                    Button { store.activeSession = store.makeSession(replay: nil) } label: {
                         Label("Start drive", systemImage: "car.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     Menu {
                         ForEach([1.0, 4, 8, 16], id: \.self) { s in
-                            Button("Replay at \(Int(s))x") { replaySpeed = s; session = store.makeSession(replay: s) }
+                            Button("Replay at \(Int(s))x") { replaySpeed = s; store.activeSession = store.makeSession(replay: s) }
                         }
                     } label: {
                         Label("Replay", systemImage: "play.circle").frame(maxWidth: .infinity)

@@ -16,6 +16,13 @@ final class AppStore {
 
     var route: PlannedRoute?
     var routeError: String?
+    /// The drive on screen, if any. RootView presents it full screen.
+    var activeSession: DriveSession?
+
+    /// The judge demo: the US 31 loop replayed at 4x, starting just before the merge onto the highway,
+    /// so a merge, two exit ramps, the interchange roundabout and multi-lane roundabouts happen in about three minutes.
+    static let demoPreset = "preset_highway"
+    static let demoStartMeters = 4_400.0
 
     /// Carmel City Center: the demo home point and the start of every preset route.
     static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
@@ -55,6 +62,12 @@ final class AppStore {
         guard let route, let cache else { return [] }
         let cues = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
         return HardSpots.find(route: route, cues: cues, features: features)
+    }
+
+    func startDemoDrive(speed: Double = 4, startMeters: Double = AppStore.demoStartMeters) {
+        choosePreset(Self.demoPreset)
+        activeSession = makeSession(replay: speed)
+        activeSession?.skip(toMeters: startMeters)
     }
 
     func makeSession(replay: Double?) -> DriveSession? {

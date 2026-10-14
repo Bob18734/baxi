@@ -10,7 +10,7 @@ let package = Package(
         .target(
             name: "Baxi",
             path: "Baxi",
-            exclude: ["App", "Screens", "Info.plist", "Resources/Assets.xcassets", "Resources/Content",
+            exclude: ["App", "Screens", "Info.plist", "Resources/Assets.xcassets", "Resources/Content", "Resources/PrivacyInfo.xcprivacy",
                       ],
             sources: ["Core", "Models", "Services"],
             resources: [.process("Resources/Data"), .process("Resources/Routes")],

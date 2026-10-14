@@ -23,7 +23,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Baxi shows the passenger where the car is on the practice route. The driver never uses the phone.</string>
+	<string>Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

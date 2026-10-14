@@ -31,9 +31,7 @@ enum CueListBuilder {
 
         // Speed limits along the route, then changes.
         let speeds = speedProfile(samples: samples, wayIndex: wayIndex)
-        func speed(at along: Double) -> Int? {
-            speeds.last { $0.along <= along }?.mph ?? speeds.first?.mph
-        }
+        func speed(at along: Double) -> Int? { Self.speed(at: along, in: speeds) }
         var runStart = 0, i = 1
         while i < speeds.count {
             if speeds[i].mph != speeds[runStart].mph {
@@ -70,6 +68,7 @@ enum CueListBuilder {
                 case (.offRamp, _): what = "Take the exit on the \(dir.sideWord), slow down on the ramp, not before"
                 case (_, .uturn): what = "Make a U-turn ahead"
                 case (_, .straight): what = "Continue straight\(onto)"
+                case (.fork, _): what = "Keep \(dir.sideWord)\(onto)"
                 default: what = "Turn \(dir.spokenWord)\(onto)"
                 }
                 var spokenWhat = what
@@ -87,6 +86,11 @@ enum CueListBuilder {
                 cues.append(Cue(id: "turn-\(m.id)", kind: .turn, targetMeters: m.alongMeters,
                                 spokenTemplate: spokenWhat, cardTemplate: what, laneStrip: lane?.laneStrip, roadSpeedMph: mph, maneuverId: m.id))
                 if let cue = lane?.cue { cues.append(cue) }
+            case .roundabout where m.exitNumber == nil:
+                // The router gave no exit number: say nothing it cannot back up (no exit, no lane).
+                cues.append(Cue(id: "rb-\(m.id)", kind: .roundabout, targetMeters: m.alongMeters,
+                                spokenTemplate: "Roundabout ahead, yield to traffic already inside, then follow the map to your exit",
+                                cardTemplate: "Roundabout: follow the map", laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
             case .roundabout:
                 let exit = m.exitNumber ?? 1
                 let lanes = roundabout(near: m, features: features)?.lanes ?? 1
@@ -109,25 +113,26 @@ enum CueListBuilder {
                                 laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
             case .arrive:
                 cues.append(Cue(id: "arrive", kind: .arrive, targetMeters: m.alongMeters,
-                                spokenTemplate: "You have arrived", cardTemplate: "Arrived", laneStrip: nil,
+                                spokenTemplate: "Your destination is just ahead", cardTemplate: "Destination ahead", laneStrip: nil,
                                 roadSpeedMph: mph, maneuverId: m.id))
             default: break
             }
         }
         if !cues.contains(where: { $0.kind == .arrive }) {
-            cues.append(Cue(id: "arrive", kind: .arrive, targetMeters: line.lengthMeters, spokenTemplate: "You have arrived",
-                            cardTemplate: "Arrived", laneStrip: nil, roadSpeedMph: nil, maneuverId: nil))
+            cues.append(Cue(id: "arrive", kind: .arrive, targetMeters: line.lengthMeters, spokenTemplate: "Your destination is just ahead",
+                            cardTemplate: "Destination ahead", laneStrip: nil, roadSpeedMph: nil, maneuverId: nil))
         }
 
         // Signals on the route. The light at a turn is the turn itself, so it gets no countdown cue,
         // but it still counts in "your turn is in N lights" (see lightsBefore).
-        let stopNodes = cache.nodes.filter { $0.tags["highway"] == "stop" }
+        let stopNodes = cache.nodes.filter { $0.tags["highway"] == "stop" && $0.tags["stop"] != "no" }
         for along in signalAlongs(line: line, cache: cache)
         where !laneManeuvers.contains(where: { abs($0.alongMeters - along) <= turnLightMeters }) {
-            let next = nextLaneManeuver(after: along)
+            // Past the last turn there is nothing to count down to; the light still shows on the map.
+            guard let next = nextLaneManeuver(after: along) else { continue }
             cues.append(Cue(id: "signal-\(Int(along))", kind: .signal, targetMeters: along,
                             spokenTemplate: "{lights} to go", cardTemplate: "{lights} to your turn", laneStrip: nil,
-                            roadSpeedMph: speed(at: along), maneuverId: next?.id))
+                            roadSpeedMph: speed(at: along), maneuverId: next.id))
         }
         for along in dedupe(onRoute(stopNodes.map(\.coordinate), line: line, within: stopMatchMeters), within: stopPairMeters) {
             cues.append(Cue(id: "stop-\(Int(along))", kind: .stopSign, targetMeters: along,
@@ -170,10 +175,12 @@ enum CueListBuilder {
                                 features: [RoadFeature], mph: Int?) -> (laneLabel: String?, laneStrip: LaneStrip?, cue: Cue?)? {
         // The approach way is the one with turn:lanes closest to a point 40 m before the maneuver.
         guard let approach = line.coordinate(atMeters: max(0, m.alongMeters - 40)) else { return nil }
-        let way = wayIndex.nearest(to: approach, within: laneWayMatchMeters) { $0.turnLanes != nil && !$0.isRoundabout }
+        // The road the car is on, then its tag: a tagged carriageway next to it is not the car's road.
+        let way = wayIndex.nearest(to: approach, within: laneWayMatchMeters) { $0.highway != nil && !$0.isRoundabout }
+        let heading = line.bearing(atMeters: max(0, m.alongMeters - 40))
         var advice: LaneAdvice?
         var strip: LaneStrip?
-        if let tl = way?.turnLanes {
+        if let tl = way.flatMap({ w in heading.flatMap { w.turnLanes(travelling: $0, near: approach) } ?? w.turnLanes }) {
             if m.kind == .roundabout {
                 let rb = roundabout(near: m, features: features)
                 let straight = LanePicker.exitSide(exitNumber: m.exitNumber ?? 1, totalExits: rb?.legs ?? 4) == .through
@@ -254,11 +261,20 @@ enum CueListBuilder {
         return speedProfile(samples: line.samples(everyMeters: sampleStepMeters), wayIndex: wayIndex)
     }
 
+    /// The road the route is on decides the limit; a tagged road nearby does not lend its tag to an
+    /// untagged one. Roundabout ways are skipped (their advisory limits are not the road's).
     private static func speedProfile(samples: [(alongMeters: Double, point: Coordinate)], wayIndex: GeoIndex) -> [(along: Double, mph: Int)] {
         samples.compactMap { s in
-            wayIndex.nearest(to: s.point, within: speedWayMatchMeters) { $0.maxspeedMph != nil && !$0.isRoundabout }
+            wayIndex.nearest(to: s.point, within: speedWayMatchMeters) { !$0.isRoundabout }
                 .flatMap { w in w.maxspeedMph.map { (s.alongMeters, $0) } }
         }
+    }
+
+    /// The posted limit at `along`: the last tagged sample at or before it, if no more than 50 m back
+    /// (two samples). nil on untagged stretches rather than the last road's limit.
+    static func speed(at along: Double, in speeds: [(along: Double, mph: Int)]) -> Int? {
+        guard let s = speeds.last(where: { $0.along <= along + 1 }), along - s.along <= 2 * sampleStepMeters + 1 else { return nil }
+        return s.mph
     }
 
     static func signalAlongs(line: Polyline, cache: OSMCache) -> [Double] {
@@ -272,12 +288,10 @@ enum CueListBuilder {
         signals.filter { $0 > along + 5 && $0 <= target + turnLightMeters }.count
     }
 
-    /// Along-route distances of the points that lie within `within` meters of the line.
+    /// Along-route distances of the points that lie within `within` meters of the line, once per
+    /// pass, so a loop that goes through the same light twice counts it twice.
     static func onRoute(_ points: [Coordinate], line: Polyline, within: Double) -> [Double] {
-        points.compactMap { p in
-            guard let proj = line.project(p), proj.crossTrackMeters <= within else { return nil }
-            return proj.alongMeters
-        }.sorted()
+        points.flatMap { line.passes(near: $0, within: within) }.sorted()
     }
 
     /// Collapses sorted distances closer than `within` into their first value.

@@ -42,7 +42,10 @@ enum DriveLog {
         date.locale = Locale(identifier: "en_US_POSIX"); time.locale = date.locale
         date.dateFormat = "MM/dd/yyyy"; time.dateFormat = "HH:mm"
         func field(_ s: String) -> String {
-            s.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" }) ? "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : s
+            // A typed route name starting with = + - @ would run as a formula in Excel; a leading ' keeps it text.
+            let safe = s.first.map { "=+-@".contains($0) } == true ? "'" + s : s
+            return safe.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" })
+                ? "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : safe
         }
         var lines = ["Date,Start,End,Drive time,Day,Night,Route,Miles,Entered by hand"]
         for r in rows.sorted(by: { $0.start < $1.start }) {

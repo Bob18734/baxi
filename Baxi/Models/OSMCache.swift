@@ -27,6 +27,20 @@ struct OSMWay: Codable, Identifiable, Hashable {
     var lanes: Int? { tags["lanes"].flatMap { Int($0) } }
     var turnLanes: String? { tags["turn:lanes"] }
 
+    /// turn:lanes for a car travelling on bearing `heading` near `point`: `turn:lanes:forward` when that
+    /// matches the way's drawn direction, `turn:lanes:backward` when against it, else plain `turn:lanes`.
+    func turnLanes(travelling heading: Double, near point: Coordinate) -> String? {
+        let fwd = tags["turn:lanes:forward"], back = tags["turn:lanes:backward"]
+        guard fwd != nil || back != nil else { return turnLanes }
+        let pts = coordinates
+        guard pts.count >= 2 else { return turnLanes }
+        let i = (0..<(pts.count - 1)).min {
+            Geo.distanceMeters(from: point, toPolyline: [pts[$0], pts[$0 + 1]]) < Geo.distanceMeters(from: point, toPolyline: [pts[$1], pts[$1 + 1]])
+        }!
+        let diff = abs(((Geo.bearingDegrees(from: pts[i], to: pts[i + 1]) - heading) + 540).truncatingRemainder(dividingBy: 360) - 180)
+        return (diff < 90 ? fwd : back) ?? turnLanes
+    }
+
     /// Posted limit in mph, parsed from "45 mph" or "45".
     var maxspeedMph: Int? {
         guard let raw = tags["maxspeed"] else { return nil }

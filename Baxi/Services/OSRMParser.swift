@@ -87,7 +87,8 @@ enum OSRMParser {
         case "depart": return isFirstDepart ? .depart : nil
         case "arrive": return isLastArrive ? .arrive : nil
         case "roundabout", "rotary": return .roundabout
-        case "exit roundabout", "exit rotary", "roundabout turn", "new name", "notification", "use lane": return nil
+        case "roundabout turn": return modifier == nil || modifier == "straight" ? .continueStraight : .turn
+        case "exit roundabout", "exit rotary", "new name", "notification", "use lane": return nil
         case "on ramp": return .onRamp
         case "off ramp": return .offRamp
         case "merge": return .merge

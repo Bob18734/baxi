@@ -57,6 +57,28 @@ struct Polyline: Equatable {
         return ties.filter { $0.alongMeters >= from - Self.tieBackMeters }.min { $0.alongMeters < $1.alongMeters } ?? closest
     }
 
+    /// Along-route distance of every pass the line makes within `within` meters of `p`. A loop that
+    /// goes through the same intersection twice has two passes; one pass is the closest point of a run
+    /// of nearby segments, and runs further apart than `gapMeters` along the line are separate passes.
+    func passes(near p: Coordinate, within: Double, gapMeters: Double = 60) -> [Double] {
+        guard segmentCount > 0 else { return [] }
+        var out: [Double] = []
+        var run: (along: Double, d: Double, end: Double)?
+        for i in 0..<segmentCount {
+            let r = Geo.projectOntoSegment(p, points[i], points[i + 1])
+            guard r.distanceMeters <= within else { continue }
+            let along = cumulative[i] + r.t * (cumulative[i + 1] - cumulative[i])
+            if let cur = run, along - cur.end <= gapMeters {
+                run = r.distanceMeters < cur.d ? (along, r.distanceMeters, along) : (cur.along, cur.d, along)
+            } else {
+                if let cur = run { out.append(cur.along) }
+                run = (along, r.distanceMeters, along)
+            }
+        }
+        if let cur = run { out.append(cur.along) }
+        return out
+    }
+
     /// Nearest point on the line among segments whose span comes within `tolerance` meters of
     /// `expectedAlong`. Used to place a maneuver when a loop route passes the same spot twice.
     func project(_ p: Coordinate, expectedAlong: Double, tolerance: Double = 250) -> Projection? {

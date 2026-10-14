@@ -90,12 +90,16 @@ final class DriveSession {
     }
 
     /// Total meters driven this drive, across reroutes.
-    var drivenMeters: Double { max(0, metersBeforeReroute + (progress?.alongMeters ?? 0) - (firstAlongMeters ?? 0)) }
+    var drivenMeters: Double {
+        max(0, metersBeforeReroute + (progress?.alongMeters ?? 0) - (firstAlongMeters ?? 0) + arrivalCreditMeters)
+    }
+    /// The gap between where the drive ended (within `arrivalMeters`) and the destination.
+    private var arrivalCreditMeters = 0.0
 
     /// The posted limit where the car is, from OpenStreetMap maxspeed tags. nil where untagged.
     var speedLimitMph: Int? {
         let along = progress?.alongMeters ?? 0
-        return speeds.last { $0.along <= along }?.mph ?? (along < 50 ? speeds.first?.mph : nil)
+        return CueListBuilder.speed(at: along, in: speeds)
     }
 
     /// A school zone or crash-heavy corridor the car is in or about to enter, shown as a chip.
@@ -267,20 +271,23 @@ final class DriveSession {
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken)
         }
-        if p.remainingMeters < 15, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
-            // The last turns can sit right at the destination; if they used the arrival's slot, say it now.
-            if let arrive = cues.first(where: { $0.kind == .arrive }), !scheduler.fired.contains(arrive.id) {
-                scheduler.markFired(arrive.id)
-                lastCue = arrive
-                lastCueText = arrive.card(lights: nil)
-                spokenLog.append((p.alongMeters, arrive.spoken(lights: nil)))
-                speaker.say(arrive.spoken(lights: nil))
-            }
+        // Within 30 m of the end counts as there: GPS is often 10 to 20 m off, and people park short.
+        if p.remainingMeters < Self.arrivalMeters, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
+            if let arrive = cues.first(where: { $0.kind == .arrive }) { scheduler.markFired(arrive.id); lastCue = arrive }
+            // The car is there: credit the last few meters and any turn in them, as if it drove to the pin.
+            let destination = route.polyline.lengthMeters
+            passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= destination && $0.kind != .arrive }
+            arrivalCreditMeters = max(0, destination - p.alongMeters)
+            passedAlong = destination
+            lastCueText = "Arrived"
+            spokenLog.append((p.alongMeters, "You have arrived"))
+            speaker.say("You have arrived")
             end(stopSpeech: false)
         }
         previousAlong = p.alongMeters
     }
 
+    static let arrivalMeters = 30.0
     private var lastLaneCue: Cue?
     private var previousAlong = 0.0
     private var saidGetToStart = false
@@ -303,7 +310,8 @@ final class DriveSession {
             guard let approach else { return }
             let new = original.rejoined(by: approach, at: rejoin)
             self.install(new)
-            self.speaker.say("New route. \(new.maneuvers.first { $0.kind != .depart }?.instruction ?? "Follow the line on the map").")
+            // The next instruction comes from the cues at its usual distance, not all at once here.
+            self.speaker.say("New route")
         }
     }
 
@@ -368,6 +376,8 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        for l in locations where l.horizontalAccuracy >= 0 && l.horizontalAccuracy < 50 { onFix(l) }
+        // iOS often hands over a cached fix from minutes ago first; it would place the car where it was.
+        for l in locations where l.horizontalAccuracy >= 0 && l.horizontalAccuracy < 50
+            && abs(l.timestamp.timeIntervalSinceNow) < 10 { onFix(l) }
     }
 }

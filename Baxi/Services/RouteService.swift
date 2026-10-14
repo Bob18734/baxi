@@ -56,19 +56,47 @@ enum RouteService {
             defer { along += step.distance }
             let text = step.instructions
             guard !text.isEmpty, step.polyline.pointCount > 0 else { continue }
-            let lower = text.lowercased()
-            let kind: Maneuver.Kind = i == r.steps.count - 1 ? .arrive
-                : lower.contains("roundabout") ? .roundabout
-                : lower.contains("exit") ? .offRamp
-                : lower.contains("merge") || lower.contains("ramp") ? .merge
-                : lower.contains("left") || lower.contains("right") ? .turn : .continueStraight
-            let dir: Maneuver.Direction? = lower.contains("left") ? .left : lower.contains("right") ? .right : nil
+            let read = appleStep(text, isLast: i == r.steps.count - 1)
             let first = step.polyline.points()[0].coordinate
-            maneuvers.append(Maneuver(id: maneuvers.count, kind: kind, direction: dir, location: Coordinate(first),
-                                      alongMeters: min(along, line.lengthMeters), exitNumber: nil, roadName: nil,
+            maneuvers.append(Maneuver(id: maneuvers.count, kind: read.kind, direction: read.direction, location: Coordinate(first),
+                                      alongMeters: min(along, line.lengthMeters), exitNumber: read.exitNumber, roadName: nil,
                                       instruction: text, laneCount: nil, validLanes: nil))
         }
         return PlannedRoute(id: UUID().uuidString, name: name, polyline: line, maneuvers: maneuvers,
                             distanceMeters: line.lengthMeters, durationSeconds: r.expectedTravelTime, source: "apple")
+    }
+
+    /// Reads one Apple step instruction ("At the roundabout, take the 3rd exit onto Main St",
+    /// "Make a U-turn", "Keep left at the fork") into a maneuver. Apple gives only text, so a roundabout
+    /// whose exit cannot be read keeps exitNumber nil, and Baxi then makes no exit or lane claim.
+    static func appleStep(_ text: String, isLast: Bool) -> (kind: Maneuver.Kind, direction: Maneuver.Direction?, exitNumber: Int?) {
+        let lower = text.lowercased()
+        let left = lower.contains("left"), right = lower.contains("right")
+        let side: Maneuver.Direction? = left ? .left : right ? .right : nil
+        if isLast { return (.arrive, nil, nil) }
+        if lower.contains("roundabout") || lower.contains("traffic circle") || lower.contains("rotary") {
+            return (.roundabout, side, exitOrdinal(lower))
+        }
+        if lower.contains("u-turn") || lower.contains("u turn") { return (.turn, .uturn, nil) }
+        if lower.hasPrefix("keep") || lower.contains("at the fork") {
+            return (.fork, left ? .slightLeft : right ? .slightRight : nil, nil)
+        }
+        if lower.contains("exit") { return (.offRamp, side ?? .right, nil) }
+        if lower.contains("merge") || lower.contains("ramp") { return (.merge, side, nil) }
+        if left || right {
+            let sharp = lower.contains("sharp"), slight = lower.contains("slight") || lower.contains("bear")
+            let d: Maneuver.Direction = left ? (sharp ? .sharpLeft : slight ? .slightLeft : .left)
+                                             : (sharp ? .sharpRight : slight ? .slightRight : .right)
+            return (.turn, d, nil)
+        }
+        return (.continueStraight, nil, nil)
+    }
+
+    /// "3rd exit", "third exit" -> 3.
+    static func exitOrdinal(_ lower: String) -> Int? {
+        let words = ["first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8]
+        for (w, n) in words where lower.contains("\(w) exit") { return n }
+        guard let r = lower.range(of: #"(\d+)(st|nd|rd|th) exit"#, options: .regularExpression) else { return nil }
+        return Int(lower[r].prefix { $0.isNumber })
     }
 }

@@ -11,9 +11,11 @@ struct CueListBuilderTests {
     }
 
     static var cache: OSMCache {
-        let fast = way(1, from: 0, to: 1000, tags: ["highway": "primary", "maxspeed": "45 mph", "name": "E 116th St"])
+        // OSM splits a road where its tags change, so the tagged approach is its own way, not drawn on top of way 1.
+        let fast = way(1, from: 0, to: 900, tags: ["highway": "primary", "maxspeed": "45 mph", "name": "E 116th St"])
         let slow = way(2, from: 1000, to: 2000, tags: ["highway": "secondary", "maxspeed": "30 mph", "name": "Main St"])
-        let approach = way(3, from: 900, to: 1000, tags: ["highway": "primary", "turn:lanes": "left|through|through;right"])
+        let approach = way(3, from: 900, to: 1000, tags: ["highway": "primary", "maxspeed": "45 mph", "name": "E 116th St",
+                                                          "turn:lanes": "left|through|through;right"])
         let s1 = TestRoute.point(metersEast: 400), s1b = TestRoute.point(metersEast: 410, metersNorth: 8), s2 = TestRoute.point(metersEast: 800)
         let stop = TestRoute.point(metersEast: 1600)
         return OSMCache(source: "test", bbox: "", fetched: "", ways: [fast, slow, approach], nodes: [

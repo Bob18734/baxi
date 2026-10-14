@@ -95,4 +95,24 @@ struct CueSchedulerTests {
         #expect(p["rb2"]! == 2015)
         #expect(p["lane2"]! == nil)
     }
+
+    @Test func fastRoadsGetAtLeastTheMinimumWarningTime() {
+        // 300 m before a turn at 55 mph is 12 s; the minimum is 14 s, about 344 m.
+        let p = CueScheduler.plan([cue("turn", .turn, at: 2000, mph: 55)], level: .gettingComfortable, maneuverTargets: [2000])
+        let lead = 2000 - (p.first?.fireAtMeters ?? 2000)
+        #expect(abs(lead - 55 * 0.44704 * 14) < 1)
+        // At 30 mph the 200 m distance is already more than 14 s (188 m), so it stands.
+        #expect(CueScheduler.plan([cue("t", .turn, at: 2000, mph: 30)], level: .gettingComfortable, maneuverTargets: [2000]).first?.fireAtMeters == 1800)
+    }
+
+    @Test func nothingStartsWhileTheLastLineIsStillBeingSaid() {
+        let long = Cue(id: "rb", kind: .roundabout, targetMeters: 3000,
+                       spokenTemplate: String(repeating: "word ", count: 39) + "word", cardTemplate: "", laneStrip: nil,
+                       roadSpeedMph: 30, maneuverId: 1, fireAtMeters: 0)   // 40 words: about 15 s
+        var next = cue("speed", .speedChange, at: 5000); next.fireAtMeters = 0
+        var s = CueScheduler()
+        #expect(s.due(from: [long, next], alongMeters: 100, now: 0)?.id == "rb")
+        #expect(s.due(from: [long, next], alongMeters: 200, now: 9) == nil)     // past the 8 s gap, still talking
+        #expect(s.due(from: [long, next], alongMeters: 300, now: 17)?.id == "speed")
+    }
 }

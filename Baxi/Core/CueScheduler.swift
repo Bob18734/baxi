@@ -15,6 +15,9 @@ struct CueScheduler {
     static let urgentMeters = 120.0
     /// A cue whose target is more than this far behind the car is stale: mark it fired, never speak it.
     static let staleMeters = 50.0
+    static let minimumWarningSeconds: [CueKind: Double] = [.turn: 14, .roundabout: 18, .ramp: 18, .crashCorridor: 18]
+    /// Spoken words per second at the normal voice speed, for knowing when a line will have finished.
+    static let wordsPerSecond = 2.6
 
     /// Sets `fireAtMeters` on every cue. Rules the tests check (lead = meters before the target):
     /// 1. laneChange: lead is `level.laneLeadFastMeters` when `roadSpeedMph` >= 40, else `level.laneLeadSlowMeters`.
@@ -53,7 +56,12 @@ struct CueScheduler {
             case .schoolZone: lead = level.speaksSchoolZones ? 300 : nil
             case .signal: lead = counted.contains(c.id) ? 0 : nil
             }
-            guard let lead else { c.fireAtMeters = nil; return c }
+            guard var lead else { c.fireAtMeters = nil; return c }
+            // 10. At least this many seconds of warning at the posted speed, so a fixed distance is not too
+            //     short on a fast road: 300 m at 55 mph is only 12 s. (Added by Claude beyond the original rules.)
+            if let mph = c.roadSpeedMph, let seconds = Self.minimumWarningSeconds[c.kind] {
+                lead = max(lead, Double(mph) * 0.44704 * seconds)
+            }
             var at = c.targetMeters - lead
             if let previous = maneuvers.last(where: { $0 < c.targetMeters - 1 }) {
                 if c.kind == .laneChange {
@@ -87,6 +95,13 @@ struct CueScheduler {
 
     private(set) var fired: Set<String> = []
     private(set) var lastFireTime: TimeInterval?
+    /// When the last line returned by `due` should finish being spoken.
+    private(set) var speechEndsAt: TimeInterval?
+
+    /// About how long a line takes to say at the normal voice speed.
+    static func speechSeconds(_ text: String) -> Double {
+        Double(text.split(whereSeparator: { $0 == " " }).count) / wordsPerSecond + 0.4
+    }
 
     /// Marks a cue as already handled without speaking it (a replay that starts partway along).
     /// Written by Claude, not part of Vardaan's rules; keep it when you replace the stub.
@@ -108,12 +123,16 @@ struct CueScheduler {
             winner = c
         }
         guard let w = winner else { return nil }
-        if let last = lastFireTime, now - last < Self.minimumGapSeconds {
+        // 11. Nothing starts while the last line is still being said (plus a breath), so lines never
+        //     queue up behind a long one. (Added by Claude beyond the original rules.)
+        let speaking = speechEndsAt.map { now < $0 + 1 } ?? false
+        if let last = lastFireTime, now - last < Self.minimumGapSeconds || speaking {
             let urgent = (w.kind == .turn || w.kind == .roundabout) && w.targetMeters - alongMeters <= Self.urgentMeters
             guard urgent else { return nil }
         }
         fired.insert(w.id)
         lastFireTime = now
+        speechEndsAt = now + Self.speechSeconds(w.spokenTemplate)
         return w
     }
 }

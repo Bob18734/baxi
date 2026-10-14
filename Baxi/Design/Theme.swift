@@ -65,15 +65,16 @@ extension Color {
 
 // MARK: - Type
 
-/// Display rungs are Overpass (sign lettering); utility rungs are the system font.
-/// All of them scale with Dynamic Type.
+/// Overpass (sign lettering) is for things that are signs: screen titles, sign faces, the big numbers.
+/// Everything you read or tap is the system font, so it feels like iOS and follows Dynamic Type.
 enum BaxiFont {
-    // Display
+    // Display (Overpass)
     static let hero = overpass("Black", 40, .largeTitle)
     static let title = overpass("ExtraBold", 28, .title)
-    static let section = overpass("ExtraBold", 22, .title2)
-    static let headline = overpass("Bold", 19, .headline)
-    static let button = overpass("Bold", 18, .headline)
+    // Reading and tapping (system)
+    static let section = Font.title3.weight(.bold)
+    static let headline = Font.headline
+    static let button = Font.body.weight(.semibold)
     /// The big numbers: distance to the turn, hours driven.
     static let number = overpass("Black", 36, .largeTitle)
     static let numberSmall = overpass("ExtraBold", 24, .title2)
@@ -83,8 +84,8 @@ enum BaxiFont {
     static let callout = Font.callout
     static let footnote = Font.footnote
     static let caption = Font.caption.weight(.medium)
-    /// Small capitals over a section: "SUPERVISED HOURS".
-    static let eyebrow = overpass("Bold", 13, .caption)
+    /// A section's name over its content: "Practice routes".
+    static let eyebrow = Font.subheadline.weight(.semibold)
 
     /// Fixed sizes for sign faces, which are drawn objects and do not scale with text size.
     static func signFace(_ size: CGFloat, weight: String = "Black") -> Font { .custom("Overpass-\(weight)", fixedSize: size) }
@@ -145,15 +146,14 @@ extension View {
     }
 }
 
-/// "SUPERVISED HOURS" over a section.
+/// A section's name over its content, in sentence case like iOS's own grouped lists.
 struct Eyebrow: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text.uppercased())
+        Text(text)
             .font(BaxiFont.eyebrow)
-            .tracking(1.2)
-            .foregroundStyle(BaxiColor.inkFaint)
+            .foregroundStyle(BaxiColor.inkSoft)
             .accessibilityAddTraits(.isHeader)
     }
 }

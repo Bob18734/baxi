@@ -53,75 +53,63 @@ struct ArrivedView: View {
         .signPanel(radius: BaxiRadius.xl)
     }
 
+    /// The numbers a driver cares about, on one line: how long, how far, and night time when it counts.
     private var stats: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: BaxiSpace.md), GridItem(.flexible())], spacing: BaxiSpace.md) {
-            stat("Time", "\(Int(session.minutes.rounded())) min")
-            stat("Distance", DriveView.distance(session.drivenMeters))
-            stat("Cues spoken", "\(session.spokenLog.count)")
-            stat("Reroutes", "\(session.rerouteCount)")
+        HStack(alignment: .firstTextBaseline, spacing: BaxiSpace.xxl) {
+            if session.minutes >= 1 { stat("\(Int(session.minutes.rounded()))", "min") }
+            stat(String(format: "%.1f", session.drivenMeters / 1609.34), "miles")
+            if let record, record.nightMinutes > 0 { stat("\(record.nightMinutes)", "min at night") }
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, BaxiSpace.xs)
     }
 
-    private func stat(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            Text(value).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
-            Text(label).font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+    private func stat(_ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(value).font(BaxiFont.number).foregroundStyle(BaxiColor.ink)
+            Text(unit).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
         }
-        .card(padding: BaxiSpace.lg)
         .accessibilityElement(children: .combine)
     }
 
     private var handledSection: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("You handled")
-            VStack(spacing: BaxiSpace.sm) {
-                ForEach(handled, id: \.title) { item in
-                    HStack(spacing: BaxiSpace.md) {
-                        Image(systemName: item.symbol).font(BaxiFont.headline).foregroundStyle(BaxiColor.onSign)
-                            .frame(width: 40, height: 40).signPanel(radius: BaxiRadius.sm)
-                        Text(item.title).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                        Spacer()
-                        Text("\(item.count)").font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
-                    }
+            Text("You handled").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
+            ForEach(handled, id: \.title) { item in
+                HStack(spacing: BaxiSpace.md) {
+                    Image(systemName: item.symbol).font(BaxiFont.headline).foregroundStyle(BaxiColor.onSign)
+                        .frame(width: 40, height: 40).signPanel(radius: BaxiRadius.sm)
+                    Text(item.title).font(BaxiFont.body).foregroundStyle(BaxiColor.ink)
+                    Spacer()
+                    Text("\(item.count)").font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
                 }
+                .accessibilityElement(children: .combine)
             }
-            .card()
         }
+        .padding(.horizontal, BaxiSpace.xs)
     }
 
+    /// One sentence on what this drive did for the 50 hours.
     private var logSection: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow(record == nil ? "Your log" : "Saved to your log")
-            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                if let record {
-                    HStack(spacing: BaxiSpace.xl) {
-                        VStack(alignment: .leading) {
-                            Text(DriveLog.hm(record.dayMinutes)).font(BaxiFont.numberSmall)
-                            Text("day").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-                        }
-                        VStack(alignment: .leading) {
-                            Text(DriveLog.hm(record.nightMinutes)).font(BaxiFont.numberSmall)
-                            Label("night", systemImage: "moon.fill").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-                        }
-                        Spacer()
-                    }
-                    .foregroundStyle(BaxiColor.ink)
+        HStack(alignment: .top, spacing: BaxiSpace.md) {
+            Image(systemName: record == nil ? "info.circle" : "checkmark.circle.fill")
+                .font(BaxiFont.headline).foregroundStyle(record == nil ? BaxiColor.inkFaint : BaxiColor.accent)
+            Group {
+                if record != nil {
                     let totals = DriveLog.totals(drives.map(\.row))
-                    Text("\(DriveLog.hm(totals.minutes)) of 50 hours so far. Night is counted from sunset to sunrise.")
-                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    Text("Saved to your log. \(DriveLog.hm(totals.minutes)) of 50 hours so far.")
                 } else {
-                    Text(session.mode == .live ? "Drives under a minute are not logged."
-                                               : "Replays are demos, so they never count toward the 50 hours.")
-                        .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+                    Text(session.mode == .live ? "Drives under a minute are not logged." : "Replays are demos and never count toward the 50 hours.")
                 }
             }
-            .card()
+            .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
         }
+        .padding(.horizontal, BaxiSpace.xs)
     }
 
+    /// Everything Baxi said, folded away; open it to go over the drive together afterward.
     private var transcript: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("What Baxi said")
+        DisclosureGroup {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(session.spokenLog.enumerated()), id: \.offset) { i, e in
                     HStack(alignment: .top, spacing: BaxiSpace.md) {
@@ -139,11 +127,12 @@ struct ArrivedView: View {
                         .padding(.bottom, BaxiSpace.md)
                     }
                 }
-                if session.spokenLog.isEmpty {
-                    Text("Nothing was said on this drive.").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
-                }
             }
-            .card()
+            .padding(.top, BaxiSpace.md)
+        } label: {
+            Text("What Baxi said (\(session.spokenLog.count))").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
         }
+        .tint(BaxiColor.accent)
+        .padding(.horizontal, BaxiSpace.xs)
     }
 }

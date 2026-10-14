@@ -20,11 +20,9 @@ struct BaxiApp: App {
 struct RootView: View {
     @State private var store = AppStore()
     @Environment(\.modelContext) private var context
-    @State private var tab: AppTab = .home
 
     @AppStorage("didFinishWelcome") private var didFinishWelcome = false
 
-    enum AppTab { case home, route, log }
 
     /// Launched with --demo-drive or --skip-welcome: never show the welcome sheet, so it cannot
     /// collide with the drive's full-screen cover.
@@ -41,7 +39,7 @@ struct RootView: View {
     }
 
     private var tabs: some View {
-        TabView(selection: $tab) {
+        TabView(selection: Bindable(store).tab) {
             Tab("Home", systemImage: "signpost.right.fill", value: .home) { HomeView() }
             Tab("Routes", systemImage: "map.fill", value: .route) { RouteView() }
             Tab("Log", systemImage: "clock.badge.checkmark.fill", value: .log) { LogView() }
@@ -69,15 +67,15 @@ struct RootView: View {
             func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
             if args.contains("--carmel-demo") {
                 store.loadCarmelDemo()
-                tab = .route
+                store.tab = .route
             }
             if args.contains("--skip-welcome") { didFinishWelcome = true }
             if args.contains("--reset-welcome") { didFinishWelcome = false }
-            if let preset = value("--route") { store.choosePreset(preset); tab = .route }
-            switch value("--tab") { case "route": tab = .route; case "log": tab = .log; default: break }
+            if let preset = value("--route") { store.choosePreset(preset); store.tab = .route }
+            switch value("--tab") { case "route": store.tab = .route; case "log": store.tab = .log; default: break }
             if let preset = value("--demo-drive") {
                 didFinishWelcome = true
-                tab = .route
+                store.tab = .route
                 store.startDemoDrive(preset: preset, speed: value("--replay-speed").flatMap(Double.init) ?? 4,
                                      startMeters: value("--replay-start").flatMap(Double.init))
             }

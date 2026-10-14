@@ -76,12 +76,16 @@ struct ScreenCheckRoot: View {
         .onAppear {
             ScreenCheck.run()
             store.choosePreset(AppStore.demoPreset)
-            guard screen == "arrived", let route = store.route, let cache = store.cache else { return }
+            guard screen == "arrived" else { return }
+            Task { @MainActor in
+            await store.ensureLoaded()
+            guard let route = store.route, let cache = store.cache else { return }
             let s = DriveSession(route: route, cache: cache, features: store.features, highInjury: store.highInjury,
                                  level: store.level, mode: .replay(speedMultiplier: 1), speaker: SilentSpeech())
             s.skip(toMeters: AppStore.demoStartMeters)
             _ = s.simulateWholeRoute()
             session = s
+            }
         }
     }
 }

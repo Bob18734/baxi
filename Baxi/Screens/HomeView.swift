@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
 
-/// Home: the demo drive, hours toward the 50, how much warning Baxi gives, and the voice.
+/// Home answers one question: where are you driving? A destination search, the Carmel practice routes
+/// as guide signs, and how far along the 50 hours are. Settings sit behind the gear.
 struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
+    @State private var showSettings = false
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
 
@@ -13,95 +15,156 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: BaxiSpace.xl) {
                     header
-                    DemoSign { store.startDemoDrive() }
-                    hours
-                    WarningLevelPicker()
-                    VoiceSettingsSection()
-                    practiceArea
+                    whereTo
+                    VStack(alignment: .leading, spacing: BaxiSpace.md) {
+                        Eyebrow("Practice routes in Carmel")
+                        ForEach(RouteService.presets) { p in
+                            RouteSign(preset: p, miles: store.presetMeters[p.id].map { $0 / 1609.34 },
+                                      skills: store.presetSkills.first { $0.id == p.id }?.skills ?? [:]) {
+                                store.choosePreset(p.id)
+                                store.tab = .route
+                            }
+                        }
+                    }
+                    HoursLine(totals: totals) { store.tab = .log }
+                    DemoRow { store.startDemoDrive() }
                 }
                 .padding(.horizontal, BaxiSpace.page)
                 .padding(.bottom, BaxiSpace.xxl)
             }
             .baxiPage()
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showSettings) { SettingsView() }
         }
         .task { store.loadCarmelDemo() }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+        HStack(alignment: .center) {
             Text("Baxi").font(BaxiFont.hero).foregroundStyle(BaxiColor.ink)
-            Text("Navigation for new drivers. It tells you what to do early, so you stay calm.")
-                .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+            Spacer()
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill").font(BaxiFont.section).foregroundStyle(BaxiColor.inkSoft)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Settings")
         }
-        .padding(.top, BaxiSpace.lg)
+        .padding(.top, BaxiSpace.md)
     }
 
-    private var hours: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("Supervised hours")
-            VStack(spacing: BaxiSpace.lg) {
-                HStack(spacing: BaxiSpace.xxl) {
-                    HoursRing(title: "Total", minutes: totals.minutes, goalMinutes: DriveLog.requiredMinutes)
-                    HoursRing(title: "At night", minutes: totals.nightMinutes, goalMinutes: DriveLog.requiredNightMinutes,
-                              tint: BaxiColor.route)
-                }
-                .frame(maxWidth: .infinity)
-                Text(totals.isComplete ? "Requirement met. Print the log for the BMV."
-                     : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
-                    .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                    .frame(maxWidth: .infinity)
-                Text("Indiana requires 50 supervised hours, 10 of them at night (IC 9-24-3-2.5). Every live drive in Baxi counts.")
-                    .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+    /// Looks like a search field; opens Routes with its search active.
+    private var whereTo: some View {
+        Button {
+            store.wantsSearch = true
+            store.tab = .route
+        } label: {
+            HStack(spacing: BaxiSpace.md) {
+                Image(systemName: "magnifyingglass").font(BaxiFont.headline).foregroundStyle(BaxiColor.inkSoft)
+                Text("Where are you driving?").font(BaxiFont.body).foregroundStyle(BaxiColor.inkSoft)
+                Spacer()
             }
-            .card(padding: BaxiSpace.xl)
+            .padding(.horizontal, BaxiSpace.lg)
+            .frame(minHeight: 54)
+            .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous).strokeBorder(BaxiColor.hairline, lineWidth: 1))
         }
-    }
-
-    private var practiceArea: some View {
-        HStack(alignment: .top, spacing: BaxiSpace.md) {
-            Image(systemName: store.cache == nil ? "map" : "checkmark.seal.fill")
-                .foregroundStyle(store.cache == nil ? BaxiColor.inkFaint : BaxiColor.accent)
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                Text("Practice area").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                Text(store.dataStatus).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-            }
-        }
-        .card()
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("Search for a destination")
     }
 }
 
-/// The demo drive as a highway guide sign: the first thing a judge sees.
-private struct DemoSign: View {
-    var start: () -> Void
+/// A practice route as a highway guide sign: the name in sign lettering, what it practices, an arrow.
+private struct RouteSign: View {
+    let preset: RouteService.Preset
+    let miles: Double?
+    let skills: SkillCounts
+    var choose: () -> Void
+
+    private var facts: String {
+        var parts: [String] = []
+        if let miles { parts.append(String(format: "%.0f mi", miles)) }
+        let rb = (skills[.singleLaneRoundabout] ?? 0) + (skills[.multiLaneRoundabout] ?? 0)
+        if rb > 0 { parts.append("\(rb) roundabouts") }
+        let ramps = (skills[.highwayMerge] ?? 0) + (skills[.exitRamp] ?? 0)
+        if ramps > 0 { parts.append("\(ramps) ramps") }
+        return parts.joined(separator: "   ")
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            HStack(spacing: BaxiSpace.sm) {
-                Text("31").font(BaxiFont.signFace(15)).foregroundStyle(BaxiColor.signInk)
-                    .frame(width: 30, height: 30)
-                    .background(.white, in: Shield())
-                    .accessibilityHidden(true)
-                Text("TRY IT · CARMEL").font(BaxiFont.eyebrow).tracking(1.2).opacity(0.85)
+        Button(action: choose) {
+            HStack(spacing: BaxiSpace.lg) {
+                VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+                    Text(preset.name).font(BaxiFont.signFace(24))
+                    Text(facts.isEmpty ? " " : facts).font(BaxiFont.signFace(14, weight: "Bold")).opacity(0.85)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right").font(BaxiFont.signFace(30))
             }
-            Text("Watch a demo drive").font(BaxiFont.title)
-            Text("A highway merge, two exit ramps and multi-lane roundabouts, replayed in about three minutes. Replays are never logged.")
-                .font(BaxiFont.callout).opacity(0.9)
-                .fixedSize(horizontal: false, vertical: true)
-            Button(action: start) {
-                Label("Play the demo", systemImage: "play.fill")
-            }
-            .buttonStyle(.baxiOnSign)
-            .padding(.top, BaxiSpace.xs)
+            .padding(.horizontal, BaxiSpace.xl)
+            .padding(.vertical, BaxiSpace.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .signPanel(radius: BaxiRadius.lg)
         }
-        .padding(BaxiSpace.xl)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .signPanel(radius: BaxiRadius.xl)
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("\(preset.name). \(facts)")
+        .accessibilityHint("Opens the route on the map")
     }
 }
 
-/// The US route shield outline, for the "31" on the demo sign.
+/// Hours toward the 50 in one line, with a thin bar. Opens the Log.
+private struct HoursLine: View {
+    let totals: DriveLog.Totals
+    var open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(DriveLog.hm(totals.minutes)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
+                    Text("of 50 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+                    Spacer()
+                    Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    Image(systemName: "chevron.right").font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.inkFaint)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(BaxiColor.sunken)
+                        Capsule().fill(BaxiColor.sign)
+                            .frame(width: max(6, geo.size.width * min(1, Double(totals.minutes) / Double(DriveLog.requiredMinutes))))
+                            .opacity(totals.minutes == 0 ? 0 : 1)
+                    }
+                }
+                .frame(height: 6)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(DriveLog.hm(totals.minutes)) of 50 supervised hours, \(DriveLog.hm(totals.nightMinutes)) of 10 at night")
+        .accessibilityHint("Opens the log")
+    }
+}
+
+/// For a first look (and for judges): the highway loop replayed at 4x, never logged.
+private struct DemoRow: View {
+    var start: () -> Void
+    var body: some View {
+        Button(action: start) {
+            HStack(spacing: BaxiSpace.md) {
+                Image(systemName: "play.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
+                VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                    Text("Watch a 3-minute demo drive").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    Text("A merge, two exits and two-lane roundabouts. Not logged.").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+    }
+}
+
+/// The US route shield outline.
 struct Shield: Shape {
     func path(in r: CGRect) -> Path {
         Path { p in
@@ -113,50 +176,5 @@ struct Shield: Shape {
             p.addQuadCurve(to: CGPoint(x: r.minX + r.width * 0.08, y: r.minY), control: CGPoint(x: r.minX, y: r.minY))
             p.closeSubpath()
         }
-    }
-}
-
-/// How much warning Baxi gives, as three choices with what each one means.
-struct WarningLevelPicker: View {
-    @Environment(AppStore.self) private var store
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("How much warning")
-            VStack(spacing: 0) {
-                ForEach(ExperienceLevel.allCases) { level in
-                    Button {
-                        withAnimation(.snappy) { store.level = level }
-                    } label: { row(level) }
-                    .buttonStyle(PressableStyle())
-                    if level != ExperienceLevel.allCases.last { Divider().overlay(BaxiColor.hairline).padding(.leading, 52) }
-                }
-            }
-            .card(padding: 0)
-            Text("When each cue fires is Baxi's own design. What a cue tells you to do comes from the Indiana Driver's Manual.")
-                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-        }
-    }
-
-    private func row(_ level: ExperienceLevel) -> some View {
-        let on = store.level == level
-        return HStack(alignment: .top, spacing: BaxiSpace.md) {
-            ZStack {
-                Circle().strokeBorder(on ? BaxiColor.accent : BaxiColor.inkFaint, lineWidth: 2)
-                if on { Circle().fill(BaxiColor.accent).padding(5) } // design-lint:allow the dot inside a drawn radio button
-            }
-            .frame(width: 22, height: 22)
-            .padding(.top, 2)
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                Text(level.title).font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
-                Text(level.summary).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(BaxiSpace.lg)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
     }
 }

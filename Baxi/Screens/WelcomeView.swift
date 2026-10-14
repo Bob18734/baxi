@@ -12,8 +12,7 @@ struct WelcomeView: View {
         VStack(spacing: 0) {
             TabView(selection: $page) {
                 WelcomePage(title: "Baxi rides along",
-                            lines: ["Navigation for drivers with a learner's permit.",
-                                    "It says what to do early: which lane, how many lights until the turn, which roundabout exit and lane, where the speed limit drops.",
+                            lines: ["Navigation for drivers with a learner's permit. It tells you early which lane to be in, how many lights until your turn, and which roundabout exit to take.",
                                     "Every drive counts toward Indiana's 50 supervised hours."]) { SampleSign() }
                     .tag(0)
                 WelcomePage(title: "The driver never touches the phone",

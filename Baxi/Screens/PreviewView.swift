@@ -50,8 +50,6 @@ struct PreviewView: View {
         VStack(alignment: .leading, spacing: BaxiSpace.sm) {
             Text(routeName).font(BaxiFont.title).foregroundStyle(BaxiColor.ink)
             Text(summary).font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
-            Text("Look at each spot before you go. On the drive, Baxi says each line once.")
-                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkFaint)
         }
         .padding(.top, BaxiSpace.md)
     }

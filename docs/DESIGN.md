@@ -23,7 +23,7 @@ A new driver is learning to read road signs, so Baxi looks like them.
 | Scale | Names |
 |---|---|
 | Color | `sign`, `signDeep`, `accent`, `warning`, `school`, `caution`, `stop`, `route`, `signInk`, `page`, `surface`, `sunken`, `ink`, `inkSoft`, `inkFaint`, `hairline`, `onSign` |
-| Type (Overpass) | `hero` 40, `title` 28, `section` 22, `headline` 19, `button` 18, `number` 36, `numberSmall` 24, `eyebrow` 13, `signFace(size)` for drawn signs |
+| Type | Overpass: `hero` 40, `title` 28, `number` 36, `numberSmall` 24, `signFace(size)` for drawn signs. System: `section` (title3 bold), `headline`, `button`, `body`, `callout`, `footnote`, `caption`, `eyebrow` (subheadline semibold) |
 | Type (system) | `body`, `bodyBold`, `callout`, `footnote`, `caption` |
 | Spacing | `xxs` 2, `xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 24, `xxl` 32, `page` 20 |
 | Radius | `sm` 8, `md` 12, `lg` 18, `xl` 26 |
@@ -66,3 +66,15 @@ scripts/screens.sh --no-build arrived --screen arrived      # welcome | preview 
 The iPhone build is unchanged; the screenshot code (`Baxi/App/ScreenCheck.swift`) is compiled only
 in Debug. Known limits: the Routes map and text-size changes do not show in these screenshots, so
 check those on the phone.
+
+## Restraint rules (Oct 14 polish pass)
+
+- Overpass is for things that are signs: screen titles, sign faces, the big numbers. Everything read or
+  tapped is the system font.
+- The guide-sign panel is the one bold element. Use it for what is a sign (route choices, the Drive sign,
+  "You made it"), not as decoration. Other content sits on the page, not in a card per section.
+- Section names are sentence case. No all-caps labels, no dots between words.
+- One job per screen, a sentence or two of text at most. Fine print (the law, sources, privacy) lives in
+  Settings > About, one tap away.
+- Show driver-facing numbers only (time, miles, night minutes), not internal counts.
+

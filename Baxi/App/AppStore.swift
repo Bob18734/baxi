@@ -4,9 +4,15 @@ import CoreLocation
 
 /// App-wide state: the loaded road data, the experience level, the chosen route.
 /// Kept small on purpose; drives live in SwiftData.
+enum AppTab { case home, route, log }
+
 @MainActor
 @Observable
 final class AppStore {
+    /// The tab on screen, so Home can send the driver to Routes or the Log.
+    var tab: AppTab = .home
+    /// Set by Home's "Where to?" field: Routes opens with its search field active.
+    var wantsSearch = false
     var level: ExperienceLevel = .gettingComfortable
     var home: Coordinate? = nil
     var homeLabel: String = ""
@@ -132,10 +138,15 @@ final class AppStore {
     /// The skills each preset route contains, for suggesting what to drive next. Built in the background
     /// once the road data is loaded; empty until then.
     private(set) var presetSkills: [(id: String, skills: SkillCounts)] = []
+    /// Each preset's length in meters, for Home's route signs.
+    private(set) var presetMeters: [String: Double] = [:]
 
     @MainActor private func buildPresetSkills() async {
         guard presetSkills.isEmpty, let cache else { return }
         let f = features
+        presetMeters = Dictionary(uniqueKeysWithValues: RouteService.presets.compactMap { p in
+            (try? RouteService.preset(p.id)).map { (p.id, $0.distanceMeters) }
+        })
         presetSkills = await Task.detached(priority: .utility) {
             RouteService.presets.compactMap { p -> (id: String, skills: SkillCounts)? in
                 guard let r = try? RouteService.preset(p.id) else { return nil }

@@ -54,6 +54,7 @@ struct LogView: View {
             .baxiPage()
             .navigationTitle("Log")
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { exportMenu }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { adding = true } label: { Label("Add a drive", systemImage: "plus") }
                 }
@@ -68,28 +69,25 @@ struct LogView: View {
             HStack(alignment: .firstTextBaseline, spacing: BaxiSpace.sm) {
                 Text(DriveLog.hm(totals.minutes)).font(BaxiFont.number).foregroundStyle(BaxiColor.ink)
                     .contentTransition(.numericText())
-                Text("of 50:00 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+                Text("of 50 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
             }
             HoursBar(label: "Total", minutes: totals.minutes, goal: DriveLog.requiredMinutes, tint: BaxiColor.accent)
             HoursBar(label: "At night", minutes: totals.nightMinutes, goal: DriveLog.requiredNightMinutes, tint: BaxiColor.route)
             Text(totals.isComplete ? "Requirement met. Export the log, copy it onto State Form 54706 and sign it."
                  : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
-                .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-            Menu {
-                if let pdfURL { ShareLink("PDF, laid out like State Form 54706", item: pdfURL) }
-                if let csvURL { ShareLink("Spreadsheet (CSV)", item: csvURL) }
-            } label: {
-                Label("Export for the BMV", systemImage: "square.and.arrow.up")
-                    .font(BaxiFont.button).frame(maxWidth: .infinity, minHeight: 50)
-                    .foregroundStyle(BaxiColor.onSign)
-                    .background(drives.isEmpty ? BaxiColor.inkFaint : BaxiColor.sign,
-                                in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
-            }
-            .disabled(drives.isEmpty)
-            Text("Indiana requires 50 supervised hours, 10 at night (IC 9-24-3-2.5). Baxi counts night from sunset to sunrise, our reading, since the law does not define it.")
-                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
         }
-        .card(padding: BaxiSpace.xl)
+        .padding(.horizontal, BaxiSpace.xs)
+        .padding(.vertical, BaxiSpace.sm)
+    }
+
+    /// The PDF (State Form 54706 layout) and the CSV, from the toolbar.
+    private var exportMenu: some View {
+        Menu {
+            if let pdfURL { ShareLink("PDF for the BMV form", item: pdfURL) }
+            if let csvURL { ShareLink("Spreadsheet (CSV)", item: csvURL) }
+        } label: { Label("Export", systemImage: "square.and.arrow.up") }
+        .disabled(drives.isEmpty)
     }
 
     private var emptyState: some View {
@@ -129,7 +127,7 @@ private struct SkillsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("Skills practiced")
+            Text("Skills").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
             ForEach(Skill.allCases) { s in
                 ProgressRow(label: s.title, value: done[s] ?? 0, goal: s.goal, tint: BaxiColor.sign)
             }
@@ -141,12 +139,12 @@ private struct SkillsPanel: View {
                 } icon: { Image(systemName: "arrow.triangle.turn.up.right.diamond.fill").foregroundStyle(BaxiColor.accent) }
                 .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
             }
-            Text("Goals are Baxi's suggestion, not a state requirement. Drives added by hand do not count here.")
+            Text("Goals are Baxi's suggestion, not a state rule.")
                 .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
         }
-        .padding(BaxiSpace.lg)
+        .padding(.horizontal, BaxiSpace.xs)
+        .padding(.vertical, BaxiSpace.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
     }
 }
 
@@ -219,14 +217,11 @@ private struct DriveRow: View {
             VStack(alignment: .leading, spacing: BaxiSpace.xs) {
                 HStack(spacing: BaxiSpace.xs) {
                     Text(drive.routeTitle).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink).lineLimit(1)
-                    if drive.manual {
-                        Text("ADDED").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.inkSoft)
-                            .padding(.horizontal, BaxiSpace.xs + 2).padding(.vertical, 1)
-                            .background(BaxiColor.sunken, in: Capsule())
-                    }
+
                 }
                 HStack(spacing: BaxiSpace.sm) {
                     Text(drive.start.formatted(date: .omitted, time: .shortened))
+                    if drive.manual { Text("added by hand") }
                     if drive.nightMinutes > 0 { Label(DriveLog.hm(drive.nightMinutes), systemImage: "moon.fill") }
                     if drive.distanceMeters > 0 { Text(DriveView.distance(drive.distanceMeters)) }
                 }

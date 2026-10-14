@@ -7,6 +7,7 @@ struct RouteView: View {
     @Environment(AppStore.self) private var store
     @State private var camera: MapCameraPosition = .automatic
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
     @State private var results: [MKMapItem] = []
     @State private var routing = false
     @State private var showPreview = false
@@ -19,7 +20,8 @@ struct RouteView: View {
                 .navigationTitle("Routes")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbarBackground(.visible, for: .navigationBar)
-                .searchable(text: $query, prompt: "Search a destination near Carmel")
+                .searchable(text: $query, prompt: "Search a destination")
+                .searchFocused($searchFocused)
                 .onSubmit(of: .search) { Task { await search() } }
                 .searchSuggestions { suggestions }
         }
@@ -27,6 +29,9 @@ struct RouteView: View {
             store.loadCarmelDemo(); store.refreshPrep()
             if let r = store.route { camera = Self.overview(r) }
             else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
+        }
+        .onChange(of: store.wantsSearch, initial: true) { _, want in
+            if want { searchFocused = true; store.wantsSearch = false }
         }
         .sheet(isPresented: $showPreview, onDismiss: {
             // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
@@ -52,9 +57,12 @@ struct RouteView: View {
                     MapPolyline(coordinates: z.line)
                         .stroke(BaxiColor.warning, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
                 }
-                ForEach(Array(spots.enumerated()), id: \.element.id) { i, spot in
+                // Small dots here; the Preview numbers and explains each one.
+                ForEach(spots) { spot in
                     Annotation(spot.title, coordinate: spot.location.clLocation) {
-                        SpotPin(number: i + 1, kind: spot.kind)
+                        Circle().fill(SpotPin.color(spot.kind)).frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(.white, lineWidth: 2))
+                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                     }
                     .annotationTitles(.hidden)
                 }
@@ -128,23 +136,21 @@ struct RouteView: View {
         }
         HStack(spacing: BaxiSpace.sm) {
             Button { showPreview = true } label: {
-                Label(spots.isEmpty ? "Preview" : "Preview \(spots.count) spots", systemImage: "binoculars.fill")
+                Label("Preview", systemImage: "binoculars.fill")
             }
             .buttonStyle(.baxiSecondary)
             .disabled(store.isPreparing)
             Menu {
-                Section("Replay the route (not logged)") {
-                    ForEach([1.0, 4, 8, 16], id: \.self) { s in
-                        Button("At \(Int(s))× speed") { store.activeSession = store.makeSession(replay: s) }
+                Section("Replay the route, not logged") {
+                    ForEach([1.0, 4, 8, 16], id: \.self) { x in
+                        Button("At \(Int(x))x speed") { store.activeSession = store.makeSession(replay: x) }
                     }
                 }
             } label: {
-                Image(systemName: "play.circle.fill").font(BaxiFont.section)
-                    .frame(width: 54, height: 54)
-                    .foregroundStyle(BaxiColor.ink)
-                    .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+                Label("Replay", systemImage: "play.fill")
             }
-            .accessibilityLabel("Replay")
+            .buttonStyle(.baxiSecondary)
+            .disabled(store.isPreparing)
         }
         Button { store.activeSession = store.makeSession(replay: nil) } label: {
             Label("Start drive", systemImage: "car.fill")
@@ -240,30 +246,13 @@ private struct RouteFacts: View {
         let ramps = spots.filter { $0.kind == .ramp }.count
         let mins = Int((route.durationSeconds / 60).rounded())
         VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            let facts = Group {
-                fact("ruler", DriveView.distance(route.distanceMeters))
-                fact("clock", "\(mins) min")
-                if rb > 0 { fact("arrow.triangle.turn.up.right.circle", "\(rb) roundabout\(rb == 1 ? "" : "s")") }
-                if ramps > 0 { fact("arrow.merge", "\(ramps) ramp\(ramps == 1 ? "" : "s")") }
-            }
-            // One row when it fits, otherwise stacked (large text sizes).
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: BaxiSpace.md) { facts }
-                VStack(alignment: .leading, spacing: BaxiSpace.xs) { facts }
-            }
-            Text(route.source == "apple" ? "Apple directions: no lane data on this route."
-                 : "Yellow on the map: where to change lanes. Lanes and roundabout exits from OpenStreetMap.")
-                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+            let parts = [DriveView.distance(route.distanceMeters), "\(mins) min",
+                         rb > 0 ? "\(rb) roundabout\(rb == 1 ? "" : "s")" : nil,
+                         ramps > 0 ? "\(ramps) ramp\(ramps == 1 ? "" : "s")" : nil].compactMap { $0 }
+            Text(parts.joined(separator: ", ")).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+            Text(route.source == "apple" ? "No lane details on this route." : "Yellow on the map is where to change lanes.")
+                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
         }
-    }
-
-    private func fact(_ symbol: String, _ text: String) -> some View {
-        HStack(spacing: BaxiSpace.xs) {
-            Image(systemName: symbol).foregroundStyle(BaxiColor.accent)
-            Text(text).foregroundStyle(BaxiColor.ink)
-        }
-        .font(BaxiFont.footnote.weight(.semibold))
-        .lineLimit(1)
     }
 }
 

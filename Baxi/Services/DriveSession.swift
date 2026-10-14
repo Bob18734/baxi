@@ -40,6 +40,12 @@ final class DriveSession {
     private(set) var rerouteCount = 0
     /// Meters driven on routes replaced by a reroute.
     private var metersBeforeReroute = 0.0
+    /// Where on the first route the drive actually began (a replay can skip ahead, a live drive can
+    /// start partway along), so the distance driven does not count the part before it.
+    private var firstAlongMeters: Double?
+    /// Maneuvers the car has gone through on this drive, for the Arrived screen.
+    private(set) var passedManeuvers: [Maneuver] = []
+    private var passedAlong = 0.0
     private var lastRerouteAttempt: TimeInterval = -.infinity
     /// False until the car is first within 30 m of the route; a live drive started from somewhere
     /// else (a preset loop started from home) is guided to the route's start right away.
@@ -79,7 +85,7 @@ final class DriveSession {
     }
 
     /// Total meters driven this drive, across reroutes.
-    var drivenMeters: Double { metersBeforeReroute + (progress?.alongMeters ?? 0) }
+    var drivenMeters: Double { max(0, metersBeforeReroute + (progress?.alongMeters ?? 0) - (firstAlongMeters ?? 0)) }
 
     /// The posted limit where the car is, from OpenStreetMap maxspeed tags. nil where untagged.
     var speedLimitMph: Int? {
@@ -154,6 +160,8 @@ final class DriveSession {
 
     private func feedSilently(_ c: Coordinate) {
         progress = follower.update(location: c, at: clock)
+        firstAlongMeters = progress?.alongMeters
+        passedAlong = progress?.alongMeters ?? 0
         heading = route.polyline.bearing(atMeters: replayMeters) ?? heading
         for cue in cues where cue.targetMeters < replayMeters { scheduler.markFired(cue.id) }
         position = c
@@ -208,7 +216,13 @@ final class DriveSession {
             reroute(from: location, at: time)
             return
         }
+        if progress == nil {
+            if firstAlongMeters == nil { firstAlongMeters = p.alongMeters }
+            passedAlong = p.alongMeters
+        }
         progress = p
+        passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= p.alongMeters }
+        passedAlong = max(passedAlong, p.alongMeters)
         position = p.isOffRoute ? location : p.snapped
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading
 

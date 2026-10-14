@@ -12,3 +12,4 @@ data/raw/FARS*/
 .build/
 .swiftpm/
 Package.resolved
+BaxiCat.xcodeproj

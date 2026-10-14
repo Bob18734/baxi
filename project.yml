@@ -30,6 +30,7 @@ targets:
         NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone."
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes: [location, audio]
+        UIAppFonts: [Overpass-SemiBold.ttf, Overpass-Bold.ttf, Overpass-ExtraBold.ttf, Overpass-Black.ttf]
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1"

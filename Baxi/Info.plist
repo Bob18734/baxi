@@ -24,6 +24,13 @@
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Baxi follows your route during a drive so each cue is spoken at the right moment. Your location stays on this phone.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Overpass-SemiBold.ttf</string>
+		<string>Overpass-Bold.ttf</string>
+		<string>Overpass-ExtraBold.ttf</string>
+		<string>Overpass-Black.ttf</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

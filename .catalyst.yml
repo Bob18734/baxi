@@ -1,0 +1,11 @@
+include: [project.yml]
+name: BaxiCat
+targets:
+  Baxi:
+    settings:
+      base:
+        SUPPORTS_MACCATALYST: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""

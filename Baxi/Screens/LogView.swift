@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// The supervised driving log: totals toward Indiana's 50 hours (10 at night), every drive, drives added
-/// by hand, and exports (a PDF in the State Form 54706 layout, and CSV).
+/// The supervised driving log: totals toward Indiana's 50 hours (10 at night), every drive grouped by
+/// month, drives added by hand, and exports (a PDF in the State Form 54706 layout, and CSV).
 struct LogView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
@@ -12,58 +12,91 @@ struct LogView: View {
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
 
+    private var months: [(title: String, drives: [DriveRecord])] {
+        let groups = Dictionary(grouping: drives) { Calendar.current.dateInterval(of: .month, for: $0.start)?.start ?? $0.start }
+        return groups.keys.sorted(by: >).map { key in
+            (key.formatted(.dateTime.month(.wide).year()), groups[key] ?? [])
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    HStack(spacing: 24) {
-                        ProgressRing(title: "Total", value: totals.minutes, goal: DriveLog.requiredMinutes)
-                        ProgressRing(title: "Night", value: totals.nightMinutes, goal: DriveLog.requiredNightMinutes)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    Text(totals.isComplete ? "Requirement met. Bring the signed log to the BMV."
-                         : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                } footer: {
-                    Text("Indiana requires 50 supervised hours, at least 10 at night (IC 9-24-3-2.5). Baxi counts night from sunset to sunrise.")
+                Section { summary }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                if drives.isEmpty {
+                    Section { emptyState }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
-
-                Section("Drives") {
-                    if drives.isEmpty {
-                        Text("Finished drives appear here. Replays are never logged.").foregroundStyle(.secondary)
-                    }
-                    ForEach(drives) { d in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(d.routeTitle).font(.headline)
-                                if d.manual { Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary) }
-                                Spacer()
-                                Text(DriveLog.hm(d.dayMinutes + d.nightMinutes)).font(.headline.monospacedDigit())
+                ForEach(months, id: \.title) { month in
+                    Section {
+                        ForEach(month.drives) { DriveRow(drive: $0) }
+                            .onDelete { idx in
+                                idx.map { month.drives[$0] }.forEach(context.delete)
+                                try? context.save()
                             }
-                            Text("\(d.start.formatted(date: .abbreviated, time: .shortened)) · day \(DriveLog.hm(d.dayMinutes)) · night \(DriveLog.hm(d.nightMinutes))")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
+                            .listRowBackground(BaxiColor.surface)
+                    } header: {
+                        Eyebrow(month.title)
                     }
-                    .onDelete { idx in idx.map { drives[$0] }.forEach(context.delete) }
                 }
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .baxiPage()
             .navigationTitle("Log")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { adding = true } label: { Label("Add a drive", systemImage: "plus") }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if let pdfURL { ShareLink("Log as PDF (Form 54706 layout)", item: pdfURL) }
-                        if let csvURL { ShareLink("Log as CSV", item: csvURL) }
-                    } label: { Label("Export", systemImage: "square.and.arrow.up") }
-                    .disabled(drives.isEmpty)
+                    Button { adding = true } label: { Label("Add a drive", systemImage: "plus") }
                 }
             }
             .sheet(isPresented: $adding) { AddDriveView() }
             .task(id: drives.map(\.id)) { writeExports() }
         }
+    }
+
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.lg) {
+            HStack(alignment: .firstTextBaseline, spacing: BaxiSpace.sm) {
+                Text(DriveLog.hm(totals.minutes)).font(BaxiFont.number).foregroundStyle(BaxiColor.ink)
+                    .contentTransition(.numericText())
+                Text("of 50:00 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+            }
+            HoursBar(label: "Total", minutes: totals.minutes, goal: DriveLog.requiredMinutes, tint: BaxiColor.accent)
+            HoursBar(label: "At night", minutes: totals.nightMinutes, goal: DriveLog.requiredNightMinutes, tint: BaxiColor.route)
+            Text(totals.isComplete ? "Requirement met. Export the log, copy it onto State Form 54706 and sign it."
+                 : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
+                .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+            Menu {
+                if let pdfURL { ShareLink("PDF, laid out like State Form 54706", item: pdfURL) }
+                if let csvURL { ShareLink("Spreadsheet (CSV)", item: csvURL) }
+            } label: {
+                Label("Export for the BMV", systemImage: "square.and.arrow.up")
+                    .font(BaxiFont.button).frame(maxWidth: .infinity, minHeight: 50)
+                    .foregroundStyle(BaxiColor.onSign)
+                    .background(drives.isEmpty ? BaxiColor.inkFaint : BaxiColor.sign,
+                                in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+            }
+            .disabled(drives.isEmpty)
+            Text("Indiana requires 50 supervised hours, 10 at night (IC 9-24-3-2.5). Baxi counts night from sunset to sunrise, our reading, since the law does not define it.")
+                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+        }
+        .card(padding: BaxiSpace.xl)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: BaxiSpace.md) {
+            Image(systemName: "road.lanes").font(BaxiFont.number).foregroundStyle(BaxiColor.inkFaint)
+            Text("No drives yet").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
+            Text("Live drives save here when you arrive. Drove without Baxi? Add it with the + button. Replays are never logged.")
+                .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, BaxiSpace.xxl)
+        .padding(.horizontal, BaxiSpace.xl)
     }
 
     /// Writes both export files to a temporary folder so the share sheet can hand them off.
@@ -83,6 +116,69 @@ struct LogView: View {
     }
 }
 
+/// A labeled bar toward a goal.
+private struct HoursBar: View {
+    let label: String
+    let minutes: Int
+    let goal: Int
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+            HStack {
+                Text(label).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
+                Spacer()
+                Text("\(DriveLog.hm(minutes)) / \(goal / 60):00").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkSoft)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(BaxiColor.sunken)
+                    Capsule().fill(tint).frame(width: max(8, geo.size.width * min(1, Double(minutes) / Double(goal))))
+                        .opacity(minutes == 0 ? 0 : 1)
+                }
+            }
+            .frame(height: 10)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(DriveLog.hm(minutes)) of \(goal / 60) hours")
+    }
+}
+
+private struct DriveRow: View {
+    let drive: DriveRecord
+
+    var body: some View {
+        HStack(spacing: BaxiSpace.md) {
+            VStack(spacing: 0) {
+                Text(drive.start.formatted(.dateTime.day())).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
+                Text(drive.start.formatted(.dateTime.weekday(.abbreviated)).uppercased()).font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.inkFaint)
+            }
+            .frame(width: 44)
+            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+                HStack(spacing: BaxiSpace.xs) {
+                    Text(drive.routeTitle).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink).lineLimit(1)
+                    if drive.manual {
+                        Text("ADDED").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.inkSoft)
+                            .padding(.horizontal, BaxiSpace.xs + 2).padding(.vertical, 1)
+                            .background(BaxiColor.sunken, in: Capsule())
+                    }
+                }
+                HStack(spacing: BaxiSpace.sm) {
+                    Text(drive.start.formatted(date: .omitted, time: .shortened))
+                    if drive.nightMinutes > 0 { Label(DriveLog.hm(drive.nightMinutes), systemImage: "moon.fill") }
+                    if drive.distanceMeters > 0 { Text(DriveView.distance(drive.distanceMeters)) }
+                }
+                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                .labelStyle(.titleAndIcon)
+            }
+            Spacer(minLength: 0)
+            Text(DriveLog.hm(drive.dayMinutes + drive.nightMinutes)).font(BaxiFont.headline.monospacedDigit()).foregroundStyle(BaxiColor.ink)
+        }
+        .padding(.vertical, BaxiSpace.xs)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// For practice drives done without Baxi running. Night minutes are split from the times entered.
 private struct AddDriveView: View {
     @Environment(\.modelContext) private var context
@@ -99,13 +195,15 @@ private struct AddDriveView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
-                DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
-                DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
-                TextField("Where (optional)", text: $note)
+                Section {
+                    // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
+                    DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
+                    DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
+                    TextField("Where (optional)", text: $note)
+                }
                 Section {
                     LabeledContent("Day", value: DriveLog.hm(split.day))
-                    LabeledContent("Night", value: DriveLog.hm(split.night))
+                    LabeledContent { Text(DriveLog.hm(split.night)) } label: { Label("Night", systemImage: "moon.fill") }
                 } footer: { Text("Night is counted from sunset to sunrise in Carmel.") }
             }
             .navigationTitle("Add a drive")
@@ -118,8 +216,11 @@ private struct AddDriveView: View {
                         context.insert(DriveRecord(start: start, end: end, dayMinutes: s.day, nightMinutes: s.night,
                                                    level: store.level, routeTitle: note.isEmpty ? "Practice drive" : note,
                                                    distanceMeters: 0, cuesSpoken: 0, manual: true))
+                        try? context.save()
+                        Haptics.success()
                         dismiss()
                     }
+                    .fontWeight(.bold)
                     .disabled(split.day + split.night == 0)
                 }
             }

@@ -3,9 +3,15 @@ import SwiftData
 
 @main
 struct BaxiApp: App {
+    init() { BaxiChrome.apply() }
+
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(BaxiColor.accent)
+                #if DEBUG
+                .dynamicTypeSize(ScreenCheck.bigText ? .accessibility3 : .large)
+                #endif
         }
         .modelContainer(for: [DriveRecord.self])
     }
@@ -13,6 +19,7 @@ struct BaxiApp: App {
 
 struct RootView: View {
     @State private var store = AppStore()
+    @Environment(\.modelContext) private var context
     @State private var tab: AppTab = .home
 
     @AppStorage("didFinishWelcome") private var didFinishWelcome = false
@@ -24,10 +31,20 @@ struct RootView: View {
     static let launchedForDemo = ProcessInfo.processInfo.arguments.contains { $0 == "--demo-drive" || $0 == "--skip-welcome" }
 
     var body: some View {
+        #if DEBUG
+        if let screen = ScreenCheck.value("--screen") {
+            ScreenCheckRoot(screen: screen).environment(store)
+        } else { tabs }
+        #else
+        tabs
+        #endif
+    }
+
+    private var tabs: some View {
         TabView(selection: $tab) {
-            Tab("Home", systemImage: "house.fill", value: .home) { HomeView() }
-            Tab("Route", systemImage: "map.fill", value: .route) { RouteView() }
-            Tab("Log", systemImage: "list.bullet.clipboard.fill", value: .log) { LogView() }
+            Tab("Home", systemImage: "signpost.right.fill", value: .home) { HomeView() }
+            Tab("Routes", systemImage: "map.fill", value: .route) { RouteView() }
+            Tab("Log", systemImage: "clock.badge.checkmark.fill", value: .log) { LogView() }
         }
         .environment(store)
         .fullScreenCover(item: Bindable(store).activeSession) { s in DriveView(session: s) { store.activeSession = nil } }
@@ -41,6 +58,13 @@ struct RootView: View {
             //   --replay-speed <n>            replay clock multiplier (default 4)
             //   --replay-start <meters>       skip ahead along the route before starting
             //   --skip-welcome                skip the first-launch safety screen
+            //   --reset-welcome               show it again
+            //   --tab route|log               open on that tab
+            //   --route <preset id>           choose that practice route
+            #if DEBUG
+            ScreenCheck.run()
+            ScreenCheck.addSampleDrives(context)
+            #endif
             let args = ProcessInfo.processInfo.arguments
             func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
             if args.contains("--carmel-demo") {
@@ -48,6 +72,9 @@ struct RootView: View {
                 tab = .route
             }
             if args.contains("--skip-welcome") { didFinishWelcome = true }
+            if args.contains("--reset-welcome") { didFinishWelcome = false }
+            if let preset = value("--route") { store.choosePreset(preset); tab = .route }
+            switch value("--tab") { case "route": tab = .route; case "log": tab = .log; default: break }
             if let preset = value("--demo-drive") {
                 didFinishWelcome = true
                 store.choosePreset(preset)

@@ -32,6 +32,10 @@ bundled, so it works with no network.
 To run on your own iPhone: select your phone as the destination, set your personal team under
 Signing & Capabilities, and press Run. No paid developer account is needed.
 
+Screens without the Simulator: `scripts/screens.sh` builds a Debug Mac (Catalyst) copy of the app
+and saves screenshots to `build/screens/` (see [docs/DESIGN.md](docs/DESIGN.md)). `scripts/design-lint.sh`
+checks that every screen uses the design tokens.
+
 Tests: `swift test` in the repo root runs every logic test on the Mac, no Simulator needed
 (`Package.swift` builds only the Core, Models and data services). Product > Test in Xcode runs the same
 files. The student-module tests live in `BaxiTests/` and are skipped until each module is written.
@@ -46,7 +50,7 @@ python3 scripts/build_crash_layers.py     # MPO High Injury Network, intersectio
 ```
 
 Sources: OpenStreetMap contributors (ODbL) via the Overpass API; OSRM public demo router;
-Apple MapKit; Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
+Apple MapKit; Overpass typeface (SIL Open Font License, Baxi/Resources/Fonts); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
 services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 54706.
 
 ## Code map
@@ -61,8 +65,11 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   in its doc comment, and a test suite in `BaxiTests/` that is skipped until `isImplemented` is flipped to true.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `LogPDF` (the log in the State Form 54706 layout).
-- `Baxi/Screens` — SwiftUI screens: Home, Route, Preview, Drive, Arrived, Log.
-- `scripts/` — Python scripts that build the bundled data.
+- `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn
+  road-sign marks. Explained in [docs/DESIGN.md](docs/DESIGN.md).
+- `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes, Preview, Drive, Arrived, Log.
+- `scripts/` — Python scripts that build the bundled data; `screens.sh` and `design-lint.sh`.
+- [docs/SHIP-CHECKLIST.md](docs/SHIP-CHECKLIST.md) — everything to check before submitting.
 
 ## Code tour
 

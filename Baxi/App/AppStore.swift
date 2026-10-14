@@ -44,20 +44,24 @@ final class AppStore {
             let roundabouts = features.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
             dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
         } catch {
-            dataStatus = "Could not load the Carmel data: \(error)"
+            dataStatus = "The Carmel road data did not load. Reinstall Baxi; it ships inside the app."
+            print("Carmel cache failed: \(error)")
         }
     }
 
     func choosePreset(_ id: String) {
         loadCarmelDemo()
         do { route = try RouteService.preset(id); routeError = nil }
-        catch { routeError = "Could not load that route: \(error)" }
+        catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
     }
 
     func routeTo(_ destination: Coordinate, name: String) async {
         loadCarmelDemo()
         do { route = try await RouteService.route(from: home ?? Self.carmelDemoHome, to: destination, name: name); routeError = nil }
-        catch { routeError = "No route found: \(error.localizedDescription)" }
+        catch {
+            routeError = "No route found. Check the internet connection and try again, or pick a practice route."
+            print("Routing failed: \(error)")
+        }
     }
 
     /// The hard spots on the chosen route, for the Preview screen.

@@ -3,8 +3,9 @@ import MapKit
 import SwiftData
 
 /// The main screen. The phone is mounted; nobody touches it while the car moves. Everything here is
-/// readable at a glance: the next maneuver and its distance, the light count, the lane strip, and the
-/// last thing Baxi said. Only End drive and mute are tappable, both meant for the passenger or a stop.
+/// readable at a glance: the next maneuver as a green guide sign with its distance, the lane strip with
+/// the lane to be in lit yellow, the light count, the speed limit, and the last thing Baxi said.
+/// Only Mute and End are tappable, both meant for the passenger or for when the car is parked.
 struct DriveView: View {
     let session: DriveSession
     var onClose: () -> Void
@@ -17,19 +18,23 @@ struct DriveView: View {
     var body: some View {
         ZStack(alignment: .top) {
             map
-            VStack(spacing: 10) {
-                instructionCard
-                if !session.lastCueText.isEmpty { saidBanner }
+            VStack(spacing: BaxiSpace.sm) {
+                ManeuverSign(session: session, night: isNight)
+                if !session.lastCueText.isEmpty { SaidBanner(session: session) }
                 HStack(alignment: .top) {
-                    if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph) }
+                    if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
                     Spacer()
-                    if let alert = session.activeAlert { alertChip(alert) }
+                    if let alert = session.activeAlert {
+                        Group { if alert.kind == .schoolZone { SchoolZoneChip() } else { CrashChip() } }
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
+                .animation(.snappy, value: session.activeAlert?.id)
                 Spacer()
-                bottomBar
+                DriveBottomBar(session: session)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, BaxiSpace.md)
+            .padding(.vertical, BaxiSpace.sm)
         }
         .onAppear {
             // The phone is mounted for the whole drive, so the screen must not lock.
@@ -59,22 +64,25 @@ struct DriveView: View {
     private var map: some View {
         Map(position: $camera, interactionModes: []) {
             MapPolyline(coordinates: session.route.polyline.points.map(\.clLocation))
-                .stroke(.blue.opacity(0.85), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+                .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
             if let traveled = traveledPoints, traveled.count > 1 {
                 MapPolyline(coordinates: traveled.map(\.clLocation))
-                    .stroke(.gray.opacity(0.7), style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+                    .stroke(.gray.opacity(0.75), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
             }
             if let m = session.nextManeuver {
                 Annotation("", coordinate: m.location.clLocation) {
-                    Image(systemName: Self.symbol(for: m)).font(.title3.bold()).foregroundStyle(.white)
-                        .padding(6).background(.orange, in: Circle())
+                    Image(systemName: Self.symbol(for: m)).font(BaxiFont.headline).foregroundStyle(BaxiColor.onSign)
+                        .frame(width: 34, height: 34)
+                        .signPanel(radius: BaxiRadius.sm)
                 }
             }
             if let p = session.position {
                 Annotation("", coordinate: p.clLocation) {
-                    Image(systemName: "location.north.fill").font(.title).foregroundStyle(.white)
-                        .padding(8).background(.blue, in: Circle())
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
+                    Image(systemName: "location.north.fill").font(BaxiFont.title).foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(BaxiColor.route, in: Circle())
+                        .overlay(Circle().stroke(.white, lineWidth: 4))
+                        .shadow(color: .black.opacity(0.3), radius: 6, y: 2)
                 }
             }
         }
@@ -95,82 +103,6 @@ struct DriveView: View {
         }
     }
 
-    // MARK: Card
-
-    private var instructionCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let strip = session.laneStrip { LaneStripView(strip: strip) }
-            HStack(alignment: .center, spacing: 14) {
-                if let m = session.nextManeuver {
-                    Image(systemName: Self.symbol(for: m)).font(.system(size: 44, weight: .bold))
-                        .frame(width: 56)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(Self.distance(session.metersToNextManeuver ?? 0)).font(.system(size: 34, weight: .heavy))
-                        Text(m.instruction).font(.title3.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.7)
-                    }
-                    Spacer(minLength: 0)
-                    if let n = session.lightsToNextManeuver {
-                        VStack(spacing: 0) {
-                            Text("\(n)").font(.system(size: 30, weight: .heavy))
-                            Text(n == 1 ? "light" : "lights").font(.caption.weight(.semibold))
-                        }
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-                        .accessibilityLabel("\(n) traffic lights until the turn")
-                    }
-                } else {
-                    Text("Head to the route").font(.title2.bold())
-                }
-            }
-        }
-        .foregroundStyle(.white)
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(red: 0.07, green: 0.33, blue: 0.22), in: RoundedRectangle(cornerRadius: 20))
-        .shadow(radius: 8)
-    }
-
-    private var saidBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: session.progress?.isOffRoute == true ? "exclamationmark.triangle.fill" : "speaker.wave.2.fill")
-            Text(session.lastCueText).font(.headline).lineLimit(2)
-            Spacer(minLength: 0)
-            if session.isRerouting { ProgressView() }
-        }
-        .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private var bottomBar: some View {
-        HStack {
-            Button { session.muted.toggle() } label: {
-                Image(systemName: session.muted ? "speaker.slash.fill" : "speaker.wave.2.fill").font(.title2)
-                    .frame(width: 56, height: 56).background(.regularMaterial, in: Circle())
-            }
-            .accessibilityLabel(session.muted ? "Unmute" : "Mute")
-            Spacer()
-            VStack(spacing: 2) {
-                Text(Self.distance(session.progress?.remainingMeters ?? session.route.distanceMeters)).font(.headline)
-                Text(session.mode == .live ? "to go" : "to go · replay").font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(.regularMaterial, in: Capsule())
-            Spacer()
-            Button(role: .destructive) { session.end() } label: {
-                Text("End").font(.headline).frame(width: 72, height: 56).background(.red, in: Capsule()).foregroundStyle(.white)
-            }
-        }
-    }
-
-    private func alertChip(_ cue: Cue) -> some View {
-        Label(cue.kind == .schoolZone ? "School zone" : "Crash-heavy road",
-              systemImage: cue.kind == .schoolZone ? "figure.walk" : "exclamationmark.triangle.fill")
-            .font(.headline)
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(cue.kind == .schoolZone ? Color.yellow : Color.orange, in: Capsule())
-            .foregroundStyle(.black)
-    }
-
     // MARK: Save
 
     private func save() {
@@ -184,7 +116,10 @@ struct DriveView: View {
                                  level: session.level, routeTitle: session.route.name,
                                  distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count)
         context.insert(record)
+        // Save now rather than waiting for autosave: the app may be closed right after arriving.
+        try? context.save()
         saved = record
+        Haptics.success()
     }
 
     // MARK: Formatting
@@ -216,37 +151,152 @@ struct DriveView: View {
     }
 }
 
-/// The lane strip across the top: one box per lane, the lane to be in lit.
-struct LaneStripView: View {
-    let strip: LaneStrip
+/// The next maneuver as a green guide sign: lanes on top, then the arrow, the distance and the words,
+/// and the traffic lights left before the turn.
+private struct ManeuverSign: View {
+    let session: DriveSession
+    let night: Bool
+
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<strip.laneCount, id: \.self) { i in
-                let lit = strip.highlighted.contains(i)
-                Text(i < strip.labels.count && !strip.labels[i].isEmpty ? strip.labels[i] : "↑")
-                    .font(.system(size: 26, weight: .bold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(lit ? Color.white : Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(lit ? Color(red: 0.07, green: 0.33, blue: 0.22) : .white.opacity(0.6))
+        VStack(alignment: .leading, spacing: BaxiSpace.md) {
+            if let strip = session.laneStrip {
+                LaneStripView(strip: strip).transition(.move(edge: .top).combined(with: .opacity))
+            }
+            HStack(alignment: .center, spacing: BaxiSpace.md) {
+                if let m = session.nextManeuver {
+                    Image(systemName: DriveView.symbol(for: m))
+                        .font(.system(size: 46, weight: .heavy)) // design-lint:allow the sign's arrow is a drawn mark
+                        .frame(width: 60)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(DriveView.distance(session.metersToNextManeuver ?? 0))
+                            .font(BaxiFont.signFace(38))
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: session.metersToNextManeuver.map { Int($0 / 15) })
+                        Text(m.instruction).font(BaxiFont.headline).lineLimit(2).minimumScaleFactor(0.7)
+                    }
+                    Spacer(minLength: 0)
+                    if let n = session.lightsToNextManeuver { LightCount(count: n) }
+                } else {
+                    Image(systemName: "location.north.line.fill").font(BaxiFont.title).frame(width: 60)
+                    Text("Head to the start of the route").font(BaxiFont.section)
+                    Spacer(minLength: 0)
+                }
             }
         }
-        .accessibilityLabel("Lane \(strip.highlighted.first.map { $0 + 1 } ?? 0) of \(strip.laneCount)")
+        .padding(BaxiSpace.lg)
+        .padding(.horizontal, BaxiSpace.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .signPanel(radius: BaxiRadius.xl, deep: night)
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+        .animation(.snappy, value: session.laneStrip)
+        .animation(.snappy, value: session.nextManeuver?.id)
     }
 }
 
-/// A US-style speed limit sign, readable at a glance.
-struct SpeedLimitSign: View {
-    let mph: Int
+/// "2 lights": how many traffic lights are left before the turn, the turn's own light included.
+private struct LightCount: View {
+    let count: Int
     var body: some View {
-        VStack(spacing: 0) {
-            Text("SPEED\nLIMIT").font(.system(size: 10, weight: .heavy)).multilineTextAlignment(.center)
-            Text("\(mph)").font(.system(size: 28, weight: .heavy)).monospacedDigit()
+        HStack(spacing: BaxiSpace.sm) {
+            TrafficLightMark(size: 9)
+            VStack(spacing: 0) {
+                Text("\(count)").font(BaxiFont.signFace(30)).contentTransition(.numericText())
+                Text(count == 1 ? "light" : "lights").font(BaxiFont.signFace(12, weight: "Bold"))
+            }
         }
-        .foregroundStyle(.black)
-        .frame(width: 58, height: 70)
-        .background(.white, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).inset(by: 3).stroke(.black, lineWidth: 2))
-        .shadow(radius: 4)
-        .accessibilityLabel("Speed limit \(mph)")
+        .padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
+        .background(BaxiColor.onSign.opacity(0.14), in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+        .animation(.snappy, value: count)
+        .accessibilityElement()
+        .accessibilityLabel("\(count) traffic \(count == 1 ? "light" : "lights") until the turn")
+    }
+}
+
+/// The last thing Baxi said, so a passenger can read it. Orange while off the route.
+private struct SaidBanner: View {
+    let session: DriveSession
+    var body: some View {
+        let off = session.progress?.isOffRoute == true || session.isRerouting
+        HStack(spacing: BaxiSpace.md) {
+            Image(systemName: off ? "arrow.triangle.branch" : "waveform")
+                .font(BaxiFont.headline)
+                .symbolEffect(.variableColor.iterative, isActive: session.isRerouting)
+                .foregroundStyle(off ? BaxiColor.signInk : BaxiColor.accent)
+            Text(session.lastCueText).font(BaxiFont.bodyBold).lineLimit(2)
+                .foregroundStyle(off ? BaxiColor.signInk : BaxiColor.ink)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
+        .background {
+            if off { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(BaxiColor.caution) }
+            else { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(.regularMaterial) }
+        }
+        .animation(.snappy, value: session.lastCueText)
+        .accessibilityLabel("Baxi said: \(session.lastCueText)")
+    }
+}
+
+/// Mute, distance and arrival time, End. For the passenger; the driver never needs it.
+private struct DriveBottomBar: View {
+    let session: DriveSession
+
+    private var remaining: Double { session.progress?.remainingMeters ?? session.route.distanceMeters }
+    private var arrival: Date? {
+        guard session.route.distanceMeters > 0, session.mode == .live else { return nil }
+        return Date().addingTimeInterval(session.route.durationSeconds * remaining / session.route.distanceMeters)
+    }
+
+    var body: some View {
+        HStack(spacing: BaxiSpace.md) {
+            Button { session.muted.toggle(); Haptics.tap() } label: {
+                Image(systemName: session.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(BaxiFont.section)
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(session.muted ? BaxiColor.signInk : BaxiColor.ink)
+                    .frame(width: 60, height: 60)
+                    .background(session.muted ? AnyShapeStyle(BaxiColor.warning) : AnyShapeStyle(.regularMaterial), in: Circle())
+            }
+            .accessibilityLabel(session.muted ? "Unmute Baxi" : "Mute Baxi")
+
+            VStack(spacing: 0) {
+                Text(DriveView.distance(remaining)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
+                    .contentTransition(.numericText())
+                Group {
+                    if case .replay(let x) = session.mode { Text("to go · replay \(Int(x))×") }
+                    else if let arrival { Text("to go · arrive \(arrival.formatted(date: .omitted, time: .shortened))") }
+                    else { Text("to go") }
+                }
+                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+            }
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(.regularMaterial, in: Capsule())
+
+            Button { session.end() } label: {
+                Text("End").font(BaxiFont.button).foregroundStyle(.white)
+                    .frame(width: 84, height: 60)
+                    .background(BaxiColor.stop, in: Capsule())
+            }
+            .accessibilityLabel("End drive")
+        }
+    }
+}
+
+/// One box per lane, the lane to be in lit sign yellow (the same yellow as the app icon).
+struct LaneStripView: View {
+    let strip: LaneStrip
+    var body: some View {
+        HStack(spacing: BaxiSpace.sm) {
+            ForEach(0..<strip.laneCount, id: \.self) { i in
+                let lit = strip.highlighted.contains(i)
+                LaneArrows(label: i < strip.labels.count ? strip.labels[i] : "", size: 24)
+                    .frame(maxWidth: .infinity, minHeight: 46)
+                    .foregroundStyle(lit ? BaxiColor.signInk : BaxiColor.onSign.opacity(0.55))
+                    .background(lit ? BaxiColor.warning : BaxiColor.onSign.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous))
+                    .scaleEffect(lit ? 1 : 0.94)
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Use lane \(strip.highlighted.first.map { $0 + 1 } ?? 0) of \(strip.laneCount), counting from the left")
     }
 }

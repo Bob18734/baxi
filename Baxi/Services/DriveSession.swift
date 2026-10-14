@@ -267,7 +267,17 @@ final class DriveSession {
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken)
         }
-        if p.remainingMeters < 15, previousAlong > route.polyline.lengthMeters - 300, !isFinished { end(stopSpeech: false) }
+        if p.remainingMeters < 15, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
+            // The last turns can sit right at the destination; if they used the arrival's slot, say it now.
+            if let arrive = cues.first(where: { $0.kind == .arrive }), !scheduler.fired.contains(arrive.id) {
+                scheduler.markFired(arrive.id)
+                lastCue = arrive
+                lastCueText = arrive.card(lights: nil)
+                spokenLog.append((p.alongMeters, arrive.spoken(lights: nil)))
+                speaker.say(arrive.spoken(lights: nil))
+            }
+            end(stopSpeech: false)
+        }
         previousAlong = p.alongMeters
     }
 

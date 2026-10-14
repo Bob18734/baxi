@@ -11,10 +11,10 @@ This is an implementation audit, not independent verification of the contest rul
 | Search and routes | RouteView, RouteService, OSRMParser, three bundled preset JSON files | Built, including Apple fallback; live providers not exercised in this audit |
 | Route following | Polyline, RouteFollower, out-and-back and loop tests | Built; recovery regression fixes added in this audit |
 | Drive | DriveSession, Speaker, DriveView | Built: replay, speech, lane strip, speed and alert display; real audio/GPS still need a phone |
-| Experience-level timing | CueScheduler.isImplemented = false | Stub; does not enforce level timing, stale-cue filtering, priority or the 8-second gap |
-| Lane selection | LanePicker.isImplemented = false | Student implementation pending; OSRM lane data and generic fallbacks are not completion of this module |
-| Roundabout classification | RoundaboutClassifier.isImplemented = false | Partial stub; student leg counting and interchange classification pending |
-| Approach bearing | ApproachHeading.isImplemented = false | Stub; Preview uses route bearing fallback |
+| Experience-level timing | CueScheduler | Implemented Oct 14 (Claude): level timing, stale-cue filtering, priority, the 8-second gap, maneuver ordering |
+| Lane selection | LanePicker | Implemented Oct 14 (Claude): turn:lanes, standard two-lane roundabout markings, "either lane" when several go straight |
+| Roundabout classification | RoundaboutClassifier | Implemented Oct 14 (Claude): lanes, legs counted by traffic flow at the circle, interchange |
+| Approach bearing | ApproachHeading | Implemented Oct 14 (Claude); aims the Preview map |
 | Preview imagery | PreviewView, HardSpots | Look Around and map fallback built; heading affects the map, not Look Around's camera |
 | Manual content | Resources/Content/briefings.json | Only one empty placeholder; citations/advice not complete |
 | Crash information | HIN used by CueListBuilder; FARS and study JSON have loaders | HIN integrated; study intersections and FARS are not consumed by Preview |
@@ -35,8 +35,8 @@ This is an implementation audit, not independent verification of the contest rul
 
 ## Next work, in priority order
 
-1. **Student integration, before recording or road testing.** Vardaan implements LanePicker and CueScheduler;
-   partner implements RoundaboutClassifier and ApproachHeading. Both write the five required manual briefings.
+1. **Manual briefings and module walkthroughs, before recording.** The four decision modules were written by
+   Claude on Oct 14 (AI_DISCLOSURE.md). The students write the five required manual briefings.
    Acceptance: `python3 scripts/check-readiness.py` passes, all four suites run without skips, and each student
    can explain their module. Do not flip the flags merely to satisfy the checker.
 2. **Resolve timing requirements, then tune the replay.** The plan says cues are never less than 8 seconds apart;

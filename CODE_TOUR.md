@@ -73,17 +73,20 @@ Before a drive, `Baxi/Screens/PreviewView.swift` shows each hard spot (`Baxi/Cor
 with Apple Look Around imagery, the exact line Baxi will say there, and your manual briefing from
 `Baxi/Resources/Content/briefings.json`. **ApproachHeading** (partner) aims the map on each card.
 
-## The four student modules
+## The four decision modules
 
-| Module | Owner | Called from | What it decides | Test it |
+First reserved for the students; Claude wrote them on Oct 14 at the team's request (AI_DISCLOSURE.md).
+"Planned owner" is who should be ready to explain each one to a judge.
+
+| Module | Planned owner | Called from | What it decides | Test it |
 |---|---|---|---|---|
 | `Baxi/Core/LanePicker.swift` | Vardaan | CueListBuilder, lane cues | Which lane to be in, from `turn:lanes` | `swift test --filter LanePickerTests` |
 | `Baxi/Core/CueScheduler.swift` | Vardaan | DriveSession | When each cue fires, and which one is due now | `swift test --filter CueSchedulerTests` |
 | `Baxi/Core/RoundaboutClassifier.swift` | Partner | FeatureExtractor | Single-lane, multi-lane or interchange; lanes; legs | `swift test --filter RoundaboutClassifierTests` |
 | `Baxi/Core/ApproachHeading.swift` | Partner | PreviewView | The direction a driver faces arriving at a spot | `swift test --filter ApproachHeadingTests` |
 
-Each file has the rules in its doc comment and a stub so the app runs. The tests are skipped until you
-set `isImplemented = true`. After writing yours, run the transcript tool below and compare.
+Each file has its rules in its doc comment. Read the rules, then run the transcript tool below
+(`BAXI_WHY=1` prints the data behind each roundabout's lane advice) and check the behavior matches.
 
 ## Hear a drive without driving
 

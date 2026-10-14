@@ -31,11 +31,11 @@ struct CueSchedulerTests {
                     cue("stop", .stopSign, at: 1000)]
         let p = Dictionary(uniqueKeysWithValues: CueScheduler.plan(cues, level: .gettingComfortable, maneuverTargets: [1000]).map { ($0.id, $0.fireAtMeters) })
         #expect(p["turn"] == 700 && p["turn2"] == 800 && p["rb"] == 600 && p["ramp"] == 600 && p["hin"] == 600)
-        #expect(p["arrive"] == 850 && p["speed"] == 600 && p["school"] == 700 && p["stop"] == nil)
+        #expect(p["arrive"] == 850 && p["speed"] == 600 && p["school"] == 700 && p["stop"]! == nil)
         let n = Dictionary(uniqueKeysWithValues: CueScheduler.plan(cues, level: .new, maneuverTargets: [1000]).map { ($0.id, $0.fireAtMeters) })
         #expect(n["rb"] == 400 && n["stop"] == 900)
         let l = Dictionary(uniqueKeysWithValues: CueScheduler.plan(cues, level: .nearlyLicensed, maneuverTargets: [1000]).map { ($0.id, $0.fireAtMeters) })
-        #expect(l["speed"] == nil && l["school"] == nil && l["hin"] == 600)
+        #expect(l["speed"]! == nil && l["school"]! == nil && l["hin"] == 600)
     }
 
     @Test func onlyTheLastNSignalsCountDown() {
@@ -75,5 +75,24 @@ struct CueSchedulerTests {
         var t = CueScheduler()
         #expect(t.due(from: stale, alongMeters: 700, now: 0) == nil)                // 200 m past the target: never spoken
         #expect(t.fired.contains("old"))
+    }
+
+    @Test func maneuverIsNotAnnouncedBeforeThePreviousOneIsDone() {
+        // A left turn at 2000 m, then a roundabout 190 m later. At level .new the roundabout's 600 m lead
+        // would reach back before the turn; it waits until 15 m past it.
+        let c = [cue("turn", .turn, at: 2000, mph: 30, maneuver: 1), cue("rb", .roundabout, at: 2190, maneuver: 2)]
+        let p = Dictionary(uniqueKeysWithValues: CueScheduler.plan(c, level: .new, maneuverTargets: [2000, 2190]).map { ($0.id, $0.fireAtMeters) })
+        #expect(p["turn"]! == 1800)
+        #expect(p["rb"]! == 2015)
+    }
+
+    @Test func lateLaneCueIsDroppedWhenTheManeuverCueNamesTheLane() {
+        // Two roundabouts 300 m apart: the second one's lane cue could only fire 50 m after the first,
+        // which is after the roundabout cue itself (2015 m), so it is dropped.
+        let c = [cue("rb1", .roundabout, at: 2000, maneuver: 1), cue("rb2", .roundabout, at: 2300, maneuver: 2),
+                 cue("lane2", .laneChange, at: 2300, mph: 30, maneuver: 2)]
+        let p = Dictionary(uniqueKeysWithValues: CueScheduler.plan(c, level: .gettingComfortable, maneuverTargets: [2000, 2300]).map { ($0.id, $0.fireAtMeters) })
+        #expect(p["rb2"]! == 2015)
+        #expect(p["lane2"]! == nil)
     }
 }

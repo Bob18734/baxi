@@ -81,26 +81,25 @@ enum CueListBuilder {
                         chained.insert(next.id)
                     }
                 }
+                let lane = laneCue(for: m, direction: dir, line: line, wayIndex: wayIndex, features: features, mph: mph)
+                // Said again with the turn, in case the early lane cue was too close to the last maneuver to fire.
+                if let label = lane?.laneLabel, m.kind != .offRamp { spokenWhat += ", from \(LanePicker.spoken(label))" }
                 cues.append(Cue(id: "turn-\(m.id)", kind: .turn, targetMeters: m.alongMeters,
-                                spokenTemplate: spokenWhat, cardTemplate: what, laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
-                if let lane = laneCue(for: m, direction: dir, line: line, wayIndex: wayIndex, features: features, mph: mph) {
-                    cues.append(lane.cue)
-                }
+                                spokenTemplate: spokenWhat, cardTemplate: what, laneStrip: lane?.laneStrip, roadSpeedMph: mph, maneuverId: m.id))
+                if let cue = lane?.cue { cues.append(cue) }
             case .roundabout:
                 let exit = m.exitNumber ?? 1
-                let rb = features.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }
-                    .min { Geo.distanceMeters($0.coordinate, m.location) < Geo.distanceMeters($1.coordinate, m.location) }
-                let nearRb = rb.flatMap { Geo.distanceMeters($0.coordinate, m.location) <= roundaboutMatchMeters ? $0 : nil }
-                let lanes = nearRb?.lanes ?? 1
+                let lanes = roundabout(near: m, features: features)?.lanes ?? 1
                 let lane = laneCue(for: m, direction: m.direction ?? .straight, line: line, wayIndex: wayIndex, features: features, mph: mph)
                 var spoken = "Roundabout ahead, take the \(ordinal(exit)) exit"
-                if let adviceLabel = lane?.laneLabel { spoken += ", stay in the \(adviceLabel)" }
+                if let adviceLabel = lane?.laneLabel { spoken += ", stay in \(LanePicker.spoken(adviceLabel))" }
+                else if lanes >= 2 { spoken += ", either lane" }
                 if lanes >= 2 { spoken += ". Pick your lane now, no lane changes inside" }
                 let card = "Roundabout: \(ordinal(exit)) exit" + (lane?.laneLabel.map { ", \($0)" } ?? "")
                 cues.append(Cue(id: "rb-\(m.id)", kind: .roundabout, targetMeters: m.alongMeters,
                                 spokenTemplate: spoken, cardTemplate: card, laneStrip: lane?.laneStrip,
                                 roadSpeedMph: mph, maneuverId: m.id))
-                if let lane { cues.append(lane.cue) }
+                if let cue = lane?.cue { cues.append(cue) }
             case .merge, .onRamp:
                 let text = m.kind == .onRamp
                     ? "Ramp ahead on the \((m.direction ?? .right).sideWord), speed up on the ramp to match traffic"
@@ -168,7 +167,7 @@ enum CueListBuilder {
     // MARK: Lane cues
 
     private static func laneCue(for m: Maneuver, direction: Maneuver.Direction, line: Polyline, wayIndex: GeoIndex,
-                                features: [RoadFeature], mph: Int?) -> (laneLabel: String?, laneStrip: LaneStrip?, cue: Cue)? {
+                                features: [RoadFeature], mph: Int?) -> (laneLabel: String?, laneStrip: LaneStrip?, cue: Cue?)? {
         // The approach way is the one with turn:lanes closest to a point 40 m before the maneuver.
         guard let approach = line.coordinate(atMeters: max(0, m.alongMeters - 40)) else { return nil }
         let way = wayIndex.nearest(to: approach, within: laneWayMatchMeters) { $0.turnLanes != nil && !$0.isRoundabout }
@@ -176,8 +175,13 @@ enum CueListBuilder {
         var strip: LaneStrip?
         if let tl = way?.turnLanes {
             if m.kind == .roundabout {
-                let rb = features.first { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind)
-                    && Geo.distanceMeters($0.coordinate, m.location) <= roundaboutMatchMeters }
+                let rb = roundabout(near: m, features: features)
+                let straight = LanePicker.exitSide(exitNumber: m.exitNumber ?? 1, totalExits: rb?.legs ?? 4) == .through
+                let options = LanePicker.throughLanes(tl)
+                if straight, options.count > 1 {
+                    // More than one lane goes straight through: show them all, ask for none.
+                    return (nil, LaneStrip(laneCount: laneLabels(tl).count, highlighted: options, labels: laneLabels(tl)), nil)
+                }
                 advice = LanePicker.pick(turnLanes: tl, exitNumber: m.exitNumber ?? 1, totalExits: rb?.legs ?? 4)
             } else {
                 let dir: LanePicker.TurnDirection
@@ -189,10 +193,16 @@ enum CueListBuilder {
                 advice = LanePicker.pickForTurn(turnLanes: tl, direction: dir)
             }
             if let advice { strip = LaneStrip(laneCount: advice.laneCount, highlighted: [advice.laneIndex], labels: laneLabels(tl)) }
+        } else if m.kind == .roundabout, m.laneCount == nil, let rb = roundabout(near: m, features: features),
+                  let tl = LanePicker.standardRoundaboutLanes(rb.lanes ?? 1),
+                  LanePicker.exitSide(exitNumber: m.exitNumber ?? 1, totalExits: rb.legs ?? 4) != .through {
+            // No lane data: the standard markings. Going straight either lane works, so no advice then.
+            advice = LanePicker.pick(turnLanes: tl, exitNumber: m.exitNumber ?? 1, totalExits: rb.legs ?? 4)
+            if let advice { strip = LaneStrip(laneCount: advice.laneCount, highlighted: [advice.laneIndex], labels: laneLabels(tl)) }
         } else if let count = m.laneCount, let valid = m.validLanes, !valid.isEmpty, count > 0 {
             // The router's own lane data, when OSM has no tag.
             let idx = direction.isLeftish ? valid.min()! : valid.max()!
-            let label = count == 1 ? nil : (idx == 0 ? "left lane" : idx == count - 1 ? "right lane" : "middle lane")
+            let label = count == 1 ? nil : LanePicker.label(idx, of: count)
             if let label { advice = LaneAdvice(laneCount: count, laneIndex: idx, laneLabel: label, reason: "Router lane data") }
             strip = LaneStrip(laneCount: count, highlighted: valid, labels: Array(repeating: "", count: count))
         }
@@ -204,10 +214,17 @@ enum CueListBuilder {
         default: "for your turn"
         }
         let cue = Cue(id: "lane-\(m.id)", kind: .laneChange, targetMeters: m.alongMeters,
-                      spokenTemplate: "Move to the \(advice.laneLabel) now \(what){lightsClause}",
-                      cardTemplate: "\(advice.laneLabel.capitalized) now{lightsClause}", laneStrip: strip,
+                      spokenTemplate: "Move to \(LanePicker.spoken(advice.laneLabel)) now \(what){lightsClause}",
+                      cardTemplate: "\(advice.laneLabel.prefix(1).uppercased() + advice.laneLabel.dropFirst()) now{lightsClause}", laneStrip: strip,
                       roadSpeedMph: mph, maneuverId: m.id)
         return (advice.laneLabel, strip, cue)
+    }
+
+    /// The mapped roundabout this maneuver enters, if one is close enough.
+    private static func roundabout(near m: Maneuver, features: [RoadFeature]) -> RoadFeature? {
+        features.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }
+            .min { Geo.distanceMeters($0.coordinate, m.location) < Geo.distanceMeters($1.coordinate, m.location) }
+            .flatMap { Geo.distanceMeters($0.coordinate, m.location) <= roundaboutMatchMeters ? $0 : nil }
     }
 
     /// Arrow labels for a turn:lanes value, left to right.

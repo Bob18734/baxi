@@ -13,15 +13,19 @@ It is updated the same day the work happens, never reconstructed afterward.
 | ChatGPT Codex (OpenAI) | Partner | Reviews code; at the user's Oct 14 request, audits implementation status and writes drive reliability fixes, regression tests and readiness checks | Does not implement the four student-owned modules or write the student briefing advice |
 | Higgsfield | Partner | Video intro, title cards, transitions, and a short animated explainer of the lane-cue idea for the demo video only | No generated footage of the app; every app shot is a real screen recording |
 
-## Student-owned code (written by hand, no AI generation)
+## Code first set aside for the students
 
-| File | Owner | Notes |
+Until Oct 14 these four modules were reserved for the students to write by hand. On Oct 14 the team decided
+that Claude would write all app code, so Claude wrote them; the students' part is the idea, the decisions,
+reviewing and testing the behavior, the content file, the written answers and the video.
+
+| File | Planned owner | Who wrote it |
 |---|---|---|
-| Baxi/Core/LanePicker.swift | Vardaan | Claude wrote the types, doc comments, tests and a stub. Vardaan replaces the stub. |
-| Baxi/Core/CueScheduler.swift | Vardaan | Same arrangement. (Replaces RouteScorer after the Oct 13 refocus; file lands Oct 14.) |
-| Baxi/Core/RoundaboutClassifier.swift | Partner | Same arrangement. |
-| Baxi/Core/ApproachHeading.swift | Partner | Same arrangement. |
-| Baxi/Resources/Content/briefings.json | Both | Every entry cites the Indiana Driver's Manual by chapter and page. No AI-written driving advice. |
+| Baxi/Core/LanePicker.swift | Vardaan | Claude Code (Opus 5.5), Oct 14 |
+| Baxi/Core/CueScheduler.swift | Vardaan | Claude Code (Opus 5.5), Oct 14 |
+| Baxi/Core/RoundaboutClassifier.swift | Partner | Claude Code (Opus 5.5), Oct 14 |
+| Baxi/Core/ApproachHeading.swift | Partner | Claude Code (Opus 5.5), Oct 14 |
+| Baxi/Resources/Content/briefings.json | Both | Not yet written. Every entry cites the Indiana Driver's Manual by chapter and page. No AI-written driving advice. |
 
 ## Log
 
@@ -45,3 +49,4 @@ It is updated the same day the work happens, never reconstructed afterward.
 - Claude Code (Opus 5.5), Oct 14 afternoon: redesigned every screen on one design system after Vardaan asked for a higher-quality look and for practices from his earlier app Pickd. Added Baxi/Design (color, type, spacing and radius tokens; the guide-sign panel; buttons; haptics; drawn speed limit, school zone, crash, traffic light and lane marks); bundled the Overpass typeface (open source, after the Highway Gothic sign alphabet); rebuilt Welcome, Home, Routes, Preview, Drive, Arrived and Log on it; a design lint script (scripts/design-lint.sh) and a Mac screenshot harness (scripts/screens.sh, Debug-only Mac Catalyst build) because the team's Mac cannot run the Simulator; docs/DESIGN.md and docs/SHIP-CHECKLIST.md. DriveSession now counts distance and handled maneuvers only from where the drive began (the demo skips ahead), with a test that fails without the fix. A separate Claude review agent read the diff before commit. 38 logic tests pass on the Mac; the app compiles for iPhone; still not run on a phone (signing).
 - Claude Code (Opus 5.5), Oct 14 midday: fixed the review agent's findings on the redesign (live drives that start off the route no longer count distance or maneuvers before reaching it; contrast of label text and dark-mode error text; text-size handling; VoiceOver labels; unknown lanes drawn as a dash, not a straight arrow; route line cached for the map). The fix work found a route-following bug: on the roundabout loop, which uses one road out and back, the follower snapped 600 m ahead to the return pass and would have skipped cues. Polyline projection now prefers the earliest tied pass not behind the car; a new test fails 208 times without the fix.
 - Claude Code (Opus 5.5), Oct 14 early afternoon: photographed the real Routes window (the app's own snapshot cannot draw the map) and fixed what it showed: the practice-route cards stretched to fill the whole panel and hid the map, and the camera over a chosen route sat about 2 km above one street instead of showing the whole loop. The map now fits the route line and pins above the panel, and refits when a different route is picked. 61 logic tests pass on the Mac; the app compiles for iPhone.
+- Claude Code (Opus 5.5), Oct 14 afternoon, at Vardaan's direction that Claude write all app code: wrote the four modules first reserved for the students (CueScheduler, LanePicker, RoundaboutClassifier, ApproachHeading) against their existing tests, and fixed one test that could never pass (it compared an optional-of-optional to nil). Reading the spoken script of every preset drive found and fixed: a roundabout announced before the turn that comes first (new rule 9 in CueScheduler); lane cues that could only fire after their own roundabout cue (dropped; the roundabout and turn cues now name the lane); roundabout legs counted by road name, which made a four-way roundabout with a road running through it count as two and turned "straight through" into "left lane" (legs now counted by traffic flow at the circle); "stay in the left lane" where both lanes go straight (now "either lane"); "lane 4 of 4" for the rightmost lane; the left-turn exit on a four-way roundabout treated as straight; arrival announced before the last two turns. Moved two preset waypoints that sat on side streets and made the routes drive in and back out. Added a BAXI_WHY option to the transcript tool that prints the map data behind each roundabout's lane advice. 68 logic tests pass on the Mac.

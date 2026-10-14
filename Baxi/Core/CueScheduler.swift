@@ -1,13 +1,13 @@
 import Foundation
 
-// OWNER: Vardaan. Second of Vardaan's two modules (the other is LanePicker).
-// Tests: BaxiTests/CueSchedulerTests.swift. Flip `isImplemented` to true when your code is in.
+// Written by Claude (Oct 14) at the team's request; originally set aside for Vardaan. See AI_DISCLOSURE.md.
+// Tests: BaxiTests/CueSchedulerTests.swift.
 //
 // This module answers two questions: WHEN should each cue fire (plan), and WHICH cue fires
 // right now (due). CueListBuilder has already placed every cue by meters along the route.
 
 struct CueScheduler {
-    static let isImplemented = false
+    static let isImplemented = true
 
     /// Two cues never fire closer together than this, except a turn or roundabout cue within
     /// `urgentMeters` of its target, which always goes through.
@@ -30,10 +30,57 @@ struct CueScheduler {
     ///    before the maneuver it belongs to (same `maneuverId`); earlier signals get nil.
     /// 7. fireAtMeters is never below 0.
     static func plan(_ cues: [Cue], level: ExperienceLevel, maneuverTargets: [Double]) -> [Cue] {
-        // STUB so the app runs before Vardaan's version lands. Replace everything below.
-        cues.map { c in
+        let maneuvers = maneuverTargets.sorted()
+        // Signals that count down: the last `countdownLights` before each maneuver.
+        var counted = Set<String>()
+        let signals = cues.filter { $0.kind == .signal }
+        for group in Dictionary(grouping: signals, by: { $0.maneuverId ?? -1 }).values {
+            let n = min(level.countdownLights, group.count)
+            group.sorted { $0.targetMeters < $1.targetMeters }.suffix(n).forEach { counted.insert($0.id) }
+        }
+        let planned = cues.map { c in
             var c = c
-            c.fireAtMeters = c.kind == .signal ? c.targetMeters : max(0, c.targetMeters - 300)
+            let fast = (c.roadSpeedMph ?? 0) >= 40
+            let lead: Double?
+            switch c.kind {
+            case .laneChange: lead = fast ? level.laneLeadFastMeters : level.laneLeadSlowMeters
+            case .turn: lead = fast ? 300 : 200
+            case .roundabout: lead = level == .new ? 600 : 400
+            case .ramp, .crashCorridor: lead = 400
+            case .arrive: lead = 150
+            case .stopSign: lead = level.speaksStopSigns ? 100 : nil
+            case .speedChange: lead = level.speaksSpeedChanges ? 400 : nil
+            case .schoolZone: lead = level.speaksSchoolZones ? 300 : nil
+            case .signal: lead = counted.contains(c.id) ? 0 : nil
+            }
+            guard let lead else { c.fireAtMeters = nil; return c }
+            var at = c.targetMeters - lead
+            if let previous = maneuvers.last(where: { $0 < c.targetMeters - 1 }) {
+                if c.kind == .laneChange {
+                    // Never ask for a lane change before the last maneuver is finished.
+                    at = max(at, min(previous + 50, c.targetMeters))
+                } else if [.turn, .roundabout, .ramp, .arrive].contains(c.kind) {
+                    // 9. Nor announce the next maneuver before the driver is through the last one: a
+                    //    roundabout called 600 m early must not be heard before the turn that comes first.
+                    //    (Added by Claude beyond the original rules.)
+                    at = max(at, min(previous + 15, c.targetMeters))
+                }
+            }
+            c.fireAtMeters = max(0, at)
+            return c
+        }
+        // 8. A lane cue that would fire within 100 m of its own turn or roundabout cue (or after it) is
+        //    dropped: that cue already names the lane, and two lane lines back to back is noise.
+        //    (Added by Claude beyond the original seven rules.)
+        let mainFire = Dictionary(planned.compactMap { c -> (Int, Double)? in
+            guard [.turn, .roundabout].contains(c.kind), let id = c.maneuverId, let at = c.fireAtMeters else { return nil }
+            return (id, at)
+        }, uniquingKeysWith: min)
+        return planned.map { c in
+            guard c.kind == .laneChange, let id = c.maneuverId, let at = c.fireAtMeters, let main = mainFire[id],
+                  at > main - 100 else { return c }
+            var c = c
+            c.fireAtMeters = nil
             return c
         }
     }
@@ -53,12 +100,20 @@ struct CueScheduler {
     ///    roundabout cue with targetMeters - alongMeters <= urgentMeters.
     /// 5. The returned cue is recorded in `fired` and `lastFireTime` becomes `now`.
     mutating func due(from cues: [Cue], alongMeters: Double, now: TimeInterval) -> Cue? {
-        // STUB. Replace with Vardaan's implementation.
-        for c in cues where c.fireAtMeters != nil && !fired.contains(c.id) && alongMeters >= c.fireAtMeters! {
-            fired.insert(c.id)
-            lastFireTime = now
-            return c
+        var winner: Cue?
+        for c in cues {
+            guard let at = c.fireAtMeters, alongMeters >= at, !fired.contains(c.id) else { continue }
+            if alongMeters - c.targetMeters > Self.staleMeters { fired.insert(c.id); continue }
+            if let w = winner, (w.kind.priority, w.targetMeters) <= (c.kind.priority, c.targetMeters) { continue }
+            winner = c
         }
-        return nil
+        guard let w = winner else { return nil }
+        if let last = lastFireTime, now - last < Self.minimumGapSeconds {
+            let urgent = (w.kind == .turn || w.kind == .roundabout) && w.targetMeters - alongMeters <= Self.urgentMeters
+            guard urgent else { return nil }
+        }
+        fired.insert(w.id)
+        lastFireTime = now
+        return w
     }
 }

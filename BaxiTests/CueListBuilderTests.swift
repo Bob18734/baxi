@@ -69,7 +69,7 @@ struct CueListBuilderTests {
         #expect(lane?.laneStrip?.laneCount == 3)
         #expect(lane?.laneStrip?.labels == ["←", "↑", "↑→"])
         let turn = Self.cues.first { $0.kind == .turn }
-        #expect(turn?.spokenTemplate == "Turn right onto Main St")
+        #expect(turn?.spokenTemplate == "Turn right onto Main St, from the right lane")
     }
 
     @Test func speedChangeSchoolStopAndArriveArePlaced() {

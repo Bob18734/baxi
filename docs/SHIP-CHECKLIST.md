@@ -17,9 +17,9 @@ Feature freeze Thursday Oct 22. Video recorded Friday Oct 23.
 
 ## Student work (no AI)
 
-- [ ] `LanePicker.swift` and `CueScheduler.swift` written by Vardaan; their tests pass
-  (`swift test`), `isImplemented` set to true.
-- [ ] `RoundaboutClassifier.swift` and `ApproachHeading.swift` written by the partner; tests pass.
+- [x] The four decision modules implemented and their tests running (Oct 14, Claude, disclosed in
+  AI_DISCLOSURE.md; checked with `swift test`, 68 pass, none skipped).
+- [ ] Vardaan can explain LanePicker and CueScheduler, the partner RoundaboutClassifier and ApproachHeading.
 - [ ] `Baxi/Resources/Content/briefings.json`: one entry per kind in docs/BRIEFINGS.md, each with
   the manual's chapter and page, the quote copied exactly.
 - [ ] Both students can walk a judge through CODE_TOUR.md without notes.

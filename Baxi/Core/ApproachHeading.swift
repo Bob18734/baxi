@@ -1,10 +1,10 @@
 import Foundation
 
-// OWNER: partner. Second of the partner's two modules (the other is RoundaboutClassifier).
-// Tests: BaxiTests/ApproachHeadingTests.swift. Flip `isImplemented` to true when your code is in.
+// Written by Claude (Oct 14) at the team's request; originally set aside for the partner. See AI_DISCLOSURE.md.
+// Tests: BaxiTests/ApproachHeadingTests.swift.
 
 enum ApproachHeading {
-    static let isImplemented = false
+    static let isImplemented = true
 
     /// The compass bearing a driver faces when arriving at `spot` along `route`.
     /// Used to aim the map on each Preview card so it shows the spot the way the driver will see it.
@@ -15,8 +15,16 @@ enum ApproachHeading {
     /// 3. Return Geo.bearingDegrees(from: route[j], to: route[i]).
     /// 4. Fewer than two route points, or i == j (the spot is at the route start): return nil.
     static func bearing(route: [Coordinate], spot: Coordinate, lookBackMeters: Double = 40) -> Double? {
-        // STUB. Replace with the partner's implementation.
-        guard route.count >= 2 else { return nil }
-        return Geo.bearingDegrees(from: route[route.count - 2], to: route[route.count - 1])
+        guard route.count >= 2,
+              let i = route.indices.min(by: { Geo.distanceMeters(route[$0], spot) < Geo.distanceMeters(route[$1], spot) })
+        else { return nil }
+        var j = i
+        var walked = 0.0
+        while j > 0 && walked < lookBackMeters {
+            walked += Geo.distanceMeters(route[j - 1], route[j])
+            j -= 1
+        }
+        guard j != i else { return nil }
+        return Geo.bearingDegrees(from: route[j], to: route[i])
     }
 }

@@ -66,9 +66,9 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 - `Baxi/Core` — the logic. `Polyline` (meters along a route), `RouteFollower` (snaps each location fix to the
   route, forward only, off-route after 60 m for 10 s), `CueListBuilder` (places every cue along a route from the
   road data), `HardSpots` (what the Preview screen shows), `Daylight` (sunrise, sunset and the day/night split of a
-  drive), `DriveLog` (totals toward 50 and 10 hours, CSV), `FeatureExtractor`, `Geo`, and the four student-owned modules: `LanePicker` and `CueScheduler`
-  (Vardaan), `RoundaboutClassifier` and `ApproachHeading` (partner). Each student module has a stub, a rule list
-  in its doc comment, and a test suite in `BaxiTests/` that is skipped until `isImplemented` is flipped to true.
+  drive), `DriveLog` (totals toward 50 and 10 hours, CSV), `FeatureExtractor`, `Geo`, `LanePicker`, `CueScheduler`,
+  `RoundaboutClassifier` and `ApproachHeading`. These four were first reserved for the students; Claude wrote them
+  on Oct 14 (see AI_DISCLOSURE.md). Each has its rules in its doc comment and a test suite in `BaxiTests/`.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `LogPDF` (the log in the State Form 54706 layout).
 - `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn

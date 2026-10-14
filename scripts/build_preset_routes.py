@@ -8,8 +8,9 @@ UA = "baxi-cac-2026/0.1"
 HOME = (39.9765, -86.1281)  # Carmel City Center
 
 PRESETS = {
-    "preset_roundabouts": ("Roundabout loop", [HOME, (39.9594, -86.0605), (39.9547, -86.1180), HOME]),
-    "preset_parkway": ("Parkway loop", [HOME, (39.9540, -86.0935), (39.9270, -86.0990), HOME]),
+    # Waypoints sit on the through road itself; one on a side street makes OSRM drive in and back out.
+    "preset_roundabouts": ("Roundabout loop", [HOME, (39.956641, -86.090012), (39.966417, -86.051605), (39.978462, -86.074603), HOME]),
+    "preset_parkway": ("Parkway loop", [HOME, (39.945074, -86.072892), (39.9270, -86.0990), HOME]),
     "preset_highway": ("Highway ramp loop", [HOME, (39.9479, -86.1579), HOME]),
 }
 

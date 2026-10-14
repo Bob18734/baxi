@@ -50,6 +50,7 @@ final class DriveSession {
     private var passedAlong = 0.0
     /// More progress than this in one location fix is a jump along the route, not driving.
     static let maxJumpMeters = 250.0
+    private var lastFeedTime: TimeInterval?
     private var lastRerouteAttempt: TimeInterval = -.infinity
     /// False until the car is first within 30 m of the route; a live drive started from somewhere
     /// else (a preset loop started from home) is guided to the route's start right away.
@@ -231,7 +232,11 @@ final class DriveSession {
             passedAlong = p.alongMeters
         }
         progress = p
-        if p.alongMeters - passedAlong > Self.maxJumpMeters {
+        // After a GPS gap (a bridge, a dead zone) the car may legitimately be far ahead: up to 40 m/s
+        // (about 90 mph) for the time the signal was gone counts as driven, not as a shortcut.
+        let gapAllowance = lastFeedTime.map { max(0, time - $0 - 2) * 40 } ?? 0
+        lastFeedTime = time
+        if p.alongMeters - passedAlong > Self.maxJumpMeters + gapAllowance {
             // The car joined the route further along (another road, a shortcut): what it skipped was
             // neither driven nor handled.
             firstAlongMeters = (firstAlongMeters ?? 0) + (p.alongMeters - passedAlong)

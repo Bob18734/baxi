@@ -40,6 +40,9 @@ final class DriveSession {
     /// Meters driven on routes replaced by a reroute.
     private var metersBeforeReroute = 0.0
     private var lastRerouteAttempt: TimeInterval = -.infinity
+    /// False until the car is first within 30 m of the route; a live drive started from somewhere
+    /// else (a preset loop started from home) is guided to the route's start right away.
+    private var hasReachedRoute = false
 
     private var replayTimer: Timer?
     private var replayMeters = 0.0
@@ -191,6 +194,14 @@ final class DriveSession {
 
     func feed(_ location: Coordinate, at time: TimeInterval) {
         guard !isFinished, let p = follower.update(location: location, at: time) else { return }
+        if p.crossTrackMeters < 30 { hasReachedRoute = true }
+        if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters, !isRerouting,
+           time - lastRerouteAttempt > 30 {
+            lastCueText = "Getting you to the start"
+            speaker.say("First, let's get you to the start of the route.")
+            reroute(from: location, at: time)
+            return
+        }
         progress = p
         position = p.isOffRoute ? location : p.snapped
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading

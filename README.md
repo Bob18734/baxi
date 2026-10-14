@@ -26,8 +26,8 @@ xcodegen generate
 open Baxi.xcodeproj
 ```
 
-Pick an iPhone simulator and press Run. Tap **Try the Carmel demo** on the Home tab; everything the demo
-needs is bundled, so it works with no network.
+Pick your iPhone and press Run. Tap **Watch a demo drive** on the Home tab; everything the demo needs is
+bundled, so it works with no network.
 
 To run on your own iPhone: select your phone as the destination, set your personal team under
 Signing & Capabilities, and press Run. No paid developer account is needed.
@@ -63,6 +63,11 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   (one drive: following, cue firing, speech, reroute), `LogPDF` (the log in the State Form 54706 layout).
 - `Baxi/Screens` — SwiftUI screens: Home, Route, Preview, Drive, Arrived, Log.
 - `scripts/` — Python scripts that build the bundled data.
+
+## Code tour
+
+[CODE_TOUR.md](CODE_TOUR.md) follows one drive through the code, step by step, and lists the
+questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route.
 
 ## AI disclosure
 

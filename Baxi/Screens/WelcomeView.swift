@@ -21,7 +21,7 @@ struct WelcomeView: View {
                 card(symbol: "location.fill", title: "Your location stays on your phone",
                      lines: ["Baxi uses your location only while a drive is on screen, to follow the route.",
                              "Drives are saved on this phone only. There is no account and nothing is uploaded.",
-                             "Routes are requested from the OpenStreetMap router (or Apple Maps) with just the start and end points."]).tag(2)
+                             "A destination search goes to Apple Maps, and a new route is requested with just its start and end points. The Carmel practice routes need no internet."]).tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))

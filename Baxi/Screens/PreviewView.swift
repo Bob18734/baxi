@@ -107,7 +107,11 @@ private struct SpotCard: View {
         }
     }
 
-    private var approachHeading: Double { route.polyline.bearing(atMeters: max(0, spot.alongMeters - 40)) ?? 0 }
+    /// The partner's ApproachHeading once it is written; until then the route's own bearing.
+    private var approachHeading: Double {
+        if ApproachHeading.isImplemented, let b = ApproachHeading.bearing(route: route.polyline.points, spot: spot.location) { return b }
+        return route.polyline.bearing(atMeters: max(0, spot.alongMeters - 40)) ?? 0
+    }
 
     /// Look Around from just before the spot, so the image shows the approach.
     private func loadScene() async {

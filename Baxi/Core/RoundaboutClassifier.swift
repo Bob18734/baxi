@@ -15,11 +15,11 @@ struct RoundaboutInput {
 }
 
 enum RoundaboutClass: String, Codable {
-    /// One circulating lane. Tier 2.
+    /// One circulating lane.
     case singleLane
-    /// Two or more circulating lanes. Tier 3.
+    /// Two or more circulating lanes.
     case multiLane
-    /// A roundabout that feeds a freeway or parkway ramp (Keystone Parkway style). Tier 4.
+    /// A roundabout that feeds a freeway or parkway ramp (Keystone Parkway style).
     case interchange
 }
 

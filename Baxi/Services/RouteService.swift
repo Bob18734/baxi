@@ -47,14 +47,14 @@ enum RouteService {
         }
     }
 
-    /// The option to offer as calmer: at least 800 m less on fast roads than the fastest, and no more
+    /// The option to offer as calmer: at least a mile less on fast roads than the fastest, and no more
     /// than 30% slower. nil when no alternative is meaningfully calmer.
     static func calmer(in options: [Option]) -> Option? {
         guard let fastest = options.first, let fastestFast = fastest.fastMeters else { return nil }
         return options.dropFirst()
             .filter { o in
                 guard let f = o.fastMeters else { return false }
-                return f <= fastestFast - 800 && o.route.durationSeconds <= fastest.route.durationSeconds * 1.3
+                return f <= fastestFast - 1_609 && o.route.durationSeconds <= fastest.route.durationSeconds * 1.3
             }
             .min { ($0.fastMeters ?? 0) < ($1.fastMeters ?? 0) }
     }

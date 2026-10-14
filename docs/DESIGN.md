@@ -12,7 +12,7 @@ A new driver is learning to read road signs, so Baxi looks like them.
   screen's maneuver card, the demo card, the Arrived banner, the chosen route.
 - **Warning yellow** (`BaxiColor.warning`) lights the lane to be in, the same yellow as the app icon.
 - **School-zone yellow-green** and a pentagon for school zones; **orange** and a diamond for
-  crash-heavy roads; **stop red** only for End drive.
+  crash-heavy roads; **stop red** for End drive and the hands-off sign (`stopText`, a lighter red in dark mode, for error text).
 - **Overpass** for headings and numbers: an open-source typeface drawn after Highway Gothic, the
   lettering on US highway signs (SIL Open Font License, `Baxi/Resources/Fonts/OFL.txt`). The speed
   limit sign uses it too, so it looks like the real sign. Body text stays in the system font so it

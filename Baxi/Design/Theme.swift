@@ -27,6 +27,8 @@ enum BaxiColor {
     static let caution = Color(hex: 0xF27A1A)
     /// Stop-sign red: End drive and destructive actions only.
     static let stop = Color(hex: 0xC8102E)
+    /// Error text on the page (stop red is too dark to read on the dark surface).
+    static let stopText = dynamic(light: 0xC8102E, dark: 0xFF6B6B)
     /// The route line on maps.
     static let route = Color(hex: 0x1F6FEB)
     /// Ink on yellow and white sign faces.
@@ -39,7 +41,7 @@ enum BaxiColor {
     /// Secondary text you read (sentences, values).
     static let inkSoft = dynamic(light: 0x545B57, dark: 0xA9B0AC)
     /// Labels only: eyebrows, units, captions you glance at.
-    static let inkFaint = dynamic(light: 0x858B87, dark: 0x747C78)
+    static let inkFaint = dynamic(light: 0x6B726E, dark: 0x8E9692)
     static let hairline = dynamic(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.10)
     /// Text and marks on sign green.
     static let onSign = Color.white
@@ -187,7 +189,7 @@ struct BaxiButtonStyle: ButtonStyle {
     private func background(pressed: Bool) -> Color {
         switch kind {
         case .primary: pressed ? BaxiColor.signDeep : BaxiColor.sign
-        case .secondary: pressed ? BaxiColor.hairline : BaxiColor.sunken
+        case .secondary: pressed ? BaxiColor.sunken.opacity(0.6) : BaxiColor.sunken
         case .stop: BaxiColor.stop.opacity(pressed ? 0.8 : 1)
         case .onSign: BaxiColor.onSign.opacity(pressed ? 0.85 : 1)
         }
@@ -218,7 +220,12 @@ struct PressableStyle: ButtonStyle {
 /// where the shape of the content is known.
 struct Shimmer: ViewModifier {
     @State private var phase: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
+        if reduceMotion { content } else { moving(content) }
+    }
+
+    private func moving(_ content: Content) -> some View {
         content
             .overlay(
                 GeometryReader { geo in

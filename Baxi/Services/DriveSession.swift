@@ -9,7 +9,9 @@ import Observation
 final class DriveSession {
     enum Mode: Equatable { case live, replay(speedMultiplier: Double) }
 
-    private(set) var route: PlannedRoute
+    private(set) var route: PlannedRoute { didSet { routeCoordinates = route.polyline.points.map(\.clLocation) } }
+    /// The route line for the map, converted once per route rather than on every location fix.
+    private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
     let level: ExperienceLevel
     let mode: Mode
     private(set) var cues: [Cue]
@@ -46,6 +48,8 @@ final class DriveSession {
     /// Maneuvers the car has gone through on this drive, for the Arrived screen.
     private(set) var passedManeuvers: [Maneuver] = []
     private var passedAlong = 0.0
+    /// More progress than this in one location fix is a jump along the route, not driving.
+    static let maxJumpMeters = 250.0
     private var lastRerouteAttempt: TimeInterval = -.infinity
     /// False until the car is first within 30 m of the route; a live drive started from somewhere
     /// else (a preset loop started from home) is guided to the route's start right away.
@@ -64,6 +68,7 @@ final class DriveSession {
          level: ExperienceLevel, mode: Mode, speaker: SpeechOutput = Speaker()) {
         self.speaker = speaker
         self.route = route
+        self.routeCoordinates = route.polyline.points.map(\.clLocation)
         self.level = level
         self.mode = mode
         self.cache = cache
@@ -208,12 +213,12 @@ final class DriveSession {
     func feed(_ location: Coordinate, at time: TimeInterval) {
         guard !isFinished, let p = follower.update(location: location, at: time) else { return }
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
-        if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters, !isRerouting,
-           time - lastRerouteAttempt > 30 {
+        if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
+            // Still heading to the route: no progress, no cues, until the car is on it.
             position = location
             lastCueText = "Getting you to the start"
             if !saidGetToStart { saidGetToStart = true; speaker.say("First, let's get you to the start of the route.") }
-            reroute(from: location, at: time)
+            if !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
         }
         if progress == nil {
@@ -221,7 +226,13 @@ final class DriveSession {
             passedAlong = p.alongMeters
         }
         progress = p
-        passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= p.alongMeters }
+        if p.alongMeters - passedAlong > Self.maxJumpMeters {
+            // The car joined the route further along (another road, a shortcut): what it skipped was
+            // neither driven nor handled.
+            firstAlongMeters = (firstAlongMeters ?? 0) + (p.alongMeters - passedAlong)
+        } else {
+            passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= p.alongMeters }
+        }
         passedAlong = max(passedAlong, p.alongMeters)
         position = p.isOffRoute ? location : p.snapped
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading

@@ -63,7 +63,7 @@ struct DriveView: View {
 
     private var map: some View {
         Map(position: $camera, interactionModes: []) {
-            MapPolyline(coordinates: session.route.polyline.points.map(\.clLocation))
+            MapPolyline(coordinates: session.routeCoordinates)
                 .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
             if let traveled = traveledPoints, traveled.count > 1 {
                 MapPolyline(coordinates: traveled.map(\.clLocation))
@@ -232,6 +232,7 @@ private struct SaidBanner: View {
             else { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(.regularMaterial) }
         }
         .animation(.snappy, value: session.lastCueText)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Baxi said: \(session.lastCueText)")
     }
 }
@@ -297,6 +298,15 @@ struct LaneStripView: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel("Use lane \(strip.highlighted.first.map { $0 + 1 } ?? 0) of \(strip.laneCount), counting from the left")
+        .accessibilityLabel(Self.spoken(strip))
+    }
+
+    static func spoken(_ strip: LaneStrip) -> String {
+        let lanes = strip.highlighted.sorted().map { String($0 + 1) }
+        switch lanes.count {
+        case 0: return "\(strip.laneCount) lanes"
+        case 1: return "Use lane \(lanes[0]) of \(strip.laneCount), counting from the left"
+        default: return "Use lanes \(lanes.dropLast().joined(separator: ", ")) or \(lanes.last!) of \(strip.laneCount), counting from the left"
+        }
     }
 }

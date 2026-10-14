@@ -82,6 +82,7 @@ private struct DemoSign: View {
                 Text("31").font(BaxiFont.signFace(15)).foregroundStyle(BaxiColor.signInk)
                     .frame(width: 30, height: 30)
                     .background(.white, in: Shield())
+                    .accessibilityHidden(true)
                 Text("TRY IT · CARMEL").font(BaxiFont.eyebrow).tracking(1.2).opacity(0.85)
             }
             Text("Watch a demo drive").font(BaxiFont.title)

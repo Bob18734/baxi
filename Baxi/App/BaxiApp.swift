@@ -10,7 +10,7 @@ struct BaxiApp: App {
             RootView()
                 .tint(BaxiColor.accent)
                 #if DEBUG
-                .dynamicTypeSize(ScreenCheck.bigText ? .accessibility3 : .large)
+                .transformEnvironment(\.dynamicTypeSize) { if ScreenCheck.bigText { $0 = .accessibility3 } }
                 #endif
         }
         .modelContainer(for: [DriveRecord.self])

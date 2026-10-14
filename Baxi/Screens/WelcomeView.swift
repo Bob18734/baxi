@@ -49,6 +49,7 @@ struct WelcomeView: View {
                     .frame(minHeight: 44)
                     .opacity(page == lastPage ? 1 : 0)
                     .disabled(page != lastPage)
+                    .accessibilityHidden(page != lastPage)
             }
             .padding(.horizontal, BaxiSpace.page)
             .padding(.bottom, BaxiSpace.md)

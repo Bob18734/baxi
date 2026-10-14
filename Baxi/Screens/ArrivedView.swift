@@ -91,7 +91,7 @@ struct ArrivedView: View {
 
     private var logSection: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Eyebrow("Saved to your log")
+            Eyebrow(record == nil ? "Your log" : "Saved to your log")
             VStack(alignment: .leading, spacing: BaxiSpace.sm) {
                 if let record {
                     HStack(spacing: BaxiSpace.xl) {

@@ -96,7 +96,7 @@ struct RouteView: View {
             if routing {
                 RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
             } else if let err = store.routeError {
-                Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stop)
+                Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText)
             } else if let r = store.route {
                 selected(r)
             } else {
@@ -194,12 +194,13 @@ private struct PresetCard: View {
         Button(action: choose) {
             VStack(alignment: .leading, spacing: BaxiSpace.xs) {
                 Text(preset.name).font(BaxiFont.headline)
-                Text(preset.summary).font(BaxiFont.caption).lineLimit(1).opacity(selected ? 0.9 : 1)
+                Text(preset.summary).font(BaxiFont.caption).lineLimit(2).opacity(selected ? 0.9 : 1)
                     .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .frame(width: 200, height: 52, alignment: .topLeading)
+            .frame(width: 220, alignment: .topLeading)
+            .frame(minHeight: 60, alignment: .topLeading)
             .padding(.vertical, BaxiSpace.md)
             .padding(.horizontal, BaxiSpace.lg)
             .modifier(PresetBackground(selected: selected))
@@ -230,11 +231,16 @@ private struct RouteFacts: View {
         let ramps = spots.filter { $0.kind == .ramp }.count
         let mins = Int((route.durationSeconds / 60).rounded())
         VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            HStack(spacing: BaxiSpace.md) {
+            let facts = Group {
                 fact("ruler", DriveView.distance(route.distanceMeters))
                 fact("clock", "\(mins) min")
                 if rb > 0 { fact("arrow.triangle.turn.up.right.circle", "\(rb) roundabout\(rb == 1 ? "" : "s")") }
                 if ramps > 0 { fact("arrow.merge", "\(ramps) ramp\(ramps == 1 ? "" : "s")") }
+            }
+            // One row when it fits, otherwise stacked (large text sizes).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: BaxiSpace.md) { facts }
+                VStack(alignment: .leading, spacing: BaxiSpace.xs) { facts }
             }
             Text(route.source == "apple" ? "Apple directions: no lane data on this route." : "Lanes and roundabout exits from OpenStreetMap.")
                 .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)

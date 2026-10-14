@@ -19,6 +19,11 @@ struct Polyline: Equatable {
         cumulative = cum
     }
 
+    /// Two projections this close in distance count as a tie (see `project(_:near:fromAlong:)`).
+    static let tieMeters = 1.0
+    /// How far behind the car a tied pass may be and still count (GPS jitter).
+    static let tieBackMeters = 30.0
+
     var lengthMeters: Double { cumulative.last ?? 0 }
     var segmentCount: Int { max(0, points.count - 1) }
 
@@ -33,20 +38,23 @@ struct Polyline: Equatable {
 
     /// Nearest point on the line. With `near`, only segments from near-back to near+window are searched,
     /// which is what route following does once it knows roughly where the car is.
-    func project(_ p: Coordinate, near: Int? = nil, back: Int = 3, window: Int = 40) -> Projection? {
+    /// Where the route uses the same road twice (out and back), both passes are equally close; then
+    /// the earliest pass not behind `fromAlong` wins, which is where a car moving forward is.
+    func project(_ p: Coordinate, near: Int? = nil, back: Int = 3, window: Int = 40, fromAlong: Double? = nil) -> Projection? {
         guard segmentCount > 0 else { return nil }
         let lo = near.map { max(0, $0 - back) } ?? 0
         let hi = near.map { min(segmentCount - 1, $0 + window) } ?? (segmentCount - 1)
-        var best: Projection?
+        var all: [Projection] = []
         for i in lo...hi {
             let r = Geo.projectOntoSegment(p, points[i], points[i + 1])
-            if best == nil || r.distanceMeters < best!.crossTrackMeters {
-                let segLen = cumulative[i + 1] - cumulative[i]
-                best = Projection(segmentIndex: i, t: r.t, point: r.point, crossTrackMeters: r.distanceMeters,
-                                  alongMeters: cumulative[i] + r.t * segLen)
-            }
+            let segLen = cumulative[i + 1] - cumulative[i]
+            all.append(Projection(segmentIndex: i, t: r.t, point: r.point, crossTrackMeters: r.distanceMeters,
+                                  alongMeters: cumulative[i] + r.t * segLen))
         }
-        return best
+        guard let closest = all.min(by: { $0.crossTrackMeters < $1.crossTrackMeters }) else { return nil }
+        let ties = all.filter { $0.crossTrackMeters <= closest.crossTrackMeters + Self.tieMeters }
+        guard ties.count > 1, let from = fromAlong else { return closest }
+        return ties.filter { $0.alongMeters >= from - Self.tieBackMeters }.min { $0.alongMeters < $1.alongMeters } ?? closest
     }
 
     /// Nearest point on the line among segments whose span comes within `tolerance` meters of

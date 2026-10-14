@@ -71,6 +71,7 @@ struct SchoolZoneChip: View {
         HStack(spacing: BaxiSpace.sm) {
             Pentagon().fill(BaxiColor.signInk).frame(width: 16, height: 18)
                 .overlay(Image(systemName: "figure.walk").font(BaxiFont.signFace(10)).foregroundStyle(BaxiColor.school).offset(y: 2))
+                .accessibilityHidden(true)
             Text("School zone").font(BaxiFont.headline)
         }
         .foregroundStyle(BaxiColor.signInk)
@@ -86,6 +87,7 @@ struct CrashChip: View {
         HStack(spacing: BaxiSpace.sm) {
             Diamond().fill(BaxiColor.signInk).frame(width: 18, height: 18)
                 .overlay(Text("!").font(BaxiFont.signFace(12)).foregroundStyle(BaxiColor.caution))
+                .accessibilityHidden(true)
             Text("Crash-heavy road").font(BaxiFont.headline)
         }
         .foregroundStyle(BaxiColor.signInk)
@@ -96,6 +98,7 @@ struct CrashChip: View {
 }
 
 /// One lane's arrows, drawn from the label CueListBuilder gives it ("←", "↑", "↑→", "" when unknown).
+/// Arrows shrink to fit narrow lanes (five or more).
 struct LaneArrows: View {
     let label: String
     var size: CGFloat = 24
@@ -105,6 +108,8 @@ struct LaneArrows: View {
                 Image(systemName: s).font(.system(size: size, weight: .heavy)) // design-lint:allow drawn mark, sized by its lane
             }
         }
+        .minimumScaleFactor(0.5)
+        .lineLimit(1)
     }
 
     static func symbols(for label: String) -> [String] {
@@ -119,7 +124,8 @@ struct LaneArrows: View {
             default: nil
             }
         }
-        return out.isEmpty ? ["arrow.up"] : out
+        // No lane data: a neutral dash, never an arrow the driver might trust.
+        return out.isEmpty ? ["minus"] : out
     }
 }
 
@@ -144,8 +150,10 @@ struct HoursRing: View {
                     .animation(.easeOut(duration: 0.8), value: fraction)
                 VStack(spacing: 0) {
                     Text(DriveLog.hm(minutes)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                         .contentTransition(.numericText())
                     Text("of \(goalMinutes / 60) h").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                 }
             }
             .frame(width: diameter, height: diameter)

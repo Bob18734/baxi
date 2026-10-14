@@ -33,7 +33,7 @@ final class RouteFollower {
             // could snap to the last segment and finish the drive at once.
             proj = start
         } else {
-            proj = polyline.project(location, near: isOffRoute ? nil : lastSegment)
+            proj = polyline.project(location, near: isOffRoute ? nil : lastSegment, fromAlong: lastSegment == nil ? nil : alongMeters)
         }
         guard var p = proj else { return nil }
 

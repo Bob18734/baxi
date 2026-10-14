@@ -47,6 +47,10 @@ final class DriveSession {
     private var firstAlongMeters: Double?
     /// Maneuvers the car has gone through on this drive, for the Arrived screen.
     private(set) var passedManeuvers: [Maneuver] = []
+    /// Meters driven on roads posted 45 mph or more, for the practice tally.
+    private(set) var fastMeters = 0.0
+    /// The skills this drive practiced, from what was actually driven.
+    var practiced: SkillCounts { Practice.count(maneuvers: passedManeuvers, features: features, fastMeters: fastMeters) }
     private var passedAlong = 0.0
     /// More progress than this in one location fix is a jump along the route, not driving.
     static let maxJumpMeters = 250.0
@@ -242,6 +246,9 @@ final class DriveSession {
             firstAlongMeters = (firstAlongMeters ?? 0) + (p.alongMeters - passedAlong)
         } else {
             passedManeuvers += route.maneuvers.filter { $0.alongMeters > passedAlong && $0.alongMeters <= p.alongMeters }
+            if p.alongMeters > passedAlong, (CueListBuilder.speed(at: p.alongMeters, in: speeds) ?? 0) >= Practice.fastMph {
+                fastMeters += p.alongMeters - passedAlong
+            }
         }
         passedAlong = max(passedAlong, p.alongMeters)
         position = p.crossTrackMeters > RouteFollower.offRouteMeters ? location : p.snapped

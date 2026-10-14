@@ -102,7 +102,8 @@ extension ScreenCheck {
             context.insert(DriveRecord(start: start, end: start.addingTimeInterval(Double(s.minutes) * 60),
                                        dayMinutes: s.minutes - s.night, nightMinutes: s.night, level: .gettingComfortable,
                                        routeTitle: s.title, distanceMeters: s.manual ? 0 : Double(s.minutes) * 600,
-                                       cuesSpoken: s.manual ? 0 : 20, manual: s.manual))
+                                       cuesSpoken: s.manual ? 0 : 20, manual: s.manual,
+                                       skills: s.manual ? [:] : [.singleLaneRoundabout: 5, .multiLaneRoundabout: 2, .laneTurn: 1]))
         }
         try? context.save()
     }

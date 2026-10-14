@@ -5,6 +5,7 @@ import SwiftData
 /// month, drives added by hand, and exports (a PDF in the State Form 54706 layout, and CSV).
 struct LogView: View {
     @Environment(\.modelContext) private var context
+    @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var adding = false
     @State private var pdfURL: URL?
@@ -23,6 +24,10 @@ struct LogView: View {
         NavigationStack {
             List {
                 Section { summary }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                Section { SkillsPanel(done: Practice.total(drives.map(\.skills)), routes: store.presetSkills()) }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -113,6 +118,63 @@ struct LogView: View {
         } catch {
             pdfURL = nil; csvURL = nil
         }
+    }
+}
+
+/// The skills practiced across every drive Baxi recorded, toward Baxi's suggested goals, and the
+/// practice route that would fill the biggest gaps.
+private struct SkillsPanel: View {
+    let done: SkillCounts
+    let routes: [(id: String, skills: SkillCounts)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.md) {
+            Eyebrow("Skills practiced")
+            ForEach(Skill.allCases) { s in
+                ProgressRow(label: s.title, value: done[s] ?? 0, goal: s.goal, tint: BaxiColor.sign)
+            }
+            if let next = Practice.suggest(done: done, routes: routes),
+               let name = RouteService.presets.first(where: { $0.id == next.presetId })?.name {
+                Label {
+                    Text("Next, try the \(name): " + next.covers.prefix(3).map { "\($0.count) \($0.skill.title.lowercased())" }
+                        .joined(separator: ", ") + ".")
+                } icon: { Image(systemName: "arrow.triangle.turn.up.right.diamond.fill").foregroundStyle(BaxiColor.accent) }
+                .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+            }
+            Text("Goals are Baxi's suggestion, not a state requirement. Drives added by hand do not count here.")
+                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+        }
+        .padding(BaxiSpace.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
+    }
+}
+
+/// A labeled bar toward a count goal.
+private struct ProgressRow: View {
+    let label: String
+    let value: Int
+    let goal: Int
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+            HStack {
+                Text(label).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
+                Spacer()
+                Text("\(min(value, goal)) / \(goal)").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkSoft)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(BaxiColor.sunken)
+                    Capsule().fill(tint).frame(width: max(8, geo.size.width * min(1, Double(value) / Double(goal))))
+                        .opacity(value == 0 ? 0 : 1)
+                }
+            }
+            .frame(height: 8)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value) of \(goal)")
     }
 }
 

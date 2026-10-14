@@ -114,7 +114,8 @@ struct DriveView: View {
         let split = Daylight.split(start: session.startedAt, end: end, at: session.startCoordinate ?? AppStore.carmelDemoHome)
         let record = DriveRecord(start: session.startedAt, end: end, dayMinutes: split.day, nightMinutes: split.night,
                                  level: session.level, routeTitle: session.route.name,
-                                 distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count)
+                                 distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count,
+                                 skills: session.practiced)
         context.insert(record)
         // Save now rather than waiting for autosave: the app may be closed right after arriving.
         try? context.save()

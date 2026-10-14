@@ -64,6 +64,21 @@ final class AppStore {
         }
     }
 
+    /// The skills each preset route contains, for suggesting what to drive next (built once).
+    func presetSkills() -> [(id: String, skills: SkillCounts)] {
+        if let presetSkillsCache { return presetSkillsCache }
+        guard let cache else { return [] }
+        let built = RouteService.presets.compactMap { p -> (id: String, skills: SkillCounts)? in
+            guard let r = try? RouteService.preset(p.id) else { return nil }
+            let speeds = CueListBuilder.speedProfile(line: r.polyline, cache: cache)
+            return (p.id, Practice.count(maneuvers: r.maneuvers, features: features,
+                                         fastMeters: Practice.fastMeters(route: r.polyline.lengthMeters, speeds: speeds)))
+        }
+        presetSkillsCache = built
+        return built
+    }
+    @ObservationIgnored private var presetSkillsCache: [(id: String, skills: SkillCounts)]?
+
     /// The hard spots on the chosen route, for the Preview screen.
     func hardSpots() -> [HardSpot] {
         guard let route, let cache else { return [] }

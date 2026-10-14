@@ -15,9 +15,11 @@ final class DriveRecord {
     var distanceMeters: Double
     var cuesSpoken: Int
     var manual: Bool = false
+    /// Practice.encode of the skills this drive practiced; empty for drives added by hand or saved before Oct 14.
+    var skillsJSON: String = ""
 
     init(start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: ExperienceLevel, routeTitle: String,
-         distanceMeters: Double, cuesSpoken: Int, manual: Bool = false) {
+         distanceMeters: Double, cuesSpoken: Int, manual: Bool = false, skills: SkillCounts = [:]) {
         id = UUID()
         self.start = start; self.end = end
         self.dayMinutes = dayMinutes; self.nightMinutes = nightMinutes
@@ -26,7 +28,10 @@ final class DriveRecord {
         self.distanceMeters = distanceMeters
         self.cuesSpoken = cuesSpoken
         self.manual = manual
+        self.skillsJSON = Practice.encode(skills)
     }
+
+    var skills: SkillCounts { Practice.decode(skillsJSON) }
 
     var row: LogRow {
         LogRow(start: start, end: end, dayMinutes: dayMinutes, nightMinutes: nightMinutes, routeTitle: routeTitle,

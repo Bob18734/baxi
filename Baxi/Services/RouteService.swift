@@ -10,7 +10,7 @@ enum RouteService {
     }
 
     static let presets: [Preset] = [
-        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "20 roundabouts around Carmel, single and two-lane, Hazel Dell and 116th"),
+        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "16 roundabouts, single and two-lane, on 116th Street, River Road and 126th Street"),
         Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp"),
         Preset(id: "preset_highway", name: "Highway ramp loop", summary: "Merge onto US 31, exit through a roundabout interchange, merge again"),
     ]

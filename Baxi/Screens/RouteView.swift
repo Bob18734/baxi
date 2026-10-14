@@ -131,6 +131,7 @@ struct RouteView: View {
 
     @ViewBuilder private func selected(_ r: PlannedRoute) -> some View {
         RouteFacts(route: r, spots: spots)
+        if let w = store.weather { WeatherLine(weather: w) }
         if let note = store.roadDataNote {
             Label(note, systemImage: "wifi.exclamationmark").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
         }
@@ -281,3 +282,29 @@ struct SpotPin: View {
 extension DriveSession: Identifiable {
     var id: ObjectIdentifier { ObjectIdentifier(self) }
 }
+
+/// The weather where the drive starts, in one line; an alert in effect is shown first, in orange.
+private struct WeatherLine: View {
+    let weather: RoadWeather
+    private var symbol: String {
+        switch weather.condition {
+        case .clear: "cloud.sun.fill"
+        case .wind: "wind"
+        case .rain: "cloud.rain.fill"
+        case .fog: "cloud.fog.fill"
+        case .storm: "cloud.bolt.rain.fill"
+        case .snowOrIce: "snowflake"
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+            if let alert = weather.alerts.first {
+                Label(alert, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote.weight(.semibold))
+                    .foregroundStyle(BaxiColor.caution)
+            }
+            Label(weather.summary, systemImage: symbol).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+

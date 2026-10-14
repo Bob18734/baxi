@@ -75,8 +75,22 @@ final class AppStore {
     @ObservationIgnored private var prepTask: Task<Void, Never>?
 
     /// Rebuilds `prep` for the current route, off the main thread. A newer route cancels an older build.
+    /// Weather at the start of the chosen route (National Weather Service), nil until it loads or offline.
+    private(set) var weather: RoadWeather?
+    @ObservationIgnored private var weatherFetched: (key: String, at: Date)?
+
+    /// Fetches the weather for the route's start, at most every 15 minutes per place.
+    @MainActor private func refreshWeather(for route: PlannedRoute) {
+        guard let start = route.polyline.points.first else { return }
+        let key = String(format: "%.2f,%.2f", start.lat, start.lon)
+        if let f = weatherFetched, f.key == key, Date().timeIntervalSince(f.at) < 900 { return }
+        weatherFetched = (key, Date())
+        Task { @MainActor in weather = try? await WeatherService.weather(at: start) }
+    }
+
     @MainActor func refreshPrep() {
         guard let route else { prep = nil; return }
+        refreshWeather(for: route)
         if prep?.routeId == route.id { return }
         prepTask?.cancel()
         prepTask = Task { @MainActor in
@@ -194,11 +208,15 @@ final class AppStore {
         let mode: DriveSession.Mode = replay.map { .replay(speedMultiplier: $0) } ?? .live
         #if DEBUG && targetEnvironment(macCatalyst)
         // The Mac copy is only for screenshots; keep it quiet.
-        return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
-                            mode: mode, speaker: SilentSpeech(), prep: prep)
+        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+                             mode: mode, speaker: SilentSpeech(), prep: prep)
+        s.weatherLine = weather?.spoken
+        return s
         #else
-        return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
-                            mode: mode, prep: prep)
+        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+                             mode: mode, prep: prep)
+        s.weatherLine = weather?.spoken
+        return s
         #endif
     }
 }

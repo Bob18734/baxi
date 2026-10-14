@@ -14,6 +14,8 @@ final class DriveSession {
     private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
     /// Where to change lanes on this route, for the map and the lane panel. Rebuilt with the cues.
     private(set) var laneZones: [LaneZone] = []
+    /// Said once after the start line when the weather may affect the roads (from WeatherService).
+    var weatherLine: String?
     /// Each zone's stretch of road, ready for the map (built once, not on every fix).
     private(set) var laneZoneCoordinates: [String: [CLLocationCoordinate2D]] = [:]
 
@@ -146,6 +148,7 @@ final class DriveSession {
     func start() {
         startedAt = Date()
         speaker.say("Starting \(route.name). The driver keeps hands on the wheel, I will call everything out.")
+        if let weatherLine { speaker.say(weatherLine); spokenLog.append((0, weatherLine)) }
         switch mode {
         case .replay(let mult): startReplay(multiplier: mult)
         case .live: startLive()

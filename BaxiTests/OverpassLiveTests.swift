@@ -5,6 +5,12 @@ import Testing
 /// Live network check of the Overpass corridor fetch. Skipped unless BAXI_LIVE=1, so `swift test` stays offline.
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["BAXI_LIVE"] != nil, "set BAXI_LIVE=1 to hit Overpass"))
 struct OverpassLiveTests {
+    @Test func carmelWeatherFromTheNationalWeatherService() async throws {
+        let w = try await WeatherService.weather(at: Coordinate(lat: 39.9765, lon: -86.1281))
+        print("LIVE weather: \(w.summary), \(w.condition), alerts \(w.alerts), spoken: \(w.spoken ?? "nothing")")
+        #expect(!w.summary.isEmpty)
+    }
+
     @Test func westfieldRouteGetsRoadData() async throws {
         // Grand Park, Westfield to Westfield High School: outside the bundled Carmel box.
         let route = try await RouteService.route(from: Coordinate(lat: 40.0533, lon: -86.1631),
@@ -48,5 +54,26 @@ struct OverpassParseTests {
         // The ends stay private: nothing sent within 200 m of the start or the end.
         let sent = pieces.flatMap { $0 }
         #expect(sent.allSatisfy { Geo.distanceMeters($0, line.points.first!) >= 199 && Geo.distanceMeters($0, line.points.last!) >= 199 })
+    }
+}
+
+struct WeatherParseTests {
+    @Test func conditionsFromForecastWordsAndAlerts() {
+        #expect(RoadWeather.condition(forecast: "Chance Light Rain", alerts: []) == .rain)
+        #expect(RoadWeather.condition(forecast: "Freezing Drizzle", alerts: []) == .snowOrIce)
+        #expect(RoadWeather.condition(forecast: "Patchy Fog", alerts: []) == .fog)
+        #expect(RoadWeather.condition(forecast: "Sunny", alerts: ["Winter Weather Advisory"]) == .snowOrIce)
+        #expect(RoadWeather.condition(forecast: "Mostly Sunny", alerts: []) == .clear)
+        #expect(RoadWeather(summary: "Sunny, 60°F", condition: .clear, alerts: []).spoken == nil)
+        #expect(RoadWeather(summary: "", condition: .rain, alerts: ["Flood Advisory"]).spoken == "Flood Advisory in effect. Rain right now. Roads may be slippery.")
+    }
+
+    @Test func alertsSortMostSevereFirst() throws {
+        let json = #"""
+        {"features": [{"properties": {"event": "Wind Advisory", "severity": "Minor"}},
+                      {"properties": {"event": "Winter Storm Warning", "severity": "Severe"}},
+                      {"properties": {"event": "Wind Advisory", "severity": "Minor"}}]}
+        """#
+        #expect(try WeatherService.alertNames(Data(json.utf8)) == ["Winter Storm Warning", "Wind Advisory"])
     }
 }

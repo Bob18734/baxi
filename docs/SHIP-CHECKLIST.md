@@ -51,7 +51,8 @@ Feature freeze Thursday Oct 22. Video recorded Friday Oct 23.
 - [ ] `swift test` green; the iPhone build compiles with no warnings we added.
 - [ ] `scripts/design-lint.sh` clean.
 - [ ] Fable security and privacy review (Oct 21): nothing leaves the phone except the destination
-  search (Apple) and the route endpoints (OSRM); no keys in the repo; privacy manifest matches.
+  search (Apple), the route endpoints (OSRM, also on a reroute) and a searched route's path (Overpass,
+  for its road data); the Welcome screen says exactly this; no keys in the repo; privacy manifest matches.
 - [ ] AI_DISCLOSURE.md has an entry for every day AI was used, including the review agents.
 - [ ] README build steps work from a fresh clone (`xcodegen generate`, open, run).
 - [ ] App icon final (the current one is a placeholder from scripts/make_icon.swift).

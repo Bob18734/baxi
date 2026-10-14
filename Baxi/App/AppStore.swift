@@ -75,8 +75,8 @@ final class AppStore {
         prepTask?.cancel()
         prepTask = Task { @MainActor in
             await ensureLoaded()
-            guard let cache, !Task.isCancelled else { return }
-            let (f, hin) = (features, highInjury)
+            guard let (cache, f) = roads, !Task.isCancelled else { return }
+            let hin = highInjury
             let built = await Task.detached(priority: .userInitiated) {
                 RoutePrep.make(route: route, cache: cache, features: f, highInjury: hin)
             }.value
@@ -85,15 +85,44 @@ final class AppStore {
     }
 
     func choosePreset(_ id: String) {
-        do { route = try RouteService.preset(id); routeError = nil }
+        do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil }
         catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
         refreshPrep()
+    }
+
+    /// Road data fetched along a searched route (OverpassService), merged with the bundled Carmel data.
+    /// Presets use the bundled data alone.
+    @ObservationIgnored private var routeRoads: (routeId: String, cache: OSMCache, features: [RoadFeature])?
+    /// What Baxi knows about the roads on the chosen route, shown under the route when it matters.
+    private(set) var roadDataNote: String?
+    private(set) var isFetchingRoads = false
+
+    /// The road data and features for the current route.
+    private var roads: (cache: OSMCache, features: [RoadFeature])? {
+        if let r = routeRoads, r.routeId == route?.id { return (r.cache, r.features) }
+        return cache.map { ($0, features) }
     }
 
     func routeTo(_ destination: Coordinate, name: String) async {
         await ensureLoaded()
         defer { refreshPrep() }
-        do { route = try await RouteService.route(from: home ?? Self.carmelDemoHome, to: destination, name: name); routeError = nil }
+        do {
+            let found = try await RouteService.route(from: home ?? Self.carmelDemoHome, to: destination, name: name)
+            routeError = nil
+            roadDataNote = nil
+            // Lanes, roundabouts, lights and limits along this route, from OpenStreetMap, before the drive.
+            isFetchingRoads = true
+            if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
+                let merged = OverpassService.combine(base, corridor)
+                let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
+                routeRoads = (found.id, merged, f)
+            } else {
+                roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
+                    + "Turn-by-turn still works."
+            }
+            isFetchingRoads = false
+            route = found
+        }
         catch {
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
             print("Routing failed: \(error)")
@@ -150,7 +179,7 @@ final class AppStore {
     }
 
     func makeSession(replay: Double?) -> DriveSession? {
-        guard let route, let cache else { return nil }
+        guard let route, let (cache, features) = roads else { return nil }
         let mode: DriveSession.Mode = replay.map { .replay(speedMultiplier: $0) } ?? .live
         #if DEBUG && targetEnvironment(macCatalyst)
         // The Mac copy is only for screenshots; keep it quiet.

@@ -123,6 +123,9 @@ struct RouteView: View {
 
     @ViewBuilder private func selected(_ r: PlannedRoute) -> some View {
         RouteFacts(route: r, spots: spots)
+        if let note = store.roadDataNote {
+            Label(note, systemImage: "wifi.exclamationmark").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+        }
         HStack(spacing: BaxiSpace.sm) {
             Button { showPreview = true } label: {
                 Label(spots.isEmpty ? "Preview" : "Preview \(spots.count) spots", systemImage: "binoculars.fill")

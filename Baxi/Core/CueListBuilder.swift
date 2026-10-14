@@ -5,6 +5,7 @@ import Foundation
 enum CueListBuilder {
     static let signalMatchMeters = 20.0
     static let stopMatchMeters = 4.0
+    static let railMatchMeters = 12.0
     static let laneWayMatchMeters = 20.0
     static let speedWayMatchMeters = 15.0
     static let schoolMatchMeters = 150.0
@@ -138,6 +139,13 @@ enum CueListBuilder {
             cues.append(Cue(id: "signal-\(Int(along))", kind: .signal, targetMeters: along,
                             spokenTemplate: "{lights} to go", cardTemplate: "{lights} to your turn", laneStrip: nil,
                             roadSpeedMph: speed(at: along), maneuverId: next.id))
+        }
+        // Railroad crossings (OpenStreetMap railway=level_crossing on the road).
+        let crossings = cache.nodes.filter { $0.tags["railway"] == "level_crossing" }.map(\.coordinate)
+        for along in dedupe(onRoute(crossings, line: line, within: railMatchMeters), within: 80) {
+            cues.append(Cue(id: "rail-\(Int(along))", kind: .railroad, targetMeters: along,
+                            spokenTemplate: "Railroad crossing ahead. Slow down, look and listen both ways",
+                            cardTemplate: "Railroad crossing", laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
         }
         for along in dedupe(onRoute(stopNodes.map(\.coordinate), line: line, within: stopMatchMeters), within: stopPairMeters) {
             cues.append(Cue(id: "stop-\(Int(along))", kind: .stopSign, targetMeters: along,

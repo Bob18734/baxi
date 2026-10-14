@@ -50,6 +50,8 @@ struct CueScheduler {
             case .turn: lead = fast ? 300 : 200
             case .roundabout: lead = level == .new ? 600 : 400
             case .ramp, .crashCorridor: lead = 400
+            // Every level: a train crossing matters as much to a nearly licensed driver as to a new one.
+            case .railroad: lead = 250
             case .arrive: lead = 150
             case .stopSign: lead = level.speaksStopSigns ? 100 : nil
             case .speedChange: lead = level.speaksSpeedChanges ? 400 : nil

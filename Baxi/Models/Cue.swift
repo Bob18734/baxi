@@ -6,6 +6,7 @@ enum CueKind: String, Codable, CaseIterable {
     case roundabout
     case laneChange
     case ramp
+    case railroad
     case crashCorridor
     case speedChange
     case schoolZone

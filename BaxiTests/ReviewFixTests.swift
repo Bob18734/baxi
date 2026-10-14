@@ -127,6 +127,21 @@ struct ReviewFixTests {
         #expect(!s.passedManeuvers.contains { $0.id == 1 })
         #expect(s.drivenMeters < 700)
     }
+
+    @Test func railroadCrossingIsAnnouncedAtEveryLevel() {
+        var nodes = CueListBuilderTests.cache.nodes
+        let at = TestRoute.point(metersEast: 1_400)
+        nodes.append(OSMNode(id: 77, tags: ["railway": "level_crossing"], lat: at.lat, lon: at.lon))
+        let c = CueListBuilderTests.cache
+        let cache = OSMCache(source: c.source, bbox: c.bbox, fetched: c.fetched, ways: c.ways, nodes: nodes)
+        let cues = CueListBuilder.build(route: CueListBuilderTests.route, cache: cache, features: [], studies: [])
+        let rail = cues.first { $0.kind == .railroad }
+        #expect(rail != nil && abs(rail!.targetMeters - 1_400) < 5)
+        for level in ExperienceLevel.allCases {
+            let planned = CueScheduler.plan(cues, level: level, maneuverTargets: [1000])
+            let fire = planned.first { $0.kind == .railroad }?.fireAtMeters; #expect(abs((fire ?? 0) - 1_150) < 1, "\(level): \(String(describing: fire))")
+        }
+    }
 }
 
 private final class QuietSpeech: SpeechOutput {

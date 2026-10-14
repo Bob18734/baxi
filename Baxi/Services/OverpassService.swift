@@ -13,7 +13,7 @@ enum OverpassService {
     /// Points per query: GET URLs must stay short, so long routes are split into pieces.
     static let pointsPerQuery = 120
     static let keepTags: Set<String> = ["highway", "junction", "lanes", "turn:lanes", "turn:lanes:forward", "turn:lanes:backward",
-                                        "lanes:forward", "lanes:backward", "oneway", "maxspeed", "name", "ref", "amenity", "stop"]
+                                        "lanes:forward", "lanes:backward", "oneway", "maxspeed", "name", "ref", "amenity", "stop", "railway"]
 
     enum FetchError: Error { case allMirrorsFailed }
 
@@ -61,6 +61,8 @@ enum OverpassService {
         (.w; .legs;);
         out body geom;
         node(around:\(routeRadiusMeters),\(line))["highway"~"^(traffic_signals|stop)$"];
+        out;
+        node(around:\(routeRadiusMeters),\(line))["railway"="level_crossing"];
         out;
         (node(around:\(schoolRadiusMeters),\(line))["amenity"="school"]; way(around:\(schoolRadiusMeters),\(line))["amenity"="school"];);
         out center tags;

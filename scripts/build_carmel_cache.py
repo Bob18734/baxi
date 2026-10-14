@@ -23,16 +23,17 @@ way["highway"~"^(motorway_link|trunk_link)$"]({BBOX})->.ramps;
 way["highway"~"^(motorway|trunk|primary|secondary|tertiary)$"]["maxspeed"]({BBOX})->.fast;
 node["highway"="traffic_signals"]({BBOX})->.sig;
 node["highway"="stop"]({BBOX})->.stops;
+node["railway"="level_crossing"]({BBOX})->.rail;
 (node["amenity"="school"]({BBOX}); way["amenity"="school"]({BBOX}););
 out center tags;
 (.rb; .legs; .tl; .ramps; .fast;);
 out body geom;
-(.sig; .stops;);
+(.sig; .stops; .rail;);
 out;
 """
 
 KEEP_TAGS = {"highway", "junction", "lanes", "turn:lanes", "turn:lanes:forward", "turn:lanes:backward",
-             "lanes:forward", "lanes:backward", "oneway", "maxspeed", "name", "ref", "amenity", "stop"}
+             "lanes:forward", "lanes:backward", "oneway", "maxspeed", "name", "ref", "amenity", "stop", "railway"}
 
 MIRRORS = ["https://overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter",
            "https://z.overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"]

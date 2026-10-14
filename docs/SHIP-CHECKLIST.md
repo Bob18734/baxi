@@ -44,6 +44,10 @@ Feature freeze Thursday Oct 22. Video recorded Friday Oct 23.
 
 ## Before the freeze (Oct 22)
 
+- [ ] `python3 scripts/check-readiness.py` passes; all four student test suites execute without skips.
+- [ ] Official State Form 54706 field filling implemented and verified in Preview and Acrobat.
+  The current LogPDF is a summary, not the official form.
+- [ ] Remaining Preview gaps and cue-timing contract differences in docs/IMPLEMENTATION-STATUS.md resolved.
 - [ ] `swift test` green; the iPhone build compiles with no warnings we added.
 - [ ] `scripts/design-lint.sh` clean.
 - [ ] Fable security and privacy review (Oct 21): nothing leaves the phone except the destination

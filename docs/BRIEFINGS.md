@@ -39,5 +39,7 @@ but not shown yet.
 
 ## Check your work
 
-Run `swift test` (the file must stay valid JSON), then open Preview on the Roundabout loop. Each
+Run `python3 scripts/check-readiness.py` to validate the required entries and citation fields.
+The Swift package excludes the content folder, so `swift test` alone does not validate this file.
+Then open Preview on the Roundabout loop. Each
 roundabout card should show your note with its citation.

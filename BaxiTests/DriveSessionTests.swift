@@ -34,9 +34,9 @@ struct DriveSessionTests {
         #expect(Set(s.passedManeuvers.map(\.id)).count == s.passedManeuvers.count, "a maneuver counted twice")
     }
 
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway"])
-    func presetDrivesEndToEnd(_ id: String) throws {
-        let (s, said) = try drive(id)
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway"], ExperienceLevel.allCases)
+    func presetDrivesEndToEnd(_ id: String, level: ExperienceLevel) throws {
+        let (s, said) = try drive(id, level: level)
         #expect(s.isFinished)
         #expect(abs(s.drivenMeters - s.route.polyline.lengthMeters) < 20)
         #expect(s.passedManeuvers.count == s.route.maneuvers.filter { $0.alongMeters > 0 && $0.kind != .arrive }.count)
@@ -61,5 +61,53 @@ struct DriveSessionTests {
         let (s, said) = try drive("preset_highway")
         #expect(!said.contains { $0.text.contains("off the route") })
         #expect(s.rerouteCount == 0)
+    }
+
+    private func straightSession() -> DriveSession {
+        let line = TestRoute.line
+        let turn = Maneuver(id: 1, kind: .turn, direction: .right,
+                            location: TestRoute.point(metersEast: 800), alongMeters: 800,
+                            exitNumber: nil, roadName: "Test road", instruction: "Turn right",
+                            laneCount: nil, validLanes: nil)
+        let next = Maneuver(id: 2, kind: .turn, direction: .left,
+                            location: TestRoute.point(metersEast: 1000), alongMeters: 1000,
+                            exitNumber: nil, roadName: "Next road", instruction: "Turn left",
+                            laneCount: nil, validLanes: nil)
+        let route = PlannedRoute(id: "test", name: "Test", polyline: line, maneuvers: [turn, next],
+                                 distanceMeters: line.lengthMeters, durationSeconds: 200, source: "preset")
+        let cache = OSMCache(source: "test", bbox: "", fetched: "", ways: [], nodes: [])
+        return DriveSession(route: route, cache: cache, features: [], highInjury: nil,
+                            level: .gettingComfortable, mode: .replay(speedMultiplier: 1), speaker: Recorder())
+    }
+
+    @Test func reroutesPreserveOnlyDistanceActuallyDriven() {
+        let s = straightSession()
+        s.feed(TestRoute.point(metersEast: 200), at: 0)
+        s.feed(TestRoute.point(metersEast: 400), at: 20)
+        #expect(abs(s.drivenMeters - 200) < 2)
+        for iteration in 1...2 {
+            s.install(s.route)
+            #expect(abs(s.drivenMeters - Double(iteration) * 200) < 2)
+            s.feed(TestRoute.point(metersEast: 100), at: Double(iteration) * 30)
+            s.feed(TestRoute.point(metersEast: 300), at: Double(iteration) * 30 + 20)
+            #expect(abs(s.drivenMeters - Double(iteration + 1) * 200) < 2)
+        }
+    }
+
+    @Test func noNavigationCuesWhileOffLineBeforeOffRouteTimeout() {
+        let s = straightSession()
+        s.feed(TestRoute.point(metersEast: 800), at: 0)
+        let before = s.spokenLog.count
+        s.feed(TestRoute.point(metersEast: 810, metersNorth: 100), at: 9)
+        #expect(s.progress?.isOffRoute == false)
+        #expect(s.spokenLog.count == before)
+    }
+
+    @Test func endingTwiceKeepsTheOriginalEndTime() {
+        let s = straightSession()
+        s.end()
+        let end = s.endedAt
+        s.end()
+        #expect(s.endedAt == end)
     }
 }

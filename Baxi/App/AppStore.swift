@@ -79,7 +79,14 @@ final class AppStore {
 
     func makeSession(replay: Double?) -> DriveSession? {
         guard let route, let cache else { return nil }
+        let mode: DriveSession.Mode = replay.map { .replay(speedMultiplier: $0) } ?? .live
+        #if DEBUG && targetEnvironment(macCatalyst)
+        // The Mac copy is only for screenshots; keep it quiet.
         return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
-                            mode: replay.map { .replay(speedMultiplier: $0) } ?? .live)
+                            mode: mode, speaker: SilentSpeech())
+        #else
+        return DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+                            mode: mode)
+        #endif
     }
 }

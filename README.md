@@ -20,8 +20,8 @@ Requirements: a Mac with Xcode 26 or newer, and [XcodeGen](https://github.com/yo
 (`brew install xcodegen`).
 
 ```
-git clone https://github.com/Bob18734/baxi.git
-cd baxi
+git clone https://github.com/hwangus922/Baxi.git
+cd Baxi
 xcodegen generate
 open Baxi.xcodeproj
 ```

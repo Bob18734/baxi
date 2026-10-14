@@ -10,6 +10,7 @@ import UIKit
 ///   --snap-delay <seconds>      wait this long before the snapshot (default 4)
 ///   --appearance light|dark     force light or dark mode
 ///   --big-text                  the largest accessibility text size, to check layouts at XXXL
+///   --spots <id prefix>         with --screen preview, only the spots whose id starts with this
 enum ScreenCheck {
     static var bigText: Bool { args.contains("--big-text") }
     static let args = ProcessInfo.processInfo.arguments
@@ -63,7 +64,10 @@ struct ScreenCheckRoot: View {
             switch screen {
             case "welcome": WelcomeView {}
             case "preview":
-                if let r = store.route { PreviewView(routeName: r.name, spots: store.hardSpots(), route: r) {} }
+                if let r = store.route {
+                    let only = ScreenCheck.value("--spots")   // e.g. "fars-" to shoot just those cards
+                    PreviewView(routeName: r.name, spots: store.hardSpots().filter { only.map($0.id.hasPrefix) ?? true }, route: r) {}
+                }
             case "arrived":
                 if let session { ArrivedView(session: session, record: nil) {} }
             default: Text("Unknown screen \(screen)")

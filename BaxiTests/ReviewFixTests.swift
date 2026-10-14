@@ -78,4 +78,29 @@ struct ReviewFixTests {
         let csv = DriveLog.csv(rows, timeZone: TimeZone(identifier: "UTC")!)
         #expect(csv.contains("\"'=HYPERLINK(\"\"x\"\")\""))
     }
+
+    // Crash data.
+
+    @Test func studiedIntersectionOnTheRouteGetsASpokenHeadsUp() throws {
+        let json = #"{"id": 7, "name": "146th St. at Gray Rd.", "lat": \#(TestRoute.lat), "lon": \#(TestRoute.point(metersEast: 1500).lon), "fatal": 1, "incapacitating": 5}"#
+        let study = try JSONDecoder().decode(IntersectionStudies.Intersection.self, from: Data(json.utf8))
+        let cues = CueListBuilder.build(route: CueListBuilderTests.route, cache: CueListBuilderTests.cache, features: [], studies: [study])
+        let c = cues.first { $0.id.hasPrefix("study-7") }
+        #expect(c?.kind == .crashCorridor && abs((c?.targetMeters ?? 0) - 1500) < 5)
+        #expect(c?.spokenTemplate.contains("146th Street and Gray Road") == true)
+        #expect(c?.cardTemplate.contains("1 fatal, 5 serious-injury") == true)
+        #expect(CueListBuilder.build(route: CueListBuilderTests.route, cache: CueListBuilderTests.cache, features: [], studies: [])
+            .allSatisfy { !$0.id.hasPrefix("study-") })
+    }
+
+    @Test func fatalCrashIsAPreviewSpotButNeverSpoken() throws {
+        let json = #"{"case": "1", "city": "Carmel", "lat": \#(TestRoute.lat), "lon": \#(TestRoute.point(metersEast: 700).lon), "road": "US-31", "crossRoad": "", "intersectionType": "Not an Intersection", "light": "Daylight", "month": 3, "hour": 14, "fatals": 1}"#
+        let crash = try JSONDecoder().decode(FARSCrashes.Crash.self, from: Data(json.utf8))
+        let route = CueListBuilderTests.route
+        let cues = CueListBuilder.build(route: route, cache: CueListBuilderTests.cache, features: [], studies: [])
+        let spots = HardSpots.find(route: route, cues: cues, features: [], fatalCrashes: [crash])
+        let spot = spots.first { $0.id.hasPrefix("fars-1") }
+        #expect(spot != nil && spot!.spoken.isEmpty && spot!.title == "Fatal crash here, March 2023, in daylight")
+        #expect(!cues.contains { $0.spokenTemplate.lowercased().contains("fatal") })
+    }
 }

@@ -107,9 +107,16 @@ private struct SpotCard: View {
 
     private var said: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            Label("Baxi will say", systemImage: "waveform").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
-            Text("“\(spot.spoken)”").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            if spot.spoken.isEmpty {
+                Label("Baxi stays quiet here", systemImage: "speaker.slash").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
+                Text("This is only for your preview. Federal crash records (NHTSA FARS) list a fatal crash at this spot.")
+                    .font(BaxiFont.body).foregroundStyle(BaxiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Label("Baxi will say", systemImage: "waveform").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
+                Text("“\(spot.spoken)”").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(BaxiSpace.md)
         .frame(maxWidth: .infinity, alignment: .leading)

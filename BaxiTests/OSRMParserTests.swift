@@ -76,7 +76,9 @@ struct HardSpotTests {
         #expect(spots.contains { $0.kind == .ramp })
         #expect(spots.contains { $0.kind == .roundabout && $0.title.contains("exit") })
         #expect(spots.map(\.alongMeters) == spots.map(\.alongMeters).sorted())
-        #expect(spots.allSatisfy { !$0.spoken.isEmpty && !$0.spoken.contains("{") })
+        // Fatal-crash spots (NHTSA FARS) are preview-only and silent; every other spot has its spoken line.
+        #expect(spots.allSatisfy { ($0.id.hasPrefix("fars-") ? $0.spoken.isEmpty : !$0.spoken.isEmpty) && !$0.spoken.contains("{") })
+        #expect(spots.contains { $0.id.hasPrefix("fars-") })   // the January 2023 fatal crash on Main Street lies on this route
         #expect(Set(spots.map(\.id)).count == spots.count)
     }
 }

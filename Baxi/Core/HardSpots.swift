@@ -10,7 +10,7 @@ struct HardSpot: Identifiable, Equatable {
     let title: String
     let alongMeters: Double
     let location: Coordinate
-    /// What Baxi will say about it during the drive, light counts left out.
+    /// What Baxi will say about it during the drive, light counts left out. Empty when Baxi stays quiet.
     let spoken: String
     /// The road feature it matches, used to look up the students' manual briefing.
     let featureKind: FeatureKind?
@@ -19,7 +19,25 @@ struct HardSpot: Identifiable, Equatable {
 enum HardSpots {
     static let roundaboutMatchMeters = 80.0
 
-    static func find(route: PlannedRoute, cues: [Cue], features: [RoadFeature]) -> [HardSpot] {
+    /// Fatal crashes from NHTSA FARS 2023, bundled with the app (read once).
+    static let bundledFatalCrashes: [FARSCrashes.Crash] = (try? BundledData.farsCrashes().crashes) ?? []
+    static let fatalMatchMeters = 50.0
+
+    /// FARS light-condition codes in plain words.
+    static func lightPhrase(_ fars: String) -> String? {
+        switch fars.lowercased() {
+        case "daylight": "in daylight"
+        case "dark - lighted": "after dark on a lit road"
+        case "dark - not lighted": "after dark on an unlit road"
+        case "dark - unknown lighting": "after dark"
+        case "dawn": "at dawn"
+        case "dusk": "at dusk"
+        default: nil
+        }
+    }
+
+    static func find(route: PlannedRoute, cues: [Cue], features: [RoadFeature],
+                     fatalCrashes: [FARSCrashes.Crash] = bundledFatalCrashes) -> [HardSpot] {
         var out: [HardSpot] = []
         func spoken(for m: Maneuver) -> String {
             // The lane cue is the earliest and most useful line; otherwise the maneuver's own cue.
@@ -58,6 +76,21 @@ enum HardSpots {
                                 alongMeters: c.targetMeters, location: loc, spoken: c.spoken(lights: nil),
                                 featureKind: school ? .schoolZone : nil))
         }
+        // Where a fatal crash happened on the route. Shown in the Preview only: Baxi never says it aloud,
+        // because a death read out mid-drive distracts more than it helps. `spoken` is empty for these.
+        for crash in fatalCrashes {
+            let at = Coordinate(lat: crash.lat, lon: crash.lon)
+            for along in route.polyline.passes(near: at, within: fatalMatchMeters) {
+                let when = DateFormatter().monthSymbols[max(0, min(11, crash.month - 1))]
+                out.append(HardSpot(id: "fars-\(crash.case)-\(Int(along))", kind: .crashCorridor,
+                                    title: "Fatal crash here, \(when) 2023" + Self.lightPhrase(crash.light).map { ", \($0)" }.orEmpty,
+                                    alongMeters: along, location: at, spoken: "", featureKind: nil))
+            }
+        }
         return out.sorted { $0.alongMeters < $1.alongMeters }
     }
+}
+
+private extension Optional where Wrapped == String {
+    var orEmpty: String { self ?? "" }
 }

@@ -18,8 +18,13 @@ enum CueListBuilder {
     /// one faces oncoming traffic, so only the first is ours.
     static let stopPairMeters = 60.0
 
+    /// The MPO's studied intersections, bundled with the app (read once).
+    static let bundledStudies: [IntersectionStudies.Intersection] = (try? BundledData.intersectionStudies().intersections) ?? []
+    static let studyMatchMeters = 30.0
+
     static func build(route: PlannedRoute, cache: OSMCache, features: [RoadFeature],
-                      highInjury: HighInjuryNetwork? = nil) -> [Cue] {
+                      highInjury: HighInjuryNetwork? = nil,
+                      studies: [IntersectionStudies.Intersection] = bundledStudies) -> [Cue] {
         let line = route.polyline
         guard line.lengthMeters > 0 else { return [] }
         let wayIndex = GeoIndex(ways: cache.ways.filter { $0.highway != nil && !($0.geometry ?? []).isEmpty })
@@ -166,6 +171,18 @@ enum CueListBuilder {
                             laneStrip: nil, roadSpeedMph: speed(at: first.alongMeters), maneuverId: nil))
         }
 
+        // Intersections the Indianapolis MPO studied for their crash history, where the route goes through one.
+        for study in studies {
+            guard let lat = study.lat, let lon = study.lon, let name = study.name else { continue }
+            for along in line.passes(near: Coordinate(lat: lat, lon: lon), within: studyMatchMeters) {
+                let fatal = Int(study.fatal ?? 0), serious = Int(study.incapacitating ?? 0)
+                cues.append(Cue(id: "study-\(study.id)-\(Int(along))", kind: .crashCorridor, targetMeters: along,
+                                spokenTemplate: "Crash-heavy intersection ahead at \(Self.spokenPlace(name)), watch for cross traffic and turning cars",
+                                cardTemplate: "\(name): \(fatal) fatal, \(serious) serious-injury crashes (MPO safety study)",
+                                laneStrip: nil, roadSpeedMph: speed(at: along), maneuverId: nil))
+            }
+        }
+
         return cues.sorted { ($0.targetMeters, $0.kind.priority) < ($1.targetMeters, $1.kind.priority) }
     }
 
@@ -299,6 +316,16 @@ enum CueListBuilder {
         var out: [Double] = []
         for d in sorted where out.last.map({ d - $0 >= within }) ?? true { out.append(d) }
         return out
+    }
+
+    /// "146th St. at Gray Rd." as it is said: "146th Street and Gray Road".
+    static func spokenPlace(_ name: String) -> String {
+        var s = name.replacingOccurrences(of: " at ", with: " and ")
+        for (abbr, word) in [("St.", "Street"), ("Rd.", "Road"), ("Pkwy.", "Parkway"), ("Ave.", "Avenue"), ("Blvd.", "Boulevard"),
+                             ("Dr.", "Drive"), ("Ln.", "Lane"), ("Hwy.", "Highway")] {
+            s = s.replacingOccurrences(of: abbr, with: word)
+        }
+        return s.hasSuffix(".") ? String(s.dropLast()) : s
     }
 
     static func ordinal(_ n: Int) -> String {

@@ -25,7 +25,14 @@ struct DriveView: View {
                     if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
                     Spacer()
                     if let alert = session.activeAlert {
-                        Group { if alert.kind == .schoolZone { SchoolZoneChip() } else { CrashChip() } }
+                        Group {
+                            switch alert.kind {
+                            case .schoolZone: SchoolZoneChip()
+                            case .railroad: RailChip()
+                            case .glare: GlareChip()
+                            default: CrashChip()
+                            }
+                        }
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
@@ -197,15 +204,31 @@ private struct ManeuverSign: View {
             }
             HStack(alignment: .center, spacing: BaxiSpace.md) {
                 if let m = session.nextManeuver {
-                    Image(systemName: DriveView.symbol(for: m))
-                        .font(.system(size: 46, weight: .heavy)) // design-lint:allow the sign's arrow is a drawn mark
-                        .frame(width: 60)
-                    VStack(alignment: .leading, spacing: 0) {
+                    if let shape = session.roundaboutShapes[m.id] {
+                        RoundaboutGlyph(shape: shape, size: 64)
+                    } else {
+                        Image(systemName: DriveView.symbol(for: m))
+                            .font(.system(size: 46, weight: .heavy)) // design-lint:allow the sign's arrow is a drawn mark
+                            .frame(width: 60)
+                    }
+                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
                         Text(DriveView.distance(session.metersToNextManeuver ?? 0))
                             .font(BaxiFont.signFace(38))
                             .contentTransition(.numericText())
                             .animation(.snappy, value: session.metersToNextManeuver.map { Int($0 / 15) })
                         Text(m.instruction).font(BaxiFont.headline).lineLimit(2).minimumScaleFactor(0.7)
+                        // Shrinks to the turn, so "almost there" reads without the number.
+                        if let p = session.nextManeuverProgress {
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(BaxiColor.onSign.opacity(0.2))
+                                    Capsule().fill(BaxiColor.onSign).frame(width: max(4, geo.size.width * (1 - p)))
+                                }
+                            }
+                            .frame(height: 5)
+                            .padding(.top, BaxiSpace.xs)
+                            .animation(.linear(duration: 0.25), value: p)
+                        }
                     }
                     Spacer(minLength: 0)
                     if let n = session.lightsToNextManeuver { LightCount(count: n) }
@@ -220,6 +243,20 @@ private struct ManeuverSign: View {
         .padding(.horizontal, BaxiSpace.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .signPanel(radius: BaxiRadius.xl, deep: night)
+        .overlay(alignment: .bottomTrailing) {
+            // What comes right after, when it is close: no surprise second turn.
+            if let then = session.thenManeuver {
+                HStack(spacing: BaxiSpace.xs) {
+                    Text("Then").font(BaxiFont.footnote.weight(.semibold))
+                    Image(systemName: DriveView.symbol(for: then)).font(BaxiFont.headline)
+                }
+                .foregroundStyle(BaxiColor.signInk)
+                .padding(.horizontal, BaxiSpace.md).padding(.vertical, BaxiSpace.xs)
+                .background(BaxiColor.onSign, in: Capsule())
+                .padding(BaxiSpace.lg)
+                .accessibilityLabel("Then \(then.instruction)")
+            }
+        }
         .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
         .animation(.snappy, value: session.laneStrip)
         .animation(.snappy, value: session.activeLaneZone?.id)

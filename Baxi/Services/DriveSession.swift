@@ -37,6 +37,13 @@ final class DriveSession {
     }
 
     private func rebuildLaneZones() {
+        let circles = features.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }
+        roundaboutShapes = Dictionary(uniqueKeysWithValues: route.maneuvers.compactMap { m -> (Int, RoundaboutShape)? in
+            guard m.kind == .roundabout else { return nil }
+            let center = circles.min { Geo.distanceMeters($0.coordinate, m.location) < Geo.distanceMeters($1.coordinate, m.location) }
+                .flatMap { Geo.distanceMeters($0.coordinate, m.location) <= 80 ? $0.coordinate : nil }
+            return RoundaboutDiagram.shape(for: m, route: route, center: center).map { (m.id, $0) }
+        })
         laneZones = LaneZones.build(cues: cues, route: route)
         laneZoneCoordinates = Dictionary(uniqueKeysWithValues: laneZones.map {
             ($0.id, route.polyline.slice(from: $0.startMeters, to: $0.endMeters).map(\.clLocation))
@@ -135,7 +142,26 @@ final class DriveSession {
     /// A school zone or crash-heavy corridor the car is in or about to enter, shown as a chip.
     var activeAlert: Cue? {
         let along = progress?.alongMeters ?? 0
-        return cues.first { ($0.kind == .schoolZone || $0.kind == .crashCorridor) && along >= $0.targetMeters - 150 && along <= $0.targetMeters + 500 }
+        let shown: Set<CueKind> = [.schoolZone, .crashCorridor, .railroad, .glare]
+        return cues.first { shown.contains($0.kind) && along >= $0.targetMeters - 250 && along <= $0.targetMeters + ($0.kind == .railroad ? 30 : 500) }
+    }
+
+    /// Each roundabout's shape, for the diagram on the sign (built with the cues).
+    private(set) var roundaboutShapes: [Int: RoundaboutShape] = [:]
+
+    /// 0 when the next maneuver's instruction is first given, 1 at the maneuver: the bar on the sign.
+    var nextManeuverProgress: Double? {
+        guard let m = nextManeuver, let along = progress?.alongMeters,
+              let start = cues.first(where: { $0.maneuverId == m.id && $0.kind != .laneChange && $0.kind != .signal })?.fireAtMeters,
+              along >= start, m.alongMeters > start else { return nil }
+        return min(1, (along - start) / (m.alongMeters - start))
+    }
+
+    /// The maneuver right after the next one, when it comes within 300 m of it: "Then turn left".
+    var thenManeuver: Maneuver? {
+        guard let m = nextManeuver else { return nil }
+        return route.maneuvers.first { $0.alongMeters > m.alongMeters + 1 && $0.kind != .continueStraight && $0.kind != .depart }
+            .flatMap { $0.alongMeters - m.alongMeters <= 300 && $0.kind != .arrive ? $0 : nil }
     }
 
     // MARK: The next maneuver, for the big card

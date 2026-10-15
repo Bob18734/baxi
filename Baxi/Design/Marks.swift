@@ -163,3 +163,80 @@ struct HoursRing: View {
         .accessibilityLabel("\(title): \(DriveLog.hm(minutes)) of \(goalMinutes / 60) hours")
     }
 }
+
+/// A roundabout seen from above, the way the driver meets it: entry at the bottom, the circle, the exits
+/// passed (short and faint), and the path to the driver's exit drawn in yellow, counterclockwise as in the US.
+struct RoundaboutGlyph: View {
+    let shape: RoundaboutShape
+    var size: CGFloat = 64
+
+    var body: some View {
+        Canvas { ctx, sz in
+            let c = CGPoint(x: sz.width / 2, y: sz.height / 2)
+            let ring = sz.width * 0.24, arm = sz.width * 0.48
+            func point(_ compass: Double, _ r: CGFloat) -> CGPoint {
+                let a = compass * .pi / 180
+                return CGPoint(x: c.x + r * CGFloat(sin(a)), y: c.y - r * CGFloat(cos(a)))
+            }
+            let faint = GraphicsContext.Shading.color(.white.opacity(0.45))
+            let line = StrokeStyle(lineWidth: sz.width * 0.07, lineCap: .round, lineJoin: .round)
+            // Circle and the exits passed.
+            ctx.stroke(Path(ellipseIn: CGRect(x: c.x - ring, y: c.y - ring, width: ring * 2, height: ring * 2)), with: faint, style: line)
+            for a in shape.passedAngles {
+                var p = Path(); p.move(to: point(a, ring)); p.addLine(to: point(a, arm * 0.85))
+                ctx.stroke(p, with: faint, style: line)
+            }
+            // The driver's path: up the entry, around counterclockwise, out the exit.
+            let sweep = RoundaboutDiagram.normalized(180 - shape.exitAngle)
+            var path = Path()
+            path.move(to: point(180, arm))
+            path.addLine(to: point(180, ring))
+            let steps = max(2, Int((sweep == 0 ? 360 : sweep) / 10))
+            for i in 1...steps { path.addLine(to: point(180 - (sweep == 0 ? 360 : sweep) * Double(i) / Double(steps), ring)) }
+            let tip = point(shape.exitAngle, arm)
+            path.addLine(to: tip)
+            ctx.stroke(path, with: .color(BaxiColor.warning), style: StrokeStyle(lineWidth: sz.width * 0.1, lineCap: .round, lineJoin: .round))
+            // Arrowhead at the exit.
+            let back = point(shape.exitAngle, arm * 0.72), a = shape.exitAngle * .pi / 180
+            let side = CGVector(dx: CGFloat(cos(a)) * sz.width * 0.1, dy: CGFloat(sin(a)) * sz.width * 0.1)
+            var head = Path()
+            head.move(to: CGPoint(x: tip.x + (tip.x - back.x) * 0.25, y: tip.y + (tip.y - back.y) * 0.25))
+            head.addLine(to: CGPoint(x: back.x + side.dx, y: back.y + side.dy))
+            head.addLine(to: CGPoint(x: back.x - side.dx, y: back.y - side.dy))
+            head.closeSubpath()
+            ctx.fill(head, with: .color(BaxiColor.warning))
+            // The exit number in the middle.
+            ctx.draw(Text("\(shape.exitNumber)").font(BaxiFont.signFace(size * 0.26)).foregroundStyle(.white), at: c)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Roundabout, exit \(shape.exitNumber)")
+    }
+}
+
+/// The railroad-crossing chip: a white crossbuck on a round yellow sign.
+struct RailChip: View {
+    var body: some View {
+        HStack(spacing: BaxiSpace.sm) {
+            Text("RR").font(BaxiFont.signFace(10)).foregroundStyle(BaxiColor.signInk)
+                .frame(width: 20, height: 20).background(.white, in: Circle())
+                .overlay(Circle().stroke(BaxiColor.signInk, lineWidth: 1.5))
+                .accessibilityHidden(true)
+            Text("Railroad crossing").font(BaxiFont.headline)
+        }
+        .foregroundStyle(BaxiColor.signInk)
+        .padding(.horizontal, BaxiSpace.md).padding(.vertical, BaxiSpace.sm)
+        .background(BaxiColor.warning, in: Capsule())
+        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+    }
+}
+
+/// The low-sun chip.
+struct GlareChip: View {
+    var body: some View {
+        Label("Low sun ahead", systemImage: "sun.horizon.fill").font(BaxiFont.headline)
+            .foregroundStyle(BaxiColor.signInk)
+            .padding(.horizontal, BaxiSpace.md).padding(.vertical, BaxiSpace.sm)
+            .background(BaxiColor.warning, in: Capsule())
+            .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+    }
+}

@@ -285,7 +285,7 @@ struct SpotPin: View {
         switch kind {
         case .roundabout, .ramp, .laneTurn: BaxiColor.sign
         case .schoolZone: BaxiColor.school
-        case .crashCorridor: BaxiColor.caution
+        case .crashCorridor, .studyIntersection, .fatalCrash: BaxiColor.caution
         case .glare: BaxiColor.warning
         }
     }

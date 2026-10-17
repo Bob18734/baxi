@@ -3,6 +3,25 @@
 Audited October 14, 2026 against the supplied Congressional App Challenge plan and the local repo.
 This is an implementation audit, not independent verification of the contest rules or driving law.
 
+## October 17 update
+
+Synced main through ed867b2 before this pass. The decision modules, route-corridor data loading,
+practice tracking, weather, glare, railroad cues and Drive visuals had already landed upstream.
+This pass completes Preview's lane strip and source context: study points within 50 m, FARS within
+75 m, separate card types, source links, factual counts (missing values stay unknown), and unverified
+roundabout lane-count labels. Matching preserves separate passes on loops. FARS and study-only
+Preview matches add no spoken cues; existing study announcements remain unchanged.
+
+Eight new tests cover matching thresholds, repeated passes, source-link fallbacks, missing counts,
+empty datasets, unknown dates, lane strips and missing lane tags. Manual briefings and official-form
+field filling remain the next incomplete deliverables. The original audit below is retained as history.
+
+Verification on Oct 17: 107 active tests pass; three opt-in live-network tests are skipped (110 discovered).
+All nine preset/level replay combinations pass. Design lint and whitespace checks pass. Unsigned iPhone
+and debug Mac Catalyst builds succeed. Mac screenshots confirm the historical-record card, its collapsed
+source section, and the unverified roundabout label render correctly. No iPhone installation, road test,
+expanded-source interaction or accessibility-size review was performed.
+
 ## What exists
 
 | Area | Repo evidence | Status |
@@ -17,7 +36,7 @@ This is an implementation audit, not independent verification of the contest rul
 | Approach bearing | ApproachHeading | Implemented Oct 14 (Claude); aims the Preview map |
 | Preview imagery | PreviewView, HardSpots | Look Around and map fallback built; heading affects the map, not Look Around's camera |
 | Manual content | Resources/Content/briefings.json | Only one empty placeholder; citations/advice not complete |
-| Crash information | HIN used by CueListBuilder; FARS and study JSON have loaders | HIN integrated; study intersections and FARS are not consumed by Preview |
+| Crash information | HardSpots, PreviewContext, PreviewView | HIN, studied intersections and FARS in Preview with source details; FARS remains silent |
 | Drive log | DriveLog, Daylight, LogView, DriveRecord | Totals, sunset split, manual entry and CSV built |
 | Official form | LogPDF | Summary PDF only; no bundled official PDF or form-field filling |
 | Demo tooling | transcript executable, replay, GPX helpers, screen harness | Built; airplane-mode basemap/imagery behavior has not been verified |
@@ -44,9 +63,9 @@ This is an implementation audit, not independent verification of the contest rul
    lane lead thresholds that the current scheduler contract does not specify. Agree on those rules with the
    student owner before changing the contract. Review all nine preset/level transcripts against the agreed rules.
    At 4x replay, simulated seconds elapse faster than spoken audio; check queued speech on the recording device.
-3. **Complete Preview.** Match study intersections within 50 m and FARS points within 75 m, display source links
-   and factual counts, expose unverified lane data, and add the lane strip. Test missing imagery and absent datasets.
-   No new driving advice should bypass the students' reviewed content.
+3. **Preview implemented Oct 17.** Study intersections within 50 m, FARS within 75 m, source links and counts,
+   unverified lane-count labels and lane strips are built. Complete phone checks for source-link opening,
+   VoiceOver, large text and missing imagery. No new driving advice bypasses the students' content.
 4. **Implement official form export.** Obtain and verify the current official PDF, bundle it, fill its actual
    fields with PDFKit, add driver name/permit settings, and handle multiple pages. Acceptance: exported rows and
    totals open correctly in Preview and Acrobat, with signatures left blank. Until then retain the summary label.

@@ -62,6 +62,8 @@ struct PreviewView: View {
         if let n = counts[.laneTurn] { parts.append("\(n) lane choice\(n == 1 ? "" : "s")") }
         if let n = counts[.schoolZone] { parts.append("\(n) school zone\(n == 1 ? "" : "s")") }
         if let n = counts[.crashCorridor] { parts.append("\(n) crash-heavy stretch\(n == 1 ? "" : "es")") }
+        if let n = counts[.studyIntersection] { parts.append("\(n) studied intersection\(n == 1 ? "" : "s")") }
+        if let n = counts[.fatalCrash] { parts.append("\(n) historical crash record\(n == 1 ? "" : "s")") }
         if let n = counts[.glare] { parts.append("\(n) low-sun stretch\(n == 1 ? "" : "es") if you leave now") }
         return parts.isEmpty ? "No hard spots." : parts.joined(separator: ", ") + "."
     }
@@ -93,7 +95,20 @@ private struct SpotCard: View {
                 }
             VStack(alignment: .leading, spacing: BaxiSpace.md) {
                 Text(spot.title).font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
+                if let strip = spot.laneStrip {
+                    VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                        Text("Map-based lane guidance").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.onSign)
+                        LaneStripView(strip: strip)
+                    }
+                    .padding(BaxiSpace.md)
+                    .signPanel(radius: BaxiRadius.md)
+                }
+                if let note = spot.mapDataNote {
+                    Label(note, systemImage: "questionmark.circle")
+                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                }
                 said
+                if let context = spot.context { sourceContext(context) }
                 if let b = briefing { manual(b) }
             }
             .padding(BaxiSpace.lg)
@@ -108,7 +123,7 @@ private struct SpotCard: View {
         VStack(alignment: .leading, spacing: BaxiSpace.xs) {
             if spot.spoken.isEmpty {
                 Label("Baxi stays quiet here", systemImage: "speaker.slash").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
-                Text("This is only for your preview. Federal crash records (NHTSA FARS) list a fatal crash at this spot.")
+                Text("This record is shown only in Preview; it does not add a spoken instruction.")
                     .font(BaxiFont.body).foregroundStyle(BaxiColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -120,6 +135,28 @@ private struct SpotCard: View {
         .padding(BaxiSpace.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+    }
+
+    private func sourceContext(_ context: PreviewContext) -> some View {
+        DisclosureGroup("Source and details") {
+            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                Text(context.detail).font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+                if let url = context.url {
+                    Link(destination: url) {
+                        Label(context.source, systemImage: "arrow.up.right.square")
+                    }
+                    .font(BaxiFont.footnote)
+                } else {
+                    Text(context.source).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    Text("No source link is included in this record.")
+                        .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, BaxiSpace.sm)
+        }
+        .font(BaxiFont.callout)
+        .tint(BaxiColor.accent)
     }
 
     private func manual(_ b: Briefing) -> some View {

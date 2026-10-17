@@ -15,7 +15,7 @@ struct RoutePrep {
         return RoutePrep(routeId: route.id, cues: cues,
                          signals: CueListBuilder.signalAlongs(line: route.polyline, cache: cache),
                          speeds: CueListBuilder.speedProfile(line: route.polyline, cache: cache),
-                         spots: HardSpots.find(route: route, cues: cues, features: features))
+                         spots: HardSpots.find(route: route, cues: cues, features: features, cache: cache))
     }
 
     /// The cues timed for an experience level.

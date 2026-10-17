@@ -1,4 +1,14 @@
-# Latest handoff: Oct 14 implementation audit
+# Latest handoff: Oct 17 Preview context
+
+Synced main through ed867b2; the decision modules and initial crash matching are now implemented upstream.
+Built Preview source details, study/FARS card types, lane strips and unverified lane-count labels on
+`codex/preview-context`. Eight focused tests were added. Manual briefing content and official PDF form
+filling are the next unfinished deliverables. See IMPLEMENTATION-STATUS.md for details.
+Validation: 107 active tests pass, three live-network tests skipped; design lint, unsigned iPhone build
+and Mac Catalyst build pass. Screenshots are under build/screens/preview*.png. This work was prepared
+on codex/preview-context; the GitHub pull request records its merge status.
+
+## Previous handoff: Oct 14 implementation audit
 
 See [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) for the repo-backed feature inventory,
 reliability fixes, verification and ordered next steps. Student modules and manual briefings are

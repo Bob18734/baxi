@@ -29,6 +29,9 @@ reviewing and testing the behavior, the content file, the written answers and th
 
 ## Log
 
+### 2026-10-17
+- ChatGPT Codex (OpenAI): built out Preview context after syncing the latest main. Added separate studied-intersection and fatal-crash card types, factual details with source links, 50 m study and 75 m FARS matching, lane strips from existing cue data, and labels for unverified roundabout lane counts. Added `PreviewContext.swift` and `PreviewContextTests.swift`, updated HardSpots, RoutePrep, PreviewView, SpotPin colors and the existing FARS regression. Missing counts remain unknown, and Preview matching does not create speech. Updated implementation status and handoff. The decision modules and handwritten briefing advice were not edited; student review of this work remains pending.
+
 ### 2026-10-12
 - Claude Code: critiqued the idea, verified data sources live (Overpass, Valhalla, OSRM, Indianapolis MPO ArcGIS services, NHTSA FARS CSV, Indiana State Form 54706, the Indiana Driver's Manual PDFs, the 2026 CAC rulebook), wrote the planning document and the day-by-day plan.
 

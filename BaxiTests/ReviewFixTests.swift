@@ -100,7 +100,9 @@ struct ReviewFixTests {
         let cues = CueListBuilder.build(route: route, cache: CueListBuilderTests.cache, features: [], studies: [])
         let spots = HardSpots.find(route: route, cues: cues, features: [], fatalCrashes: [crash])
         let spot = spots.first { $0.id.hasPrefix("fars-1") }
-        #expect(spot != nil && spot!.spoken.isEmpty && spot!.title == "Fatal crash here, March 2023, in daylight")
+        #expect(spot != nil && spot!.spoken.isEmpty && spot!.title == "Fatal crash record, March 2023")
+        #expect(spot?.kind == .fatalCrash)
+        #expect(spot?.context?.detail.contains("in daylight") == true)
         #expect(!cues.contains { $0.spokenTemplate.lowercased().contains("fatal") })
     }
 

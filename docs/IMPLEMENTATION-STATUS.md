@@ -3,6 +3,12 @@
 Audited October 14, 2026 against the supplied Congressional App Challenge plan and the local repo.
 This is an implementation audit, not independent verification of the contest rules or driving law.
 
+## October 22 update
+
+Synced through ffd5a4a. Built official State Form 54706 export with optional local driver details,
+108 drives per two-page PDF, additional complete PDFs for overflow, blank signatures and visible
+export failures. See OFFICIAL-LOG-EXPORT.md. Manual briefings remain incomplete.
+
 ## October 17 update
 
 Synced main through ed867b2 before this pass. The decision modules, route-corridor data loading,
@@ -38,7 +44,7 @@ expanded-source interaction or accessibility-size review was performed.
 | Manual content | Resources/Content/briefings.json | Only one empty placeholder; citations/advice not complete |
 | Crash information | HardSpots, PreviewContext, PreviewView | HIN, studied intersections and FARS in Preview with source details; FARS remains silent |
 | Drive log | DriveLog, Daylight, LogView, DriveRecord | Totals, sunset split, manual entry and CSV built |
-| Official form | LogPDF | Summary PDF only; no bundled official PDF or form-field filling |
+| Official form | OfficialLogPDF, DriverDetailsView | Official fields filled; overflow shares separate editable PDFs; phone and Acrobat checks remain |
 | Demo tooling | transcript executable, replay, GPX helpers, screen harness | Built; airplane-mode basemap/imagery behavior has not been verified |
 
 ## Completed in this pass
@@ -66,9 +72,9 @@ expanded-source interaction or accessibility-size review was performed.
 3. **Preview implemented Oct 17.** Study intersections within 50 m, FARS within 75 m, source links and counts,
    unverified lane-count labels and lane strips are built. Complete phone checks for source-link opening,
    VoiceOver, large text and missing imagery. No new driving advice bypasses the students' content.
-4. **Implement official form export.** Obtain and verify the current official PDF, bundle it, fill its actual
-   fields with PDFKit, add driver name/permit settings, and handle multiple pages. Acceptance: exported rows and
-   totals open correctly in Preview and Acrobat, with signatures left blank. Until then retain the summary label.
+4. **Official form export implemented Oct 22.** Check sharing and printing on the phone and open the forms
+   in Preview and Acrobat. Signatures remain blank; the original form has no totals field, so totals stay
+   in the app and CSV.
 5. **Live-drive resilience and privacy.** Persist experience level; use an actual selected/current origin rather
    than always routing searches from the demo home. Handle failed SwiftData saves and failed exports visibly.
    Review asynchronous reroutes for stale results if the car rejoins while a request is in flight. Document that

@@ -13,7 +13,7 @@ let package = Package(
             exclude: ["App", "Screens", "Design", "Info.plist", "Resources/Assets.xcassets", "Resources/Fonts", "Resources/Content", "Resources/PrivacyInfo.xcprivacy",
                       ],
             sources: ["Core", "Models", "Services"],
-            resources: [.process("Resources/Data"), .process("Resources/Routes")],
+            resources: [.process("Resources/Data"), .process("Resources/Routes"), .process("Resources/Forms")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(

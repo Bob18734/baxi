@@ -53,6 +53,10 @@ struct SettingsView: View {
                          : "\"Just directions\" leaves out speed, school, stop-sign, crash and low-sun lines; the screen still shows them.")
                 }
 
+                Section("Driving log") {
+                    NavigationLink("Driver details for export") { DriverDetailsView() }
+                }
+
                 Section("About") {
                     NavigationLink("The 50 supervised hours") { AboutPage(title: "The 50 supervised hours", paragraphs: Self.hours) }
                     NavigationLink("Where Baxi's information comes from") { AboutPage(title: "Sources", paragraphs: Self.sources) }
@@ -87,7 +91,7 @@ struct SettingsView: View {
         "Indiana requires 50 hours of supervised driving, 10 of them at night, before a new driver can get a license (IC 9-24-3-2.5).",
         "Every live drive in Baxi is logged with its start, end and miles. Replays of the practice routes are demos and never count.",
         "Baxi counts night from sunset to sunrise where the drive started. The law does not define night, so this is our reading.",
-        "Export the log from the Log tab as a PDF in the layout of State Form 54706, to copy onto the form and sign.",
+        "Export the official State Form 54706 from the Log tab. Review the entries and complete the applicable checkbox, affirmation and signatures on paper. Driver details for export are optional and saved on this device.",
     ]
     static let sources = [
         "Roads, lanes, roundabouts, lights, stop signs and speed limits: OpenStreetMap contributors (ODbL). Carmel's are built into the app; other routes download theirs when you plan them.",

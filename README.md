@@ -5,8 +5,8 @@ teen with a learner's permit what to do, early enough to stay calm: which lane t
 mile early; how many traffic lights until the turn; which roundabout exit and which lane; where the
 speed limit drops; where the crash-heavy corridors are. Before the drive, a preview shows the hardest
 spots as Look Around imagery with the rule from the Indiana Driver's Manual. Every drive logs toward
-the 50 supervised hours (10 at night) the BMV requires. The current export is a summary PDF and CSV;
-filling the official State Form 54706 is still planned.
+the 50 supervised hours (10 at night) the BMV requires. Exports fill the official State Form 54706 and include a CSV. Optional driver details are saved
+on this device; review the exported forms and complete the signatures on paper.
 
 Built for the 2026 Congressional App Challenge, Indiana's 5th District, by Vardaan Goel and [partner].
 
@@ -73,7 +73,7 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   multi-lane turns, miles at 45 mph or more), totals on the Log, and which practice route fills the biggest gap.
   The goals (20, 10, 6, 6, 10, 25) are Baxi's own suggestion, not from the statute or the Driver's Manual.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
-  (one drive: following, cue firing, speech, reroute), `LogPDF` (the log in the State Form 54706 layout).
+  (one drive: following, cue firing, speech, reroute), `OfficialLogPDF` (fills the bundled official State Form 54706).
 - `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn
   road-sign marks. Explained in [docs/DESIGN.md](docs/DESIGN.md).
 - `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes, Preview, Drive, Arrived, Log.

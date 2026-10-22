@@ -13,3 +13,5 @@ data/raw/FARS*/
 .swiftpm/
 Package.resolved
 BaxiCat.xcodeproj
+tmp/pdfs/
+output/pdf/

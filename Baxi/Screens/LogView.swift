@@ -2,14 +2,26 @@ import SwiftUI
 import SwiftData
 
 /// The supervised driving log: totals toward Indiana's 50 hours (10 at night), every drive grouped by
-/// month, drives added by hand, and exports (a PDF in the State Form 54706 layout, and CSV).
+/// month, drives added by hand, and exports (the official State Form 54706, and CSV).
 struct LogView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var adding = false
-    @State private var pdfURL: URL?
+    @State private var pdfURLs: [URL] = []
     @State private var csvURL: URL?
+    @State private var exportError: String?
+    @State private var editingDriver = false
+    @AppStorage(OfficialLogPDF.driverNameKey) private var driverName = ""
+    @AppStorage(OfficialLogPDF.licenseNumberKey) private var licenseNumber = ""
+
+    private struct ExportInput: Equatable {
+        let rows: [LogRow]
+        let driver: OfficialLogPDF.Driver
+    }
+    private var exportInput: ExportInput {
+        ExportInput(rows: drives.map(\.row), driver: .init(name: driverName, licenseNumber: licenseNumber))
+    }
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
 
@@ -31,6 +43,12 @@ struct LogView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                if let exportError {
+                    Section {
+                        Text(exportError).font(BaxiFont.callout).foregroundStyle(BaxiColor.stopText)
+                        Button("Retry export") { writeExports() }
+                    } header: { Text("Export unavailable") }
+                }
                 if drives.isEmpty {
                     Section { emptyState }
                         .listRowInsets(EdgeInsets())
@@ -60,7 +78,24 @@ struct LogView: View {
                 }
             }
             .sheet(isPresented: $adding) { AddDriveView() }
-            .task(id: drives.map(\.id)) { writeExports() }
+            .sheet(isPresented: $editingDriver) {
+                NavigationStack {
+                    DriverDetailsView()
+                        .toolbar { ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { editingDriver = false }
+                        } }
+                }
+            }
+            .task(id: exportInput) {
+                pdfURLs = []; csvURL = nil
+                guard !editingDriver else { return }
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                writeExports()
+            }
+            .onChange(of: editingDriver) { _, editing in
+                if !editing { writeExports() }
+            }
         }
     }
 
@@ -73,7 +108,7 @@ struct LogView: View {
             }
             HoursBar(label: "Total", minutes: totals.minutes, goal: DriveLog.requiredMinutes, tint: BaxiColor.accent)
             HoursBar(label: "At night", minutes: totals.nightMinutes, goal: DriveLog.requiredNightMinutes, tint: BaxiColor.route)
-            Text(totals.isComplete ? "Requirement met. Export the log, copy it onto State Form 54706 and sign it."
+            Text(totals.isComplete ? "Requirement met. Export the official log, review it and sign it on paper."
                  : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
                 .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
         }
@@ -81,10 +116,15 @@ struct LogView: View {
         .padding(.vertical, BaxiSpace.sm)
     }
 
-    /// The PDF (State Form 54706 layout) and the CSV, from the toolbar.
+    /// The official form and CSV, from the toolbar.
     private var exportMenu: some View {
         Menu {
-            if let pdfURL { ShareLink("PDF for the BMV form", item: pdfURL) }
+            Button("Driver details") { editingDriver = true }
+            if !pdfURLs.isEmpty {
+                ShareLink(items: pdfURLs) {
+                    Text(pdfURLs.count == 1 ? "Official State Form 54706 (PDF)" : "Official logs (\(pdfURLs.count) PDFs)")
+                }
+            }
             if let csvURL { ShareLink("Spreadsheet (CSV)", item: csvURL) }
         } label: { Label("Export", systemImage: "square.and.arrow.up") }
         .disabled(drives.isEmpty)
@@ -104,17 +144,28 @@ struct LogView: View {
 
     /// Writes both export files to a temporary folder so the share sheet can hand them off.
     private func writeExports() {
-        let rows = drives.map(\.row)
-        guard !rows.isEmpty else { pdfURL = nil; csvURL = nil; return }
-        let dir = FileManager.default.temporaryDirectory
-        let pdf = dir.appendingPathComponent("Baxi driving log.pdf")
+        let input = exportInput
+        let rows = input.rows
+        pdfURLs = []; csvURL = nil; exportError = nil
+        guard !rows.isEmpty else { return }
+        // Each snapshot gets its own files so a share sheet never reads a partly rewritten export.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("baxi-export-\(UUID().uuidString)")
         let csv = dir.appendingPathComponent("Baxi driving log.csv")
         do {
-            try LogPDF.render(rows).write(to: pdf)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let forms = try OfficialLogPDF.renderForms(rows, driver: input.driver)
+            var urls: [URL] = []
+            for (index, data) in forms.enumerated() {
+                let pdf = dir.appendingPathComponent("Baxi State Form 54706 - \(index + 1).pdf")
+                try data.write(to: pdf, options: .atomic)
+                urls.append(pdf)
+            }
             try DriveLog.csv(rows).write(to: csv, atomically: true, encoding: .utf8)
-            pdfURL = pdf; csvURL = csv
+            pdfURLs = urls; csvURL = csv
         } catch {
-            pdfURL = nil; csvURL = nil
+            pdfURLs = []; csvURL = nil
+            exportError = error.localizedDescription
+            try? FileManager.default.removeItem(at: dir)
         }
     }
 }

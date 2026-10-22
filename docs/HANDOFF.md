@@ -1,4 +1,19 @@
-# Latest handoff: Oct 17 Preview context
+# Latest handoff: Oct 22 official log export
+
+Synced main through ffd5a4a. Built official State Form 54706 export, optional driver details,
+multiple editable forms for more than 108 drives, and visible export failures on
+`codex/official-log-export`. See OFFICIAL-LOG-EXPORT.md for source provenance and compatibility details.
+Student briefings remain the readiness blocker; on-phone sharing, printing and Acrobat review remain.
+This work was prepared on `codex/official-log-export`; its GitHub pull request records the merge status.
+
+Validation on Oct 22: 113 active tests pass, three opt-in live-network tests skip (116 discovered).
+Unsigned iPhone and Mac Catalyst builds pass; design lint passes. Four sample PDF pages were rendered
+with Poppler and visually inspected; pypdf independently verified 335 canonical fields per file,
+appearance streams and all 109 unique drive dates. Driver-details screenshot is readable.
+Acrobat editing, phone sharing/printing and on-device accessibility remain unverified.
+
+
+## Previous handoff: Oct 17 Preview context
 
 Synced main through ed867b2; the decision modules and initial crash matching are now implemented upstream.
 Built Preview source details, study/FARS card types, lane strips and unverified lane-count labels on

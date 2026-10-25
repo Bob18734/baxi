@@ -20,8 +20,10 @@ struct DriveView: View {
     @State private var shownHeading: Double?
     @State private var car: Coordinate?
     @State private var lastFrame: Date?
-    /// The route from just behind the car onward; the driven part is not drawn (it reads as a second route).
+    /// The route from just behind the car onward, in ink; the driven part behind it in a pale grey, so on a loop
+    /// the way ahead and the way back never look alike.
     @State private var remaining: [CLLocationCoordinate2D] = []
+    @State private var behind: [CLLocationCoordinate2D] = []
     /// The camera follows the car until the driver (the passenger, really) pans or zooms; it resumes on its own
     /// after a moment, or on Re-center.
     @State private var following = true
@@ -120,6 +122,12 @@ struct DriveView: View {
 
     private var map: some View {
         Map(position: $camera, interactionModes: [.pan, .zoom]) {
+            if behind.count > 1 {
+                MapPolyline(coordinates: behind)
+                    .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
+                MapPolyline(coordinates: behind)
+                    .stroke(look.traveled, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+            }
             MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
                 .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
             MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
@@ -178,6 +186,7 @@ struct DriveView: View {
         // The line from just behind the car: rebuilt per fix, not per frame.
         let line = session.route.polyline
         remaining = line.slice(from: max(0, p.alongMeters - DriveFollow.lineBehind), to: line.lengthMeters).map(\.clLocation)
+        behind = p.alongMeters > DriveFollow.lineBehind ? line.slice(from: 0, to: p.alongMeters - DriveFollow.lineBehind).map(\.clLocation) : []
         if shownAlong == nil { shownAlong = p.alongMeters }
     }
 
@@ -285,7 +294,8 @@ struct DriveLook {
     var line: Color { night ? Palette.nightLine : Palette.hairline }
     var route: Color { night ? Palette.onDark : Palette.ink }
     var routeEdge: Color { night ? Palette.night : Palette.field }
-    var traveled: Color { night ? Palette.nightLine : Palette.label }
+    /// The driven part of the route: pale, so the way ahead reads first.
+    var traveled: Color { night ? Palette.nightLine : Palette.hairline }
 }
 
 // MARK: - The instruction

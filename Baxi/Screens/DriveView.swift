@@ -11,9 +11,17 @@ struct DriveView: View {
     var onClose: () -> Void
     @Environment(\.modelContext) private var context
     @State private var camera: MapCameraPosition = .automatic
-    /// Where the car is drawn: it glides from fix to fix (the session's `position` jumps).
+    /// The car as drawn, carried along the route between fixes (Maps-style): the last two fixes give its speed, and
+    /// each frame moves it on from the last fix by that speed, correcting when the next fix lands. The camera and
+    /// the marker are set from the same point in the same frame, so one can never slide ahead of the other.
+    @State private var lastFix: (along: Double, at: Date)?
+    @State private var previousFix: (along: Double, at: Date)?
+    @State private var shownAlong: Double?
+    @State private var shownHeading: Double?
     @State private var car: Coordinate?
-    @State private var lastFollow: Date?
+    @State private var lastFrame: Date?
+    /// The route from just behind the car onward; the driven part is not drawn (it reads as a second route).
+    @State private var remaining: [CLLocationCoordinate2D] = []
     /// The camera follows the car until the driver (the passenger, really) pans or zooms; it resumes on its own
     /// after a moment, or on Re-center.
     @State private var following = true
@@ -26,7 +34,9 @@ struct DriveView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            map
+            TimelineView(.animation(minimumInterval: DriveFollow.frameInterval, paused: !following)) { frame in
+                map.onChange(of: frame.date, initial: true) { _, now in step(now) }
+            }
             VStack(spacing: Space.s8) {
                 InstructionPanel(session: session, look: look)
                 StatusLine(session: session, look: look)
@@ -69,7 +79,7 @@ struct DriveView: View {
             // The phone is mounted for the whole drive, so the screen must not lock.
             UIApplication.shared.isIdleTimerDisabled = true
             isNight = nightNow()
-            session.start(); follow()
+            session.start(); fixArrived()
         }
         // After sunset the screen goes dark so it does not glare in the driver's eyes; checked every minute so a
         // drive across sunset switches over.
@@ -86,8 +96,7 @@ struct DriveView: View {
             // onChange below can no longer fire.
             if !session.isFinished { session.end(); save() }
         }
-        .onChange(of: session.position) { _, _ in follow() }
-        .onChange(of: traveledStep) { _, _ in traveled = traveledPoints?.map(\.clLocation) ?? [] }
+        .onChange(of: session.position) { _, _ in fixArrived() }
         .onChange(of: session.isFinished) { _, done in if done { save() } }
         .sheet(isPresented: .constant(session.isFinished)) {
             ArrivedView(session: session, record: saved, onDone: onClose)
@@ -111,9 +120,9 @@ struct DriveView: View {
 
     private var map: some View {
         Map(position: $camera, interactionModes: [.pan, .zoom]) {
-            MapPolyline(coordinates: session.routeCoordinates)
+            MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
                 .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
-            MapPolyline(coordinates: session.routeCoordinates)
+            MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
                 .stroke(look.route, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
             // Where to change lanes: amber, from the lane cue to "be in the lane by here".
             ForEach(zonesAhead) { z in
@@ -122,10 +131,6 @@ struct DriveView: View {
                         .stroke(Palette.ready, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
                     Annotation("", coordinate: line[line.count - 1]) { InLaneTab(zone: z) }
                 }
-            }
-            if traveled.count > 1 {
-                MapPolyline(coordinates: traveled)
-                    .stroke(look.traveled, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
             }
             if let m = session.nextManeuver {
                 Annotation("", coordinate: m.location.clLocation) {
@@ -152,19 +157,6 @@ struct DriveView: View {
         .ignoresSafeArea()
     }
 
-    @State private var traveled: [CLLocationCoordinate2D] = []
-    private var traveledStep: Int { Int((session.progress?.alongMeters ?? 0) / 50) }
-
-    /// The driven part of the route, redrawn every 50 m rather than on every fix: rebuilding a long map overlay
-    /// several times a second is what makes the map stutter.
-    private var traveledPoints: [Coordinate]? {
-        guard let p = session.progress else { return nil }
-        let line = session.route.polyline
-        let step = (p.alongMeters / 50).rounded(.down) * 50
-        guard step > 0, let end = line.coordinate(atMeters: step) else { return nil }
-        let upTo = line.cumulative.lastIndex { $0 <= step } ?? 0
-        return Array(line.points.prefix(upTo + 1)) + [end]
-    }
 
     /// Lane stretches not yet passed and within 3 km, so the map is not cluttered with the whole route's.
     private var zonesAhead: [LaneZone] {
@@ -172,20 +164,62 @@ struct DriveView: View {
         return session.laneZones.filter { $0.endMeters > along && $0.startMeters < along + 3_000 }
     }
 
-    private func follow() {
-        guard let p = session.position else { return }
-        // Glide for as long as fixes have been arriving apart, so the car reaches this fix as the next one lands.
-        let now = Date()
-        let seconds = lastFollow.map { now.timeIntervalSince($0) } ?? Motion.followMin
-        lastFollow = now
-        withAnimation(Motion.follow(seconds: seconds)) {
-            car = p
-            guard following else { return }
-            // Closer while changing lanes, so the amber stretch and its end are easy to read. The camera centres a
-            // way ahead of the car, so the car sits low on the screen and the road ahead fills it.
-            let close = session.activeLaneZone != nil
-            let ahead = Geo.offset(p, bearingDegrees: session.heading, meters: close ? DriveFollow.lookAheadClose : DriveFollow.lookAhead)
-            camera = .camera(MapCamera(centerCoordinate: ahead.clLocation, distance: close ? 420 : 700, heading: session.heading, pitch: 50))
+    /// A new fix from the session (the car on the route, or wherever it is when off it).
+    private func fixArrived() {
+        guard let p = session.progress, session.isOnRoute || session.mode != .live else {
+            // Off the route (or still heading to it): draw the fix itself, nothing predicted.
+            lastFix = nil; previousFix = nil; shownAlong = nil
+            car = session.position
+            follow(now: Date())
+            return
+        }
+        previousFix = lastFix
+        lastFix = (p.alongMeters, Date())
+        // The line from just behind the car: rebuilt per fix, not per frame.
+        let line = session.route.polyline
+        remaining = line.slice(from: max(0, p.alongMeters - DriveFollow.lineBehind), to: line.lengthMeters).map(\.clLocation)
+        if shownAlong == nil { shownAlong = p.alongMeters }
+    }
+
+    /// One frame: carry the car on from the last fix at its speed, settle the heading, set the marker and camera.
+    private func step(_ now: Date) {
+        defer { lastFrame = now }
+        guard let fix = lastFix, let was = shownAlong else { return }
+        let frameDt = lastFrame.map { now.timeIntervalSince($0) } ?? DriveFollow.frameInterval
+        let speed: Double = previousFix.map { prev in
+            let dt = fix.at.timeIntervalSince(prev.at)
+            return dt > 0 ? max(0, (fix.along - prev.along) / dt) : 0
+        } ?? 0
+        let predicted = fix.along + speed * min(now.timeIntervalSince(fix.at), DriveFollow.predictSeconds)
+        var along = was
+        if abs(predicted - was) > DriveFollow.snapMeters { along = predicted }            // the GPS caught up: snap
+        else if predicted > was { along = min(predicted, was + speed * frameDt * 1.5) }    // carry on, a little faster to catch up
+        // else: the fix is behind where the car is drawn: hold, never roll back
+        let line = session.route.polyline
+        guard let c = line.coordinate(atMeters: along) else { return }
+        let target = line.bearing(atMeters: min(line.lengthMeters, along + DriveFollow.headingAhead)) ?? session.heading
+        let settled = shownHeading.map { h in
+            var d = (target - h).truncatingRemainder(dividingBy: 360)
+            if d > 180 { d -= 360 } else if d < -180 { d += 360 }
+            return h + d * (1 - exp(-frameDt / DriveFollow.headingSettle))
+        } ?? target
+        shownAlong = along
+        shownHeading = settled
+        car = c
+        follow(now: now)
+    }
+
+    /// The camera, set with no animation: it moves every frame, with the marker.
+    private func follow(now: Date) {
+        guard following, let p = car else { return }
+        let heading = shownHeading ?? session.heading
+        // Closer while changing lanes, so the amber stretch and its end are easy to read. The camera centres a
+        // way ahead of the car, so the car sits low on the screen and the road ahead fills it.
+        let close = session.activeLaneZone != nil
+        let ahead = Geo.offset(p, bearingDegrees: heading, meters: close ? DriveFollow.lookAheadClose : DriveFollow.lookAhead)
+        var t = Transaction(); t.disablesAnimations = true
+        withTransaction(t) {
+            camera = .camera(MapCamera(centerCoordinate: ahead.clLocation, distance: close ? 420 : 700, heading: heading, pitch: 50))
         }
     }
 
@@ -202,8 +236,7 @@ struct DriveView: View {
     private func resumeFollowing() {
         resumeTask?.cancel()
         withAnimation(Motion.quick) { following = true }
-        lastFollow = nil
-        follow()
+        follow(now: Date())
     }
 
     // MARK: Save
@@ -298,7 +331,9 @@ private struct InstructionPanel: View {
                         .animation(Motion.follow, value: p)
                 }
                 // What Baxi just said, quietly, so a passenger can read it (unless a state above is showing).
-                if !session.lastCueText.isEmpty && !StatusLine.isState(session) {
+                // Not a line about a maneuver already passed ("Roundabout: first exit" under the next turn).
+                if !session.lastCueText.isEmpty && !StatusLine.isState(session)
+                    && (session.lastCue?.maneuverId == nil || session.lastCue?.maneuverId == session.nextManeuver?.id) {
                     Text(session.lastCueText).role(.metaStrong).foregroundStyle(look.panelSoft).lineLimit(2)
                         .contentTransition(.opacity)
                         .accessibilityLabel("Baxi said: \(session.lastCueText)")

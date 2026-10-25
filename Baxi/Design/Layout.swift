@@ -51,6 +51,18 @@ enum DriveFollow {
     static let lookAhead: Double = 150
     static let lookAheadClose: Double = 90
     static let resumeSeconds: Double = 10
+    /// Frames a second for the car's motion between fixes.
+    static let frameInterval: Double = 1.0 / 30
+    /// How far ahead of the last fix the car may be carried on its last speed before it waits for the next one.
+    static let predictSeconds: Double = 1.5
+    /// A fix this far from where the car is drawn is a real jump (GPS catching up): snap rather than glide.
+    static let snapMeters: Double = 60
+    /// Seconds for the drawn heading to settle toward the road's bearing.
+    static let headingSettle: Double = 0.5
+    /// The road's bearing is read this far ahead of the car, so the turn starts as the car does.
+    static let headingAhead: Double = 12
+    /// The route line is drawn from this far behind the car, so the line is always under it; nothing further back.
+    static let lineBehind: Double = 30
 }
 
 enum MapLine {

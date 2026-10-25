@@ -173,8 +173,8 @@ struct RouteView: View {
                 MapPolyline(coordinates: line.points.map(\.clLocation))
                     .stroke(Palette.mapRouteOther, style: StrokeStyle(lineWidth: MapLine.other, lineCap: .round, lineJoin: .round))
                 // The loops all start downtown, so each number sits out along its route, where no other number is.
-                if let at = numberPlaces[p.id] {
-                    Annotation(p.name, coordinate: at.clLocation) {
+                if let place = numberPlaces[p.id] {
+                    Annotation(p.name, coordinate: place.at.clLocation, anchor: place.anchor) {
                         Button { Haptic.tap(); store.choosePreset(p.id) } label: { NumberTab(number: i + 1) }
                             .buttonStyle(Press())
                             .accessibilityLabel("Route \(i + 1), \(p.name)")
@@ -199,16 +199,21 @@ struct RouteView: View {
 
     /// Where each route's number goes: a point along the route, chosen so the numbers keep clear of each other
     /// and of the other routes' lines. Worked out once the lines are read.
-    private var numberPlaces: [String: Coordinate] {
+    private var numberPlaces: [String: (at: Coordinate, anchor: UnitPoint)] {
         var placed: [Coordinate] = []
-        var out: [String: Coordinate] = [:]
+        var out: [String: (at: Coordinate, anchor: UnitPoint)] = [:]
         for p in RouteService.presets {
             guard let line = presetLines[p.id] else { continue }
             let others = presetLines.filter { $0.key != p.id }.map(\.value)
             let choices = MapFrame.numberSpots.compactMap { line.coordinate(atMeters: line.lengthMeters * $0) }
             // Score: distance to the nearest placed number and to the nearest other route, the larger the better.
             let best = choices.max { a, b in clearance(a, placed, others) < clearance(b, placed, others) } ?? choices.first
-            if let best { placed.append(best); out[p.id] = best }
+            guard let best else { continue }
+            // Two small loops side by side can't keep a tab's width apart at the city-wide zoom: the later one's
+            // number stacks above its neighbour instead of sitting on it.
+            let crowded = placed.filter { Geo.distanceMeters(best, $0) < MapFrame.stackMeters }.count
+            placed.append(best)
+            out[p.id] = (best, UnitPoint(x: UnitPoint.center.x, y: UnitPoint.center.y + MapFrame.stackStep * Double(crowded)))
         }
         return out
     }
@@ -524,6 +529,10 @@ enum MapFrame {
     static let numberSpots: [Double] = [0.5, 0.38, 0.62, 0.28, 0.72, 0.2, 0.8]
     /// How much a number clearing another route's line counts, against clearing another number.
     static let lineWeight = 2.0
+    /// Two numbers closer than this (about a tab's width when all of Carmel is on screen) stack instead.
+    static let stackMeters = 750.0
+    /// How far up each stacked number moves, in tab heights.
+    static let stackStep = 1.25
 }
 
 /// Reports a view's height to its parent, for the panel's measured heights.

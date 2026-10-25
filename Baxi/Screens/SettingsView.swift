@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// How early Baxi warns, the voice, and the fine print (the 50-hour law, where the data comes from,
-/// privacy). Opened from Home's gear button; nothing here is needed to drive.
+/// How early Baxi warns, the voice, driver details for the official log, and the fine print (the 50-hour law,
+/// where the data comes from, privacy). Opened from Home; nothing here is needed to drive.
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -11,104 +11,118 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    ForEach(ExperienceLevel.allCases) { level in
-                        Button { withAnimation(.snappy) { store.level = level }; Haptics.tap() } label: { levelRow(level) }
-                            .foregroundStyle(BaxiColor.ink)
-                    }
-                } header: {
-                    Text("How early Baxi warns you")
-                } footer: {
-                    Text("Timing only. What Baxi tells you to do is the same at every level.")
-                }
-
-                Section {
-                    Picker("Baxi says", selection: $detail) {
-                        Text("Everything").tag("everything")
-                        Text("Just directions").tag("directions")
-                    }
-                    LabeledContent("Practice routes", value: "Baxi's recorded voice")
-                    LabeledContent("Other routes", value: Speaker.voiceDescription.name)
-                    VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                        HStack {
-                            Text("Speaking speed")
-                            Spacer()
-                            Text(rate < 0.95 ? "Slower" : rate > 1.05 ? "Faster" : "Normal").foregroundStyle(BaxiColor.inkSoft)
+            VStack(spacing: 0) {
+                SheetHeader(title: "Settings") { dismiss() }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Space.s32) {
+                        levels
+                        voice
+                        VStack(alignment: .leading, spacing: 0) {
+                            GroupLabel("Driving log").padding(.bottom, Space.s4)
+                            NavigationLink { DriverDetailsPage() } label: {
+                                Row(title: "Driver details for export", detail: "Name and license number on the official form", showsDivider: false) { RowArrow() }
+                            }
+                            .buttonStyle(Press())
                         }
-                        HStack(spacing: BaxiSpace.md) {
-                            Image(systemName: "tortoise.fill").foregroundStyle(BaxiColor.inkFaint)
-                            Slider(value: $rate, in: 0.8...1.2, step: 0.05)
-                            Image(systemName: "hare.fill").foregroundStyle(BaxiColor.inkFaint)
-                        }
+                        about
                     }
-                    Button {
-                        if speaker == nil { speaker = Speaker() }
-                        speaker?.say("Move to the right lane now for your turn, your turn is in 2 lights")
-                    } label: { Label("Hear a cue", systemImage: "speaker.wave.2.fill") }
-                } header: {
-                    Text("Voice")
-                } footer: {
-                    Text(Speaker.voiceDescription.isBasic
-                         ? "Searched routes use the iPhone's voice, and this is the basic one. For a far more natural one, download Ava (Premium) in the iPhone's Settings > Accessibility > Spoken Content > Voices > English, then reopen Baxi."
-                         : "\"Just directions\" leaves out speed, school, stop-sign, crash and low-sun lines; the screen still shows them.")
-                }
-
-                Section("Driving log") {
-                    NavigationLink("Driver details for export") { DriverDetailsView() }
-                }
-
-                Section("About") {
-                    NavigationLink("The 50 supervised hours") { AboutPage(title: "The 50 supervised hours", paragraphs: Self.hours) }
-                    NavigationLink("Where Baxi's information comes from") { AboutPage(title: "Sources", paragraphs: Self.sources) }
-                    NavigationLink("Privacy") { AboutPage(title: "Privacy", paragraphs: Self.privacy) }
-                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                        Text("Road data")
-                        Group {
-                            if store.cache == nil && store.isLoading { Text("Loading…") }
-                            else { Text(store.dataStatus) }
-                            // A searched route brings its own lanes, roundabouts and lights from OpenStreetMap.
-                            if !store.routeOptions.isEmpty && store.roadDataNote == nil { Text("Plus the roads along your searched route.") }
-                        }
-                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    }
-                    .accessibilityElement(children: .combine)
+                    .padding(.horizontal, Space.margin)
+                    .padding(.bottom, Space.s32)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .baxiPage()
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .pageBackground()
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
-    private func levelRow(_ level: ExperienceLevel) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                Text(level.title)
-                Text(level.summary).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var levels: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("How early Baxi warns you").padding(.bottom, Space.s4)
+            ForEach(Array(ExperienceLevel.allCases.enumerated()), id: \.element) { i, level in
+                Button { Haptic.tap(); withAnimation(Motion.quick) { store.level = level } } label: {
+                    Row(title: level.title, detail: level.summary, showsDivider: i < ExperienceLevel.allCases.count - 1) {
+                        Mark(glyph: .check, size: MarkSize.inline, weight: MarkWeight.emphasis).foregroundStyle(Palette.goText)
+                            .opacity(store.level == level ? 1 : 0)
+                    }
+                }
+                .buttonStyle(Press())
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(store.level == level ? [.isButton, .isSelected] : .isButton)
             }
-            Spacer(minLength: BaxiSpace.md)
-            if store.level == level { Image(systemName: "checkmark").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.accent) }
         }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(store.level == level ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var voice: some View {
+        VStack(alignment: .leading, spacing: Space.s12) {
+            GroupLabel("Voice")
+            Picker("Baxi says", selection: $detail) {
+                Text("Everything").tag("everything")
+                Text("Just directions").tag("directions")
+            }
+            .pickerStyle(.segmented)
+            Text(detail == "directions" ? "Only what to do at each turn, lane, roundabout, ramp and railroad. The screen still shows the rest."
+                                        : "Directions, plus speed limits, school zones, stop signs, crash-heavy spots and low sun.")
+                .role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 0) {
+                Row(title: "Practice routes", detail: "Baxi's recorded voice") { EmptyView() }
+                Row(title: "Other routes", detail: Speaker.voiceDescription.name, showsDivider: false) { EmptyView() }
+            }
+            if Speaker.voiceDescription.isBasic {
+                Text("For searched routes the iPhone's basic voice is in use. For a far more natural one, download Ava (Premium) in the iPhone's Settings, Accessibility, Spoken Content, Voices, English, then reopen Baxi.")
+                    .role(.meta).foregroundStyle(Palette.readyText).fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(alignment: .leading, spacing: Space.s8) {
+                HStack {
+                    Text("Speaking speed").role(.body).foregroundStyle(Palette.ink)
+                    Spacer()
+                    Text(rate < 0.95 ? "Slower" : rate > 1.05 ? "Faster" : "Normal").role(.meta).foregroundStyle(Palette.meta)
+                }
+                Slider(value: $rate, in: 0.8...1.2, step: 0.05).tint(Palette.go)
+            }
+            BigButton(title: "Hear a cue", kind: .secondary, glyph: .speaker) {
+                if speaker == nil { speaker = Speaker() }
+                speaker?.say("In 500 feet, at the roundabout, take the second exit. Either lane works")
+            }
+        }
+    }
+
+    private var about: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("About").padding(.bottom, Space.s4)
+            ForEach([("The 50 supervised hours", Self.hours), ("Where Baxi's information comes from", Self.sources), ("Privacy", Self.privacy)],
+                    id: \.0) { title, paragraphs in
+                NavigationLink { AboutPage(title: title, paragraphs: paragraphs) } label: {
+                    Row(title: title) { RowArrow() }
+                }
+                .buttonStyle(Press())
+            }
+            VStack(alignment: .leading, spacing: Space.s4) {
+                Text("Road data").role(.rowTitle).foregroundStyle(Palette.ink)
+                Group {
+                    if store.cache == nil && store.isLoading { Text("Loading…") }
+                    else { Text(store.dataStatus) }
+                    // A searched route brings its own lanes, roundabouts and lights from OpenStreetMap.
+                    if !store.routeOptions.isEmpty && store.roadDataNote == nil { Text("Plus the roads along your searched route.") }
+                }
+                .role(.meta).foregroundStyle(Palette.meta)
+            }
+            .padding(.vertical, Space.s12)
+            .accessibilityElement(children: .combine)
+        }
     }
 
     static let hours = [
         "Indiana requires 50 hours of supervised driving, 10 of them at night, before a new driver can get a license (IC 9-24-3-2.5).",
         "Every live drive in Baxi is logged with its start, end and miles. Replays of the practice routes are demos and never count.",
         "Baxi counts night from sunset to sunrise where the drive started. The law does not define night, so this is our reading.",
-        "Export the official State Form 54706 from the Log tab. Review the entries and complete the applicable checkbox, affirmation and signatures on paper. Driver details for export are optional and saved on this device.",
+        "Export the official State Form 54706 from the Log. Review the entries and complete the applicable checkbox, affirmation and signatures on paper. Driver details for export are optional and saved on this device.",
     ]
     static let sources = [
         "Roads, lanes, roundabouts, lights, stop signs and speed limits: OpenStreetMap contributors (ODbL). Carmel's are built into the app; other routes download theirs when you plan them.",
         "Routes: the public OSRM route server, with Apple Maps as a backup. Weather: the National Weather Service.",
         "Crash-heavy roads and intersections: the Indianapolis MPO High Injury Network and Intersection Safety Studies. Fatal crashes: NHTSA FARS 2023, shown in Preview only.",
-        "What to do at each kind of road: the Indiana Driver's Manual. How early Baxi warns you is Baxi's own design, as are the practice goals on the Log.",
+        "What to do at each kind of road: the Indiana Driver's Manual. How early Baxi warns you is Baxi's own design, as are the practice goals, levels and driving-habit coaching.",
+        "The practice routes' voice: recorded on the team's Mac with Kokoro, an open-source voice model. Type: Atkinson Hyperlegible Next, by the Braille Institute (SIL Open Font License).",
     ]
     static let privacy = [
         "Baxi uses your location during a drive, and once on the Routes screen so a searched route starts where you are. Drives are saved on this phone only; there is no account.",
@@ -118,19 +132,55 @@ struct SettingsView: View {
     ]
 }
 
+/// A page of fine print, pushed from Settings.
 private struct AboutPage: View {
     let title: String
     let paragraphs: [String]
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: BaxiSpace.lg) {
-                ForEach(paragraphs, id: \.self) { Text($0).font(BaxiFont.body).foregroundStyle(BaxiColor.ink) }
+        VStack(alignment: .leading, spacing: 0) {
+            BackHeader(title: title) { dismiss() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Space.s16) {
+                    ForEach(paragraphs, id: \.self) { p in
+                        Text(p).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, Space.margin)
+                .padding(.bottom, Space.s32)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(BaxiSpace.page)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .baxiPage()
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
+        .pageBackground()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+/// A pushed page's top: back, then the title.
+struct BackHeader: View {
+    let title: String
+    let back: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s8) {
+            MarkButton(glyph: .back, label: "Back", action: back).padding(.leading, -Space.s12)
+            Text(title).role(.screenTitle).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, Space.margin)
+        .padding(.top, Space.s8)
+        .padding(.bottom, Space.s16)
+    }
+}
+
+/// Driver details pushed from Settings.
+private struct DriverDetailsPage: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            BackHeader(title: "Driver details") { dismiss() }
+            DriverDetailsView()
+        }
+        .pageBackground()
+        .toolbar(.hidden, for: .navigationBar)
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First launch: what Baxi is, the safety rule, and where location goes. Shown once.
+/// First launch: what Baxi is, the one safety rule, and what leaves the phone. Shown once, can't be swiped away.
 struct WelcomeView: View {
     var onDone: () -> Void
     @State private var page = 0
@@ -11,143 +11,176 @@ struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $page) {
-                WelcomePage(title: "Baxi rides along",
-                            lines: ["Navigation for drivers with a learner's permit. It tells you early which lane to be in, how many lights until your turn, and which roundabout exit to take.",
-                                    "Every drive counts toward Indiana's 50 supervised hours."]) { SampleSign() }
-                    .tag(0)
-                WelcomePage(title: "The driver never touches the phone",
-                            lines: ["Mount the phone before you start. Indiana law bans holding a phone while driving.",
-                                    "Baxi speaks each cue once. The only buttons on the Drive screen are Mute and End, for the passenger or for when you are parked.",
-                                    "If Baxi and a sign or a police officer disagree, follow the sign or the officer."]) { HandsOffSign() }
-                    .tag(1)
-                WelcomePage(title: "Your drives stay on your phone",
-                            lines: ["Baxi uses your location during a drive, to follow the route, and once on the Routes screen, so a searched route starts where you are.",
-                                    "Drives are saved on this phone only. There is no account, and your drives are never uploaded.",
-                                    "A destination search goes to Apple Maps with your location, to find places nearby. A new route sends its start (where you are) and end to the OSRM route server, or to Apple if that server is down, then its path, minus the first and last 200 m, to OpenStreetMap to download the lanes, roundabouts and lights along it. The weather check sends the start, rounded to about 1 km, to the National Weather Service. Nothing is sent during the drive except to find a new route if you leave this one. The Carmel practice routes need no internet."]) { LocationMark() }
-                    .tag(2)
+                WelcomeAlong(isShown: page == 0).tag(0)
+                WelcomeHandsOff().tag(1)
+                WelcomePrivacy().tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.snappy, value: page)
+            .animation(Motion.standard, value: page)
 
-            VStack(spacing: BaxiSpace.md) {
-                HStack(spacing: BaxiSpace.sm) {
-                    ForEach(0...lastPage, id: \.self) { i in
-                        Capsule().fill(i == page ? BaxiColor.accent : BaxiColor.sunken)
-                            .frame(width: i == page ? 24 : 8, height: 8)
-                    }
+            VStack(spacing: Space.s12) {
+                PageDots(count: lastPage + 1, current: page)
+                BigButton(title: page < lastPage ? "Next" : "Allow location and start") {
+                    if page < lastPage { withAnimation(Motion.standard) { page += 1 } }
+                    else { store.locationPermission.requestWhenInUseAuthorization(); Haptic.success(); onDone() }
                 }
-                .animation(.snappy, value: page)
-                .accessibilityHidden(true)
-                Button(page < lastPage ? "Next" : "Allow location and start") {
-                    if page < lastPage { withAnimation { page += 1 } }
-                    else { store.locationPermission.requestWhenInUseAuthorization(); onDone() }
-                }
-                .buttonStyle(.baxiPrimary)
-                Button("Not now, just the demo", action: onDone)
-                    .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.accent)
-                    .frame(minHeight: 44)
+                BigButton(title: "Not now, just the demo", kind: .quiet, action: onDone)
                     .opacity(page == lastPage ? 1 : 0)
                     .disabled(page != lastPage)
                     .accessibilityHidden(page != lastPage)
             }
-            .padding(.horizontal, BaxiSpace.page)
-            .padding(.bottom, BaxiSpace.md)
+            .padding(.horizontal, Space.margin)
+            .padding(.bottom, Space.s16)
         }
-        .baxiPage()
+        .pageBackground()
     }
 }
 
+/// Which welcome page is showing: three short bars, the current one in `go`.
+private struct PageDots: View {
+    let count: Int
+    let current: Int
+    var body: some View {
+        HStack(spacing: Space.s8) {
+            ForEach(0..<count, id: \.self) { i in
+                Capsule().fill(i == current ? Palette.go : Palette.track)
+                    .frame(width: i == current ? Space.s24 : Space.s8, height: Space.s4)
+            }
+        }
+        .animation(Motion.press, value: current)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityHidden(true)
+    }
+}
+
+/// One welcome page: a mark, a headline, a few short lines, left-aligned.
 private struct WelcomePage<Art: View>: View {
     let title: String
     let lines: [String]
-    @ViewBuilder var art: () -> Art
-
+    @ViewBuilder var art: Art
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: BaxiSpace.lg) {
-                art().frame(maxWidth: .infinity).padding(.vertical, BaxiSpace.xl)
-                Text(title).font(BaxiFont.title).foregroundStyle(BaxiColor.ink)
+            VStack(alignment: .leading, spacing: Space.s24) {
+                art
+                Text(title).role(.hero).foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                ForEach(lines, id: \.self) {
-                    Text($0).font(BaxiFont.body).foregroundStyle(BaxiColor.inkSoft)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: Space.s12) {
+                    ForEach(lines, id: \.self) { line in
+                        Text(line).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
-            .padding(.horizontal, BaxiSpace.page + BaxiSpace.xs)
-            .padding(.top, BaxiSpace.xl)
+            .padding(.horizontal, Space.margin)
+            .padding(.top, Space.s48)
+            .padding(.bottom, Space.s24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
 }
 
-/// A small Drive-screen sign: two lanes, the right one lit, and the cue under it.
-private struct SampleSign: View {
+/// Page one: the signal lights red, amber, green, once (the app's one orchestrated moment); then a sample of
+/// what Baxi shows while driving.
+private struct WelcomeAlong: View {
+    let isShown: Bool
+    @State private var lit: Int? = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            LaneStripView(strip: LaneStrip(laneCount: 3, highlighted: [2], labels: ["←", "↑", "↑→"]))
-            HStack(spacing: BaxiSpace.md) {
-                Image(systemName: "arrow.turn.up.right").font(BaxiFont.number)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("0.5 mi").font(BaxiFont.signFace(30))
-                    Text("Right lane now, 2 lights").font(BaxiFont.headline)
+        WelcomePage(title: "Baxi rides along.",
+                    lines: ["Navigation for drivers with a learner's permit. It tells you early which lane to be in, how many lights until your turn, and which roundabout exit to take.",
+                            "Every drive counts toward Indiana's 50 supervised hours."]) {
+            VStack(alignment: .leading, spacing: Space.s24) {
+                SignalMark(size: SignalSize.welcome, lit: lit)
+                SampleCue()
+            }
+        }
+        .task(id: isShown) {
+            guard isShown else { return }
+            if reduceMotion { lit = 2; return }
+            lit = 0
+            for step in [1, 2] {
+                try? await Task.sleep(for: .milliseconds(650))
+                withAnimation(Motion.standard) { lit = step }
+            }
+            Haptic.reveal()
+        }
+    }
+}
+
+/// A miniature of the Drive screen's instruction: the distance, the roundabout, the lane lit amber.
+private struct SampleCue: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s12) {
+            HStack(alignment: .center, spacing: Space.s16) {
+                RoundaboutMark(shape: RoundaboutShape(exitNumber: 2, exitAngle: 0, passedAngles: [270]), size: MarkSize.feature)
+                VStack(alignment: .leading, spacing: Space.s4) {
+                    Text("0.3 mi").role(.numberSmall).foregroundStyle(Palette.onDark)
+                    Text("Second exit, either lane").role(.rowTitle).foregroundStyle(Palette.onDark)
+                }
+            }
+            HStack(spacing: Space.s8) {
+                ForEach(Array(["←", "↑", "↑", "→"].enumerated()), id: \.offset) { i, label in
+                    let lit = i == 1 || i == 2
+                    LaneMark(label: label, size: MarkSize.inline)
+                        .foregroundStyle(lit ? Palette.ink : Palette.nightRead)
+                        .frame(maxWidth: .infinity, minHeight: LaneSize.sample)
+                        .background(lit ? Palette.ready : Palette.nightPanel, in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
                 }
             }
         }
-        .padding(BaxiSpace.lg)
-        .frame(maxWidth: 320)
-        .signPanel(radius: BaxiRadius.lg)
-        .rotationEffect(.degrees(-2))
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
-        .accessibilityHidden(true)
+        .padding(Space.s16)
+        .background(Palette.ink, in: RoundedRectangle(cornerRadius: Corner.sheet, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Example: in 0.3 miles, take the second exit at the roundabout, either lane.")
     }
 }
 
-/// An octagon in stop-sign red: hands off the phone.
-private struct HandsOffSign: View {
+private struct WelcomeHandsOff: View {
     var body: some View {
-        ZStack {
-            Octagon().fill(BaxiColor.stop)
-            Octagon().inset(by: 7).stroke(.white, lineWidth: 4)
-            VStack(spacing: BaxiSpace.xxs) {
-                Image(systemName: "hand.raised.fill").font(BaxiFont.signFace(40))
-                Text("HANDS OFF").font(BaxiFont.signFace(20))
+        WelcomePage(title: "The driver never touches the phone.",
+                    lines: ["Mount it before you start. Indiana law bans holding a phone while driving.",
+                            "Baxi says each instruction once. The only buttons while driving are Mute and End, for the passenger, or for when you're parked.",
+                            "If Baxi and a sign or a police officer disagree, follow the sign or the officer."]) {
+            Mark(glyph: .handsOff, size: MarkSize.feature, weight: MarkWeight.emphasis).foregroundStyle(Palette.stop)
+        }
+    }
+}
+
+private struct WelcomePrivacy: View {
+    private let facts: [(String, String)] = [
+        ("Your drives", "Saved on this phone only. There's no account, and they're never uploaded."),
+        ("Your location", "Used during a drive to follow the route, and once on Routes so a searched route starts where you are."),
+        ("Searching", "Goes to Apple Maps with your location, to find places nearby."),
+        ("A new route", "Its start and end go to the OSRM route server (Apple if it's down). Its path, minus the first and last 200 m, goes to OpenStreetMap for the lanes, roundabouts and lights."),
+        ("Weather", "The start, rounded to about 1 km, goes to the National Weather Service."),
+        ("While driving", "Nothing is sent, except to find a new route if you leave this one. The Carmel practice routes need no internet."),
+    ]
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.s24) {
+                Mark(glyph: .lock, size: MarkSize.feature, weight: MarkWeight.emphasis).foregroundStyle(Palette.ink)
+                Text("Your drives stay on your phone.").role(.hero).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(facts, id: \.0) { title, text in
+                        VStack(alignment: .leading, spacing: Space.s4) {
+                            Text(title).role(.bodyStrong).foregroundStyle(Palette.ink)
+                            Text(text).role(.meta).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, Space.s12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        Hairline()
+                    }
+                }
             }
-            .foregroundStyle(.white)
+            .padding(.horizontal, Space.margin)
+            .padding(.top, Space.s48)
+            .padding(.bottom, Space.s24)
         }
-        .frame(width: 170, height: 170)
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
-        .accessibilityHidden(true)
-    }
-}
-
-struct Octagon: InsettableShape {
-    var inset: CGFloat = 0
-    func path(in rect: CGRect) -> Path {
-        let r = rect.insetBy(dx: inset, dy: inset)
-        let c = r.width * 0.2929 // design-lint:allow 1 - 1/sqrt(2), the corner cut of a regular octagon
-        return Path { p in
-            p.move(to: CGPoint(x: r.minX + c, y: r.minY))
-            p.addLine(to: CGPoint(x: r.maxX - c, y: r.minY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.minY + c))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - c))
-            p.addLine(to: CGPoint(x: r.maxX - c, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.minX + c, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.maxY - c))
-            p.addLine(to: CGPoint(x: r.minX, y: r.minY + c))
-            p.closeSubpath()
-        }
-    }
-    func inset(by amount: CGFloat) -> Octagon { Octagon(inset: inset + amount) }
-}
-
-private struct LocationMark: View {
-    var body: some View {
-        ZStack {
-            Circle().fill(BaxiColor.sunken).frame(width: 170, height: 170)
-            Image(systemName: "iphone").font(BaxiFont.signFace(96, weight: "Bold")).foregroundStyle(BaxiColor.ink)
-            Image(systemName: "location.fill").font(BaxiFont.signFace(30)).foregroundStyle(BaxiColor.route)
-                .offset(y: -4)
-        }
-        .accessibilityHidden(true)
+        .scrollBounceBehavior(.basedOnSize)
     }
 }

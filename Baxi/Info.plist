@@ -26,10 +26,10 @@
 	<string>Baxi follows your route during a drive so each cue is spoken at the right moment, and starts a searched route where you are. Your drives stay on this phone.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Overpass-SemiBold.ttf</string>
-		<string>Overpass-Bold.ttf</string>
-		<string>Overpass-ExtraBold.ttf</string>
-		<string>Overpass-Black.ttf</string>
+		<string>AtkinsonHyperlegibleNext-Regular.ttf</string>
+		<string>AtkinsonHyperlegibleNext-SemiBold.ttf</string>
+		<string>AtkinsonHyperlegibleNext-Bold.ttf</string>
+		<string>AtkinsonHyperlegibleNext-ExtraBold.ttf</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

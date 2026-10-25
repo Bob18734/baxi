@@ -24,8 +24,13 @@ shoot() { # name, args...
   [ -f "$OUT/$name.png" ] && echo "shot $name" || echo "MISSING $name"
 }
 if [ $# -ge 1 ]; then shoot "$@"; exit; fi
-shoot welcome --reset-welcome
+shoot welcome --screen welcome
 shoot home --skip-welcome
 shoot route --skip-welcome --carmel-demo
-shoot log --skip-welcome --tab log
+shoot log --skip-welcome --tab log --sample-drives
+shoot route-chosen --skip-welcome --route preset_highway --snap-delay 7
+shoot preview --skip-welcome --screen preview --snap-delay 7
+shoot arrived --skip-welcome --screen arrived --snap-delay 8
+shoot settings --skip-welcome --screen settings
+shoot home-big --skip-welcome --big-text
 shoot drive --demo-drive preset_highway --replay-speed 4 --replay-start 4400 --snap-delay 8

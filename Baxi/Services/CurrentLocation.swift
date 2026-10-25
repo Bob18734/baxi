@@ -6,8 +6,13 @@ import CoreLocation
 @MainActor
 enum CurrentLocation {
     static func once(timeout: TimeInterval = 4) async -> Coordinate? {
+        #if DEBUG && targetEnvironment(macCatalyst)
+        // The Mac copy exists only for screenshots; it must never ask the Mac's owner for their location.
+        return nil
+        #else
         let probe = Probe()
         return await Deadline.run(seconds: timeout) { await probe.fix() } ?? nil
+        #endif
     }
 
     /// Lives until its fix arrives; CLLocationManager must be made and used on the main thread.

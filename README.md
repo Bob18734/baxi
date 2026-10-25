@@ -58,7 +58,7 @@ python3 scripts/build_crash_layers.py     # MPO High Injury Network, intersectio
 ```
 
 Sources: OpenStreetMap contributors (ODbL) via the Overpass API; OSRM public demo router;
-Apple MapKit; Overpass typeface (SIL Open Font License, Baxi/Resources/Fonts); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
+Apple MapKit; Atkinson Hyperlegible Next typeface by the Braille Institute (SIL Open Font License, Baxi/Resources/Fonts; static weights cut from the variable font with fontTools); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
 services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 54706.
 
 ## Code map

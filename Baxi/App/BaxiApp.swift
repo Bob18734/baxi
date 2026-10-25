@@ -3,12 +3,12 @@ import SwiftData
 
 @main
 struct BaxiApp: App {
-    init() { BaxiChrome.apply() }
-
     var body: some Scene {
         WindowGroup {
             RootView()
-                .tint(BaxiColor.accent)
+                .tint(Palette.ink)
+                // One identity, light. The Drive screen alone draws its own night (docs/DESIGN.md).
+                .preferredColorScheme(.light)
                 #if DEBUG
                 .transformEnvironment(\.dynamicTypeSize) { if ScreenCheck.bigText { $0 = .accessibility3 } }
                 #endif
@@ -31,34 +31,50 @@ struct RootView: View {
     var body: some View {
         #if DEBUG
         if let screen = ScreenCheck.value("--screen") {
-            ScreenCheckRoot(screen: screen).environment(store)
+            ScreenCheckRoot(screen: screen).environment(store).environment(toasts)
         } else { tabs }
         #else
         tabs
         #endif
     }
 
+    @State private var toasts = ToastCenter()
+
+    /// The three tabs stay alive while hidden (the Routes map keeps its place); the bar sits under them,
+    /// and content ends where the bar begins.
+    private func tab<V: View>(_ t: AppTab, @ViewBuilder _ content: () -> V) -> some View {
+        content()
+            .opacity(store.tab == t ? 1 : 0)
+            .allowsHitTesting(store.tab == t)
+            .accessibilityHidden(store.tab != t)
+    }
+
     private var tabs: some View {
-        TabView(selection: Bindable(store).tab) {
-            Tab("Home", systemImage: "signpost.right.fill", value: .home) { HomeView() }
-            Tab("Routes", systemImage: "map.fill", value: .route) { RouteView() }
-            Tab("Log", systemImage: "clock.badge.checkmark.fill", value: .log) { LogView() }
+        VStack(spacing: 0) {
+            ZStack {
+                tab(.home) { HomeView() }
+                tab(.route) { RouteView() }
+                tab(.log) { LogView() }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            BottomBar(selection: Bindable(store).tab)
+        }
+        .overlay(alignment: .bottom) {
+            if let t = toasts.current {
+                ToastView(toast: t) { toasts.runAction() }
+                    .padding(.bottom, Size.bar + Space.s12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .environment(store)
-        .fullScreenCover(item: Bindable(store).activeSession) { s in DriveView(session: s) { store.activeSession = nil } }
+        .environment(toasts)
+        .fullScreenCover(item: Bindable(store).activeSession) { s in
+            DriveView(session: s) { store.activeSession = nil }.environment(toasts)
+        }
         .sheet(isPresented: .constant(!didFinishWelcome && !Self.launchedForDemo)) {
             WelcomeView { didFinishWelcome = true }.environment(store).interactiveDismissDisabled()
         }
         .onAppear {
-            // Launch arguments for screenshots, testing and the video:
-            //   --carmel-demo                 load Carmel and open the Route tab
-            //   --demo-drive <preset id>      start a replayed drive on that preset right away
-            //   --replay-speed <n>            replay clock multiplier (default 4)
-            //   --replay-start <meters>       skip ahead along the route before starting
-            //   --skip-welcome                skip the first-launch safety screen
-            //   --reset-welcome               show it again
-            //   --tab route|log               open on that tab
-            //   --route <preset id>           choose that practice route
             #if DEBUG
             ScreenCheck.run()
             ScreenCheck.addSampleDrives(context)

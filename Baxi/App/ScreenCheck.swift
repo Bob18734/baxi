@@ -60,10 +60,11 @@ struct ScreenCheckRoot: View {
 
     var body: some View {
         ZStack {
-            BaxiColor.page.ignoresSafeArea()
+            Palette.page.ignoresSafeArea()
             switch screen {
             case "welcome": WelcomeView {}
-            case "driver-details": NavigationStack { DriverDetailsView() }
+            case "driver-details": DriverDetailsSheet {}
+            case "settings": SettingsView()
             case "preview":
                 if let r = store.route {
                     let only = ScreenCheck.value("--spots")   // e.g. "fars-" to shoot just those cards
@@ -108,7 +109,11 @@ extension ScreenCheck {
                                        dayMinutes: s.minutes - s.night, nightMinutes: s.night, level: .gettingComfortable,
                                        routeTitle: s.title, distanceMeters: s.manual ? 0 : Double(s.minutes) * 600,
                                        cuesSpoken: s.manual ? 0 : 20, manual: s.manual,
-                                       skills: s.manual ? [:] : [.singleLaneRoundabout: 5, .multiLaneRoundabout: 2, .laneTurn: 1]))
+                                       skills: s.manual ? [:] : [.singleLaneRoundabout: 5, .multiLaneRoundabout: 2, .laneTurn: 1],
+                                       habits: s.manual ? nil : HabitReport(trackedMinutes: Double(s.minutes), overLimitShare: s.night > 0 ? 0.04 : 0,
+                                                                            topOverMph: s.night > 0 ? 7 : nil, schoolZoneTopMph: nil,
+                                                                            stopSigns: 4, fullStops: s.night > 0 ? 3 : 4, hardBrakes: 0,
+                                                                            merges: 1, mergesUpToSpeed: 1, score: s.night > 0 ? 88 : 97, isDemo: false)))
         }
         try? context.save()
     }

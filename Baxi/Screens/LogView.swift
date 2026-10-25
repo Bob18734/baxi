@@ -2,17 +2,16 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// The supervised driving log: totals toward Indiana's 50 hours (10 at night), every drive grouped by
-/// month, drives added by hand, and exports (the official State Form 54706, and CSV).
+/// The supervised driving log: hours toward Indiana's 50 (10 at night), the skills, how recent drives went,
+/// every drive by month (tap to edit, swipe to delete with Undo), drives added by hand, and the exports
+/// (the official State Form 54706, and a CSV).
 struct LogView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppStore.self) private var store
+    @Environment(ToastCenter.self) private var toasts
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var adding = false
     @State private var editing: DriveRecord?
-    @State private var deleted: [DeletedDrive] = []
-    /// The latest delete; the Undo bar's timer only hides the bar if no newer delete came since.
-    @State private var deleteToken = UUID()
     @State private var pdfURLs: [URL] = []
     @State private var csvURL: URL?
     @State private var exportError: String?
@@ -34,142 +33,77 @@ struct LogView: View {
 
     private var months: [(title: String, drives: [DriveRecord])] {
         let groups = Dictionary(grouping: drives) { Calendar.current.dateInterval(of: .month, for: $0.start)?.start ?? $0.start }
-        return groups.keys.sorted(by: >).map { key in
-            (key.formatted(.dateTime.month(.wide).year()), groups[key] ?? [])
-        }
+        return groups.keys.sorted(by: >).map { key in (key.formatted(.dateTime.month(.wide).year()), groups[key] ?? []) }
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section { summary }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                Section { SkillsPanel(done: Practice.total(drives.map(\.skills)), routes: store.presetSkills) }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                // Oldest first, so the chart reads left to right.
-                if !habitReports.isEmpty {
-                    Section { HabitsPanel(reports: habitReports) }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
+        List {
+            Group {
+                header
+                HoursPanel(totals: totals)
                 if let exportError {
-                    Section {
-                        Text(exportError).font(BaxiFont.callout).foregroundStyle(BaxiColor.stopText)
-                        Button("Retry export") { writeExports() }
-                    } header: { Text("Export unavailable") }
-                }
-                if drives.isEmpty {
-                    Section { emptyState }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                }
-                ForEach(months, id: \.title) { month in
-                    Section {
-                        ForEach(month.drives) { d in
-                            Button { editing = d } label: { DriveRow(drive: d) }
-                                .buttonStyle(.plain)
-                                .accessibilityHint("Edit this drive")
-                        }
-                            .onDelete { idx in delete(idx.map { month.drives[$0] }) }
-                            .listRowBackground(BaxiColor.surface)
-                    } header: {
-                        Eyebrow(month.title)
+                    VStack(alignment: .leading, spacing: Space.s8) {
+                        Text("The official log couldn't be made: \(exportError)").role(.body).foregroundStyle(Palette.stopText)
+                            .fixedSize(horizontal: false, vertical: true)
+                        BigButton(title: "Try again", kind: .secondary) { writeExports() }
                     }
                 }
-            }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .baxiPage()
-            .navigationTitle("Log")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { exportMenu }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { adding = true } label: { Label("Add a drive", systemImage: "plus") }
+                SkillsPanel(done: Practice.total(drives.map(\.skills)), routes: store.presetSkills)
+                if !habitReports.isEmpty { HabitsPanel(reports: habitReports) }
+                if drives.isEmpty {
+                    EmptyState(message: "No drives yet. Live drives save here when you arrive. Drove without Baxi? Add it here. Replays are never logged.",
+                               actionTitle: "Add a drive") { adding = true }
                 }
             }
-            .sheet(isPresented: $adding) { DriveFormView(record: nil) }
-            .sheet(item: $editing) { DriveFormView(record: $0) }
-            .safeAreaInset(edge: .bottom) {
-                if !deleted.isEmpty { undoBar.transition(.move(edge: .bottom).combined(with: .opacity)) }
-            }
-            .animation(.snappy, value: deleted.isEmpty)
-            .sheet(isPresented: $editingDriver) {
-                NavigationStack {
-                    DriverDetailsView()
-                        .toolbar { ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { editingDriver = false }
-                        } }
+            .logRow()
+            ForEach(months, id: \.title) { month in
+                Section {
+                    ForEach(Array(month.drives.enumerated()), id: \.element.id) { i, d in
+                        Button { Haptic.tap(); editing = d } label: {
+                            DriveRow(drive: d, showsDivider: i < month.drives.count - 1)
+                        }
+                        .buttonStyle(Press())
+                        .accessibilityHint("Edit this drive")
+                        .logRow(top: 0, bottom: 0)
+                    }
+                    .onDelete { idx in delete(idx.map { month.drives[$0] }) }
+                } header: {
+                    GroupLabel(month.title)
+                        .padding(.top, Space.s16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .listRowInsets(EdgeInsets(top: 0, leading: Space.margin, bottom: Space.s4, trailing: Space.margin))
                 }
             }
-            .task(id: exportInput) {
-                pdfURLs = []; csvURL = nil
-                guard !editingDriver else { return }
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled else { return }
-                writeExports()
-            }
-            .onChange(of: editingDriver) { _, editing in
-                if !editing { writeExports() }
-            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .pageBackground()
+        .environment(\.defaultMinListRowHeight, 0)
+        .sheet(isPresented: $adding) { DriveFormView(record: nil) }
+        .sheet(item: $editing) { DriveFormView(record: $0) }
+        .sheet(isPresented: $editingDriver) { DriverDetailsSheet { editingDriver = false } }
+        .task(id: exportInput) {
+            pdfURLs = []; csvURL = nil
+            guard !editingDriver else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            writeExports()
+        }
+        .onChange(of: editingDriver) { _, editing in if !editing { writeExports() } }
     }
 
-    private func delete(_ records: [DriveRecord]) {
-        let kept = records.map(DeletedDrive.init)
-        records.forEach(context.delete)
-        try? context.save()
-        deleted += kept
-        Haptics.tap()
-        // The Undo bar stays for 5 seconds after the last delete, and Undo brings back all of them.
-        let token = UUID()
-        deleteToken = token
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
-            if deleteToken == token { deleted = [] }
-        }
-    }
-
-    private var undoBar: some View {
-        HStack {
-            Text(deleted.count == 1 ? "Drive deleted. It came off your hours." : "\(deleted.count) drives deleted.")
-                .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Log").role(.screenTitle).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
             Spacer()
-            Button("Undo") {
-                deleted.forEach { context.insert($0.restore()) }
-                try? context.save()
-                deleted = []
-                Haptics.success()
-            }
-            .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.accent)
+            exportMenu
+            MarkButton(glyph: .plus, label: "Add a drive") { adding = true }
+                .padding(.trailing, -Space.s12)
         }
-        .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
-        .padding(.horizontal, BaxiSpace.page).padding(.bottom, BaxiSpace.sm)
+        .padding(.top, Space.s16)
     }
 
-    private var summary: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.lg) {
-            HStack(alignment: .firstTextBaseline, spacing: BaxiSpace.sm) {
-                Text(DriveLog.hm(totals.minutes)).font(BaxiFont.number).foregroundStyle(BaxiColor.ink)
-                    .contentTransition(.numericText())
-                Text("of 50 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
-            }
-            HoursBar(label: "Total", minutes: totals.minutes, goal: DriveLog.requiredMinutes, tint: BaxiColor.accent)
-            HoursBar(label: "At night", minutes: totals.nightMinutes, goal: DriveLog.requiredNightMinutes, tint: BaxiColor.route)
-            Text(totals.isComplete ? "Requirement met. Export the official log, review it and sign it on paper."
-                 : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
-                .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
-        }
-        .padding(.horizontal, BaxiSpace.xs)
-        .padding(.vertical, BaxiSpace.sm)
-    }
-
-    /// The official form and CSV, from the toolbar.
+    /// The official form and CSV. A system menu: sharing is the system's own sheet.
     private var exportMenu: some View {
         Menu {
             Button("Driver details") { editingDriver = true }
@@ -183,20 +117,24 @@ struct LogView: View {
                 }
             }
             if let csvURL { ShareLink("Spreadsheet (CSV)", item: csvURL) }
-        } label: { Label("Export", systemImage: "square.and.arrow.up") }
+        } label: {
+            Mark(glyph: .share, size: MarkSize.inline).foregroundStyle(drives.isEmpty ? Palette.label : Palette.ink)
+                .frame(width: Size.tap, height: Size.tap)
+        }
         .disabled(drives.isEmpty)
+        .accessibilityLabel("Export the log")
     }
 
-    private var emptyState: some View {
-        VStack(spacing: BaxiSpace.md) {
-            Image(systemName: "road.lanes").font(BaxiFont.number).foregroundStyle(BaxiColor.inkFaint)
-            Text("No drives yet").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
-            Text("Live drives save here when you arrive. Drove without Baxi? Add it with the + button. Replays are never logged.")
-                .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft).multilineTextAlignment(.center)
+    private func delete(_ records: [DriveRecord]) {
+        let kept = records.map(DeletedDrive.init)
+        records.forEach(context.delete)
+        try? context.save()
+        Haptic.tap()
+        toasts.show(kept.count == 1 ? "Drive deleted. It came off your hours." : "\(kept.count) drives deleted.", actionTitle: "Undo") {
+            kept.forEach { context.insert($0.restore()) }
+            try? context.save()
+            Haptic.success()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, BaxiSpace.xxl)
-        .padding(.horizontal, BaxiSpace.xl)
     }
 
     /// Writes both export files to a temporary folder so the share sheet can hand them off.
@@ -227,157 +165,143 @@ struct LogView: View {
     }
 }
 
-/// The skills practiced across every drive Baxi recorded, toward Baxi's suggested goals, and the
-/// practice route that would fill the biggest gaps.
+private extension View {
+    /// A list row laid out like the rest of the app: on the page, the page margin, no system separator.
+    func logRow(top: CGFloat = Space.s16, bottom: CGFloat = Space.s16) -> some View {
+        listRowBackground(Palette.page)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: top, leading: Space.margin, bottom: bottom, trailing: Space.margin))
+    }
+}
+
+/// Hours toward 50, and toward 10 at night, and what's left.
+private struct HoursPanel: View {
+    let totals: DriveLog.Totals
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s12) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
+                Text(DriveLog.hm(totals.minutes)).role(.number).foregroundStyle(Palette.ink).contentTransition(.numericText())
+                Text("of 50 hours").role(.body).foregroundStyle(Palette.meta)
+            }
+            ProgressLine(fraction: Double(totals.minutes) / Double(DriveLog.requiredMinutes))
+            HStack(spacing: Space.s8) {
+                Mark(glyph: .moon, size: MarkSize.tiny).foregroundStyle(Palette.meta)
+                Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").role(.meta).foregroundStyle(Palette.meta)
+            }
+            ProgressLine(fraction: Double(totals.nightMinutes) / Double(DriveLog.requiredNightMinutes), tint: Palette.ink)
+            Text(totals.isComplete ? "Requirement met. Export the official log, check it, and sign it on paper."
+                 : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
+                .role(.body).foregroundStyle(totals.isComplete ? Palette.goText : Palette.read)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Each skill's level toward Baxi's suggested goals, and the practice route that fills the biggest gaps.
 private struct SkillsPanel: View {
     let done: SkillCounts
     let routes: [(id: String, skills: SkillCounts)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Text("Skills").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
-            ForEach(Skill.allCases) { s in SkillRow(skill: s, count: done[s] ?? 0) }
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("Skills").padding(.bottom, Space.s4)
+            ForEach(Array(Skill.allCases.enumerated()), id: \.element) { i, s in
+                let count = done[s] ?? 0
+                let lv = Practice.level(s, count: count)
+                Row(title: s.title, detail: "\(lv.title), \(min(count, s.goal)) of \(s.goal)", showsDivider: i < Skill.allCases.count - 1) {
+                    Mark(glyph: .skill(s), size: MarkSize.standard).foregroundStyle(Palette.ink)
+                } trailing: {
+                    LevelSegments(level: lv.level).frame(width: SkillPanelSize.segments)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(s.title): \(lv.title), \(count) of \(s.goal)" + (lv.toNext.map { ". \($0) more to the next level" } ?? ""))
+            }
             if let next = Practice.suggest(done: done, routes: routes),
                let name = RouteService.presets.first(where: { $0.id == next.presetId })?.name {
-                Label {
+                HStack(alignment: .top, spacing: Space.s12) {
+                    Mark(glyph: .route, size: MarkSize.inline).foregroundStyle(Palette.goText)
                     Text("Next, try the \(name): " + next.covers.prefix(3).map { "\($0.count) \($0.skill.title.lowercased())" }
-                        .joined(separator: ", ") + ".")
-                } icon: { Image(systemName: "arrow.triangle.turn.up.right.diamond.fill").foregroundStyle(BaxiColor.accent) }
-                .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+                            .joined(separator: ", ") + ".")
+                        .role(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, Space.s16)
             }
-            Text("Goals are Baxi's suggestion, not a state rule.")
-                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+            Text("Goals and levels are Baxi's suggestion, not a state rule.").role(.meta).foregroundStyle(Palette.meta)
+                .padding(.top, Space.s12)
         }
-        .padding(.horizontal, BaxiSpace.xs)
-        .padding(.vertical, BaxiSpace.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// One skill: its level title and four-step bar, and the count toward its goal.
-private struct SkillRow: View {
-    let skill: Skill
-    let count: Int
-
-    var body: some View {
-        let lv = Practice.level(skill, count: count)
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(skill.title).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
-                Spacer()
-                Text(lv.title).font(BaxiFont.footnote.weight(.semibold))
-                    .foregroundStyle(lv.level == 4 ? BaxiColor.accent : BaxiColor.inkSoft)
-                Text("\(min(count, skill.goal))/\(skill.goal)").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkFaint)
-            }
-            LevelBar(level: lv.level)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(skill.title): \(lv.title), \(count) of \(skill.goal)"
-                            + (lv.toNext.map { ". \($0) more to the next level" } ?? ""))
-    }
-}
-
-/// How recent drives went: the last scores as bars, and full stops and speed lately.
+/// How recent drives went: the last scores as bars (green from 80, amber below), full stops and speed lately.
 private struct HabitsPanel: View {
     let reports: [HabitReport]
 
     var body: some View {
         let t = DriveHabits.trend(reports)
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Text("Habits").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
+        VStack(alignment: .leading, spacing: Space.s12) {
+            GroupLabel("Habits")
             Chart(Array(t.lastScores.enumerated()), id: \.offset) { i, score in
-                BarMark(x: .value("Drive", i + 1), y: .value("Score", score), width: .ratio(0.6))
-                    .foregroundStyle(score >= 80 ? BaxiColor.sign : BaxiColor.caution)
+                BarMark(x: .value("Drive", i + 1), y: .value("Score", score), width: .ratio(0.55))
+                    .foregroundStyle(score >= 80 ? Palette.go : Palette.ready)
                     .clipShape(Capsule())
             }
             .chartYScale(domain: 0...100)
             .chartXAxis(.hidden)
-            .chartYAxis { AxisMarks(values: [0, 50, 100]) }
-            .frame(height: 96)
+            .chartYAxis {
+                AxisMarks(values: [0, 50, 100]) { _ in
+                    AxisGridLine().foregroundStyle(Palette.hairline)
+                    AxisValueLabel().foregroundStyle(Palette.meta)
+                }
+            }
+            .frame(height: HabitsSize.chart)
             .accessibilityLabel("Scores of the last \(t.lastScores.count) drives: " + t.lastScores.map(String.init).joined(separator: ", "))
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                if let rate = t.fullStopRate {
-                    Label("Full stops at all-way stops: \(Int((rate * 100).rounded()))% lately", systemImage: "hand.raised.fill")
-                }
-                if let share = t.overLimitShare {
-                    Label(share < 0.01 ? "Stayed within 5 mph of the limit lately"
-                                       : "Over the limit \(Int((share * 100).rounded()))% of the time lately",
-                          systemImage: "gauge.with.dots.needle.67percent")
-                }
+            if let rate = t.fullStopRate {
+                Text("Full stops at all-way stops: \(Int((rate * 100).rounded()))% lately").role(.body).foregroundStyle(Palette.ink)
             }
-            .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+            if let share = t.overLimitShare {
+                Text(share < 0.01 ? "Stayed within 5 mph of the limit lately" : "Over the limit \(Int((share * 100).rounded()))% of the time lately")
+                    .role(.body).foregroundStyle(Palette.ink)
+            }
             Text("From the last \(t.lastScores.count) recorded \(t.lastScores.count == 1 ? "drive" : "drives"). Baxi's coaching, not a state rule.")
-                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+                .role(.meta).foregroundStyle(Palette.meta)
         }
-        .padding(.horizontal, BaxiSpace.xs)
-        .padding(.vertical, BaxiSpace.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// A labeled bar toward a goal.
-private struct HoursBar: View {
-    let label: String
-    let minutes: Int
-    let goal: Int
-    let tint: Color
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            HStack {
-                Text(label).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
-                Spacer()
-                Text("\(DriveLog.hm(minutes)) / \(goal / 60):00").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkSoft)
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(BaxiColor.sunken)
-                    Capsule().fill(tint).frame(width: max(8, geo.size.width * min(1, Double(minutes) / Double(goal))))
-                        .opacity(minutes == 0 ? 0 : 1)
-                }
-            }
-            .frame(height: 10)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(DriveLog.hm(minutes)) of \(goal / 60) hours")
-    }
-}
-
+/// One drive: the day, its name, when, how it was added, night time and miles, and how long.
 private struct DriveRow: View {
     let drive: DriveRecord
+    let showsDivider: Bool
+
+    private var detail: String {
+        var parts = [drive.start.formatted(date: .omitted, time: .shortened)]
+        if drive.manual { parts.append("added by hand") }
+        if drive.nightMinutes > 0 { parts.append("\(DriveLog.hm(drive.nightMinutes)) at night") }
+        if drive.distanceMeters > 0 { parts.append(DriveView.distance(drive.distanceMeters)) }
+        return parts.joined(separator: ", ")
+    }
 
     var body: some View {
-        HStack(spacing: BaxiSpace.md) {
+        Row(title: drive.routeTitle, detail: detail, showsDivider: showsDivider) {
             VStack(spacing: 0) {
-                Text(drive.start.formatted(.dateTime.day())).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
-                Text(drive.start.formatted(.dateTime.weekday(.abbreviated)).uppercased()).font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.inkFaint)
+                Text(drive.start.formatted(.dateTime.day())).role(.numberSmall).foregroundStyle(Palette.ink)
+                Text(drive.start.formatted(.dateTime.weekday(.abbreviated))).role(.meta).foregroundStyle(Palette.meta)
             }
-            .frame(width: 44)
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                HStack(spacing: BaxiSpace.xs) {
-                    Text(drive.routeTitle).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink).lineLimit(1)
-
-                }
-                HStack(spacing: BaxiSpace.sm) {
-                    Text(drive.start.formatted(date: .omitted, time: .shortened))
-                    if drive.manual { Text("added by hand") }
-                    if drive.nightMinutes > 0 { Label(DriveLog.hm(drive.nightMinutes), systemImage: "moon.fill") }
-                    if drive.distanceMeters > 0 { Text(DriveView.distance(drive.distanceMeters)) }
-                }
-                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                .labelStyle(.titleAndIcon)
-            }
-            Spacer(minLength: 0)
-            Text(DriveLog.hm(drive.dayMinutes + drive.nightMinutes)).font(BaxiFont.headline.monospacedDigit()).foregroundStyle(BaxiColor.ink)
+            .frame(width: DriveRowSize.date)
+        } trailing: {
+            Text(DriveLog.hm(drive.dayMinutes + drive.nightMinutes)).role(.bodyStrong).monospacedDigit().foregroundStyle(Palette.ink)
         }
-        .padding(.vertical, BaxiSpace.xs)
         .accessibilityElement(children: .combine)
     }
 }
 
-/// Adds a practice drive done without Baxi running, or edits one already in the log. Drives typed in by hand
-/// can change their times; drives Baxi recorded keep their times (they came from the GPS) and only their
-/// name can change. Night minutes are split from the times at sunset and sunrise.
+
+// MARK: - Add or edit a drive
+
+/// Adds a practice drive done without Baxi running, or edits one already in the log. Drives typed in by hand can
+/// change their times; drives Baxi recorded keep their times (they came from the GPS) and only their name can
+/// change. Night minutes are split from the times at sunset and sunrise.
 private struct DriveFormView: View {
     /// nil to add a new drive.
     let record: DriveRecord?
@@ -407,48 +331,72 @@ private struct DriveFormView: View {
     private var overlaps: Bool {
         timesEditable && DriveLog.overlaps(start, end, with: drives.map(\.row), excluding: record?.id)
     }
+    private var canSave: Bool { split.day + split.night > 0 }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    if timesEditable {
-                        // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
-                        DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
-                        DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
-                    } else {
-                        LabeledContent("Started", value: start.formatted(date: .abbreviated, time: .shortened))
-                        LabeledContent("Ended", value: end.formatted(date: .omitted, time: .shortened))
-                    }
-                    TextField("Where (optional)", text: $note)
-                } footer: {
-                    if !timesEditable { Text("Times come from the drive Baxi recorded, so they can't be changed.") }
-                    else if overlaps {
-                        Label("This overlaps a drive already in your log.", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(BaxiColor.stopText)
-                    }
-                }
-                Section {
-                    LabeledContent("Day", value: DriveLog.hm(split.day))
-                    LabeledContent { Text(DriveLog.hm(split.night)) } label: { Label("Night", systemImage: "moon.fill") }
-                } footer: {
-                    Text(split.day + split.night == 0 ? "Set an end time after the start." : "Night is counted from sunset to sunrise.")
-                }
+        VStack(spacing: 0) {
+            HStack {
+                Button("Cancel") { dismiss() }.role(.body).foregroundStyle(Palette.ink).buttonStyle(Press()).frame(minHeight: Size.tap)
+                Spacer()
+                Button("Save", action: save).role(.bodyStrong).foregroundStyle(canSave ? Palette.ink : Palette.label)
+                    .buttonStyle(Press()).frame(minHeight: Size.tap).disabled(!canSave)
             }
-            .onChange(of: start) { old, new in
-                // Moving the start keeps the drive's length, so the end never sits before the start.
-                guard timesEditable else { return }
-                end = min(Date(), max(new, end.addingTimeInterval(new.timeIntervalSince(old))))
-            }
-            .navigationTitle(record == nil ? "Add a drive" : "Edit drive")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).fontWeight(.bold).disabled(split.day + split.night == 0)
+            .padding(.horizontal, Space.margin).padding(.top, Space.s12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Space.s24) {
+                    Text(record == nil ? "Add a drive" : "Edit drive").role(.screenTitle).foregroundStyle(Palette.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    VStack(alignment: .leading, spacing: Space.s12) {
+                        if timesEditable {
+                            FieldBox {
+                                // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
+                                DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
+                                    .role(.body).foregroundStyle(Palette.ink)
+                            }
+                            FieldBox {
+                                DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
+                                    .role(.body).foregroundStyle(Palette.ink)
+                            }
+                        } else {
+                            Row(title: "Started", detail: start.formatted(date: .abbreviated, time: .shortened)) { EmptyView() }
+                            Row(title: "Ended", detail: end.formatted(date: .omitted, time: .shortened), showsDivider: false) { EmptyView() }
+                            Text("Times come from the drive Baxi recorded, so they can't be changed.").role(.meta).foregroundStyle(Palette.meta)
+                        }
+                        FieldBox {
+                            TextField("Where (optional)", text: $note).role(.body).foregroundStyle(Palette.ink)
+                        }
+                        if overlaps {
+                            Text("This overlaps a drive already in your log.").role(.metaStrong).foregroundStyle(Palette.stopText)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: Space.s8) {
+                        HStack(spacing: Space.s32) {
+                            minutes(split.day, "day")
+                            minutes(split.night, "at night")
+                        }
+                        Text(canSave ? "Night is counted from sunset to sunrise." : "Set an end time after the start.")
+                            .role(.meta).foregroundStyle(canSave ? Palette.meta : Palette.stopText)
+                    }
                 }
+                .padding(.horizontal, Space.margin)
+                .padding(.vertical, Space.s16)
             }
         }
+        .pageBackground()
+        .onChange(of: start) { old, new in
+            // Moving the start keeps the drive's length, so the end never sits before the start.
+            guard timesEditable else { return }
+            end = min(Date(), max(new, end.addingTimeInterval(new.timeIntervalSince(old))))
+        }
+        .presentationDetents([.large])
+    }
+
+    private func minutes(_ value: Int, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(DriveLog.hm(value)).role(.numberSmall).foregroundStyle(Palette.ink).contentTransition(.numericText())
+            Text(label).role(.meta).foregroundStyle(Palette.meta)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func save() {
@@ -466,12 +414,12 @@ private struct DriveFormView: View {
                                        distanceMeters: 0, cuesSpoken: 0, manual: true))
         }
         try? context.save()
-        Haptics.success()
+        Haptic.success()
         dismiss()
     }
 }
 
-/// A deleted drive's values, kept for a few seconds so Undo can put it back.
+/// A deleted drive's values, kept so Undo can put it back.
 private struct DeletedDrive {
     let start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: String, routeTitle: String
     let distanceMeters: Double, cuesSpoken: Int, manual: Bool, skillsJSON: String, habitsJSON: String

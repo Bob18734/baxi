@@ -13,9 +13,19 @@ final class AppStore {
     var tab: AppTab = .home
     /// Set by Home's "Where to?" field: Routes opens with its search field active.
     var wantsSearch = false
-    var level: ExperienceLevel = .gettingComfortable
-    var home: Coordinate? = nil
-    var homeLabel: String = ""
+    @ObservationIgnored private let preferences: UserDefaults
+    var level: ExperienceLevel {
+        didSet { preferences.set(level.rawValue, forKey: "experienceLevel") }
+    }
+
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        self.level = ExperienceLevel(rawValue: preferences.string(forKey: "experienceLevel") ?? "") ?? .gettingComfortable
+    }
+    private(set) var home: Coordinate? = AppStore.carmelDemoHome
+    private(set) var homeLabel: String = "Carmel City Center (demo)"
+    private var routeRequest = RouteRequestState()
+    var isRouting: Bool { routeRequest.isRouting }
     var cache: OSMCache?
     var features: [RoadFeature] = []
     var highInjury: HighInjuryNetwork?
@@ -53,8 +63,6 @@ final class AppStore {
             }.value
             if let (c, f, hin) = loaded {
                 cache = c; features = f; highInjury = hin
-                home = Self.carmelDemoHome
-                homeLabel = "Carmel City Center (demo)"
                 let roundabouts = f.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
                 dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
             } else {
@@ -83,9 +91,15 @@ final class AppStore {
     @MainActor private func refreshWeather(for route: PlannedRoute) {
         guard let start = route.polyline.points.first else { return }
         let key = String(format: "%.2f,%.2f", start.lat, start.lon)
-        if let f = weatherFetched, f.key == key, Date().timeIntervalSince(f.at) < 900 { return }
+        if let f = weatherFetched, f.key == key, Date().timeIntervalSince(f.at) < 900, weather != nil { return }
         weatherFetched = (key, Date())
-        Task { @MainActor in weather = try? await WeatherService.weather(at: start) }
+        weather = nil
+        Task { @MainActor in
+            let fetched = try? await WeatherService.weather(at: start)
+            guard let currentStart = self.route?.polyline.points.first,
+                  String(format: "%.2f,%.2f", currentStart.lat, currentStart.lon) == key else { return }
+            weather = fetched
+        }
     }
 
     @MainActor func refreshPrep() {
@@ -104,7 +118,23 @@ final class AppStore {
         }
     }
 
+    func chooseStart(_ coordinate: Coordinate, label: String) {
+        guard CLLocationCoordinate2DIsValid(coordinate.clLocation) else { return }
+        routeRequest.cancel()
+        isFetchingRoads = false
+        home = coordinate
+        homeLabel = label
+        routeError = nil
+        routeOptions = []; calmerOptionId = nil; roadDataNote = nil; routeRoads = nil
+        // A searched route belongs to its old start; keep fixed practice loops available.
+        if route?.source != "preset" {
+            route = nil; prep = nil; prepTask?.cancel(); weather = nil
+        }
+    }
+
     func choosePreset(_ id: String) {
+        routeRequest.cancel()
+        isFetchingRoads = false
         do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
         catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
         refreshPrep()
@@ -129,17 +159,28 @@ final class AppStore {
     private(set) var calmerOptionId: String?
 
     func routeTo(_ destination: Coordinate, name: String) async {
+        let request = routeRequest.begin()
+        let start = home ?? Self.carmelDemoHome
+        routeError = nil
+        defer {
+            if routeRequest.accepts(request) { isFetchingRoads = false }
+            routeRequest.finish(request)
+        }
         await ensureLoaded()
+        guard routeRequest.accepts(request), !Task.isCancelled else { return }
         do {
-            let options = try await RouteService.options(from: home ?? Self.carmelDemoHome, to: destination, name: name)
+            let options = try await RouteService.options(from: start, to: destination, name: name)
+            guard routeRequest.accepts(request), !Task.isCancelled else { return }
+            guard !options.isEmpty else { throw URLError(.cannotFindHost) }
             routeError = nil
             routeOptions = options
             let calmer = RouteService.calmer(in: options)
             calmerOptionId = calmer?.id
             // New drivers start on the calmer route; everyone can switch.
             let pick = (level == .new ? calmer : nil) ?? options[0]
-            await use(pick.route)
+            await use(pick.route, request: request)
         } catch {
+            guard routeRequest.accepts(request), !Task.isCancelled else { return }
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
             print("Routing failed: \(error)")
         }
@@ -148,18 +189,26 @@ final class AppStore {
     /// Switches between the fastest and the calmer route.
     func chooseOption(_ id: String) async {
         guard let o = routeOptions.first(where: { $0.id == id }), o.id != route?.id else { return }
-        await use(o.route)
+        let request = routeRequest.begin()
+        defer {
+            if routeRequest.accepts(request) { isFetchingRoads = false }
+            routeRequest.finish(request)
+        }
+        await use(o.route, request: request)
     }
 
     /// Makes `found` the route: downloads its road data from OpenStreetMap first, then builds its prep.
-    private func use(_ found: PlannedRoute) async {
+    private func use(_ found: PlannedRoute, request: UUID) async {
         roadDataNote = nil
         isFetchingRoads = true
         if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
+            guard routeRequest.accepts(request), !Task.isCancelled else { return }
             let merged = OverpassService.combine(base, corridor)
             let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
+            guard routeRequest.accepts(request), !Task.isCancelled else { return }
             routeRoads = (found.id, merged, f)
         } else {
+            guard routeRequest.accepts(request), !Task.isCancelled else { return }
             roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
                 + "Turn-by-turn still works."
         }

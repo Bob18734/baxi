@@ -15,6 +15,10 @@ has no controls except End drive. Cues are spoken once, one short line each. The
 roundabout, merge and school-zone cues cites the Indiana Driver's Manual; the timing of cues (how early
 a lane cue fires) is our own design and is not from the manual.
 
+Choose **From** on Home or **Change** on Routes to set the start for destination searches. Use a
+current-location snapshot, search for a place, or keep the labeled Carmel demo start. Starting places
+last for this session; the warning level in Settings is remembered. Practice loops always start in Carmel.
+
 ## Build and run
 
 Requirements: a Mac with Xcode 26 or newer, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)

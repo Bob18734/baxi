@@ -3,6 +3,15 @@
 Audited October 14, 2026 against the supplied Congressional App Challenge plan and the local repo.
 This is an implementation audit, not independent verification of the contest rules or driving law.
 
+## October 24 update
+
+Built a starting-point picker from Home and Routes, using a Higgsfield UI concept adapted to native
+SwiftUI. Destination routes use a selected place or a one-time current-location snapshot. Practice
+loops keep their fixed Carmel start. Selected starts are session-only; warning level persists.
+New route requests, changed starts and preset selections invalidate older pending results.
+Location fixes require recent timestamps and usable accuracy; errors offer a place-search fallback.
+Privacy text now describes planning-location use and route-provider sharing.
+
 ## October 22 update
 
 Synced through ffd5a4a. Built official State Form 54706 export with optional local driver details,
@@ -75,8 +84,8 @@ expanded-source interaction or accessibility-size review was performed.
 4. **Official form export implemented Oct 22.** Check sharing and printing on the phone and open the forms
    in Preview and Acrobat. Signatures remain blank; the original form has no totals field, so totals stay
    in the app and CSV.
-5. **Live-drive resilience and privacy.** Persist experience level; use an actual selected/current origin rather
-   than always routing searches from the demo home. Handle failed SwiftData saves and failed exports visibly.
+5. **Live-drive resilience and privacy.** Selected/current starting points and persistent warning level were
+   implemented Oct 24; exports show failures. Handle failed SwiftData saves visibly.
    Review asynchronous reroutes for stale results if the car rejoins while a request is in flight. Document that
    live route requests send coordinates to OSRM/Apple. The newer implementation auto-reroutes despite the earlier
    PRD non-goal; retain that existing behavior pending a team scope decision.

@@ -145,7 +145,7 @@ struct SettingsView: View {
         "The practice routes' voice: recorded on the team's Mac with Kokoro, an open-source voice model. Sign lettering: Overpass, after the US highway sign alphabet (SIL Open Font License).",
     ]
     static let privacy = [
-        "Baxi uses your location during a drive, and once on the Routes screen so a searched route starts where you are. Drives are saved on this phone only; there is no account.",
+        "Baxi uses your location during a drive, and once on the Routes screen so a searched route starts where you are, unless you choose a starting point. Drives are saved on this phone only; there is no account.",
         "A destination search goes to Apple Maps with your location, to find places nearby. A new route sends its start (where you are) and end to the OSRM route server (or Apple, if it is down), then its path, minus the first and last 200 m, to OpenStreetMap for its road details.",
         "The weather comes from the National Weather Service for the route's start, rounded to about 1 km.",
         "During a drive nothing is sent, except to find a new route if you leave this one.",

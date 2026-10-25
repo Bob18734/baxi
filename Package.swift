@@ -10,9 +10,9 @@ let package = Package(
         .target(
             name: "Baxi",
             path: "Baxi",
-            exclude: ["App", "Screens", "Design", "Info.plist", "Resources/Assets.xcassets", "Resources/Fonts", "Resources/Content", "Resources/PrivacyInfo.xcprivacy",
+            exclude: ["App/BaxiApp.swift", "App/ScreenCheck.swift", "Screens", "Design", "Info.plist", "Resources/Assets.xcassets", "Resources/Fonts", "Resources/Content", "Resources/PrivacyInfo.xcprivacy",
                       ],
-            sources: ["Core", "Models", "Services"],
+            sources: ["Core", "Models", "Services", "App/AppStore.swift"],
             resources: [.process("Resources/Data"), .process("Resources/Routes"), .process("Resources/Forms"), .copy("Resources/Voice")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

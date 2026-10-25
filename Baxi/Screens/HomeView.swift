@@ -8,6 +8,7 @@ struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var showSettings = false
+    @State private var showStartingPoint = false
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row), prior: store.priorHours) }
     private var done: SkillCounts { Practice.total(drives.map(\.skills)) }
@@ -21,6 +22,7 @@ struct HomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                     searchEntry
+                    startRow
                 }
                 NextDrive(suggestion: next) { preset in
                     store.choosePreset(preset.id)
@@ -36,6 +38,7 @@ struct HomeView: View {
         }
         .pageBackground()
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
         .task { store.loadCarmelDemo() }
     }
 
@@ -83,6 +86,23 @@ struct HomeView: View {
         .buttonStyle(Press())
         .accessibilityLabel("Search a destination")
         .accessibilityHint("Opens Routes")
+    }
+
+    /// Where a searched route starts (the phone's position unless one is chosen), and the way to change it.
+    private var startRow: some View {
+        Button { Haptic.tap(); showStartingPoint = true } label: {
+            HStack(spacing: Space.s8) {
+                Mark(glyph: .locate, size: MarkSize.tiny).foregroundStyle(Palette.meta)
+                Text("From \(store.startLabel)").role(.meta).foregroundStyle(Palette.read).lineLimit(1)
+                Spacer(minLength: Space.s8)
+                Text("Change").role(.metaStrong).foregroundStyle(Palette.ink)
+            }
+            .frame(minHeight: Size.tap)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(Press())
+        .accessibilityLabel("Searched routes start from \(store.startLabel)")
+        .accessibilityHint("Choose a starting point")
     }
 
     /// For a first look (and for judges): a replay of the highway loop at 4x, never logged. Quiet, not a main action.

@@ -12,7 +12,9 @@ struct RouteView: View {
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     @State private var results: [MKMapItem] = []
-    @State private var routing = false
+    @State private var showStartingPoint = false
+    /// Finding a route, or switching between the fastest and the calmer one.
+    private var routing: Bool { store.isRouting }
     /// Why the search shows no places: nothing matched, or no connection. nil while results show.
     @State private var searchNote: String?
     @State private var showPreview = false
@@ -79,6 +81,9 @@ struct RouteView: View {
         .onChange(of: searchFocused) { _, focused in
             if focused { settle(.full) }
         }
+        // A new starting point: the places found were measured from the old one.
+        .onChange(of: store.home) { _, _ in results = []; searchNote = nil }
+        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
         .onChange(of: store.route?.id) { _, id in
             // A route arrives or leaves: the panel rests where its content fits, and the map frames the route.
             settle(id == nil ? .half : .half)
@@ -121,6 +126,7 @@ struct RouteView: View {
             }
             .ignoresSafeArea(edges: .top)
             .onChange(of: store.route?.id, initial: true) { _, _ in frame(mapHeight: height) }
+            .onChange(of: store.home) { _, _ in frame(mapHeight: height) }
             .onChange(of: presetLines.isEmpty) { _, _ in frame(mapHeight: height) }
             .onChange(of: store.tab) { _, tab in if tab == .route { frame(mapHeight: height) } }
         }
@@ -176,6 +182,14 @@ struct RouteView: View {
         if presetLines.isEmpty && !store.originIsHere {
             Annotation("Carmel", coordinate: AppStore.carmelDemoHome.clLocation) { SignalMark(size: SignalSize.map) }
         }
+        // A starting point the driver chose.
+        if store.homeChosen {
+            Annotation(store.homeLabel, coordinate: store.home.clLocation) {
+                Mark(glyph: .start, size: MarkSize.small).foregroundStyle(Palette.onDark)
+                    .frame(width: MapLine.pin, height: MapLine.pin).background(Palette.ink, in: Circle())
+                    .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
+            }
+        }
     }
 
     /// The practice route whose line passes within `meters` of a tapped point.
@@ -203,7 +217,8 @@ struct RouteView: View {
         if let r = store.route {
             region = Self.fit(Self.rect(r.polyline), coveredBelow: covered / visible)
         } else if !presetLines.isEmpty {
-            let all = presetLines.values.map(Self.rect).reduce(MKMapRect.null) { $0.union($1) }
+            var all = presetLines.values.map(Self.rect).reduce(MKMapRect.null) { $0.union($1) }
+            if store.homeChosen { all = all.union(Self.rect(Polyline([store.home]))) }
             region = Self.fit(all, coveredBelow: covered / visible)
         } else {
             region = homeRegion
@@ -380,9 +395,27 @@ struct RouteView: View {
         }
     }
 
+    /// Where a searched route starts, and the way to change it.
+    private var startRow: some View {
+        Button { Haptic.tap(); showStartingPoint = true } label: {
+            HStack(spacing: Space.s8) {
+                Mark(glyph: .locate, size: MarkSize.tiny).foregroundStyle(Palette.meta)
+                Text("From \(store.startLabel)").role(.meta).foregroundStyle(Palette.read).lineLimit(1)
+                Spacer(minLength: Space.s8)
+                Text("Change").role(.metaStrong).foregroundStyle(Palette.ink)
+            }
+            .frame(minHeight: Size.tap)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(Press())
+        .accessibilityLabel("Searched routes start from \(store.startLabel)")
+        .accessibilityHint("Choose a starting point")
+    }
+
     /// Places matching the search.
     private var places: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
+            startRow
             if let searchNote {
                 Text(searchNote).role(.body).foregroundStyle(Palette.read).padding(.vertical, Space.s12)
             } else if results.isEmpty {
@@ -405,6 +438,7 @@ struct RouteView: View {
 
     private var practiceRoutes: some View {
         VStack(alignment: .leading, spacing: Space.s8) {
+            startRow
             GroupLabel("Practice routes in Carmel")
             ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
                 RouteGuideSign(number: i + 1, name: p.name,
@@ -420,17 +454,13 @@ struct RouteView: View {
         Haptic.tap()
         searchFocused = false
         let name = item.name ?? "Destination"
-        Task {
-            routing = true
-            query = ""; results = []; searchNote = nil
-            await store.routeTo(Coordinate(item.placemark.coordinate), name: name)
-            routing = false
-        }
+        query = ""; results = []; searchNote = nil
+        Task { await store.routeTo(Coordinate(item.placemark.coordinate), name: name) }
     }
 
     private func switchTo(_ id: String) {
         guard !routing else { return }
-        Task { routing = true; await store.chooseOption(id); routing = false }
+        Task { await store.chooseOption(id) }
     }
 
     /// Starts the drive (or a replay). Nothing to start is said, never swallowed.

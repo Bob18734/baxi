@@ -27,7 +27,7 @@ targets:
         CFBundleDisplayName: Baxi
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment, and starts a searched route where you are. Your drives stay on this phone."
+        NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment, and starts a searched route where you are (or from a starting point you choose). Your drives stay on this phone."
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes: [location, audio]
         UIAppFonts: [Overpass-Bold.ttf, Overpass-ExtraBold.ttf, Overpass-Black.ttf]

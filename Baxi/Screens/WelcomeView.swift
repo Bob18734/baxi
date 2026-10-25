@@ -169,7 +169,7 @@ private struct SampleCue: View {
 private struct WelcomePrivacy: View {
     private let facts: [(String, String)] = [
         ("Your drives", "Saved on this phone only. There's no account, and they're never uploaded."),
-        ("Your location", "Used during a drive to follow the route, and once on Routes so a searched route starts where you are."),
+        ("Your location", "Used during a drive to follow the route, and once on Routes so a searched route starts where you are, unless you choose a starting point."),
         ("Searching", "Goes to Apple Maps with your location, to find places nearby."),
         ("A new route", "Its start and end go to the OSRM route server (Apple if it's down). Its path, minus the first and last 200 m, goes to OpenStreetMap for the lanes, roundabouts and lights."),
         ("Weather", "The start, rounded to about 1 km, goes to the National Weather Service."),

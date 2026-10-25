@@ -124,6 +124,10 @@ All of them grow with the reader's text size; signs drawn at a fixed size clamp 
   draws every practice route in faded ink with a numbered sign tab at its far end; the same number sits on the
   route's guide sign in the list, and tapping either chooses it. With a route chosen, its name and Start drive
   stay in the always-visible part, so the map can be the whole screen and the drive still starts from there.
+- **Starting point** (the partner's PR #4, merged Oct 25 and refitted to this design): a quiet "From … · Change" line
+  under the search field on Home and at the top of the Routes lists. It opens one sheet (StartingPointView) with
+  Baxi's rows: a precise fix of your location (signal dots while it looks), Carmel City Center, and a search field.
+  A chosen start is pinned on the Routes map and lasts for the session.
 - **Buttons**: one press language: a dip to 0.95 scale and 0.7 opacity, springing back. `primary` is a
   `go` capsule with ink text, one per screen. `secondary` is an ink outline. `quiet` is ink text. `danger` is a
   `stop` capsule.

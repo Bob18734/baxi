@@ -17,6 +17,10 @@ has only Mute and End, for the passenger. Cues are spoken once, one short line e
 our own plain-language phrasing, and the timing of cues (how early a lane cue fires) is our own design;
 neither is from the manual.
 
+A searched route starts where the phone is. The **From** line under the search field (Home and Routes) opens
+a starting-point picker: a precise fix of your location, a place you search for, or Carmel City Center. A chosen
+start lasts for this session; the experience level is remembered. Practice routes always start in Carmel.
+
 ## Build and run
 
 Requirements: a Mac with Xcode 26 or newer, and [XcodeGen](https://github.com/yonaskolb/XcodeGen)

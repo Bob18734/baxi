@@ -14,15 +14,53 @@ final class AppStore {
     var tab: AppTab = .home
     /// Set by Home's "Where to?" field: Routes opens with its search field active.
     var wantsSearch = false
+    /// Where the remembered settings live (a test passes its own).
+    @ObservationIgnored private let preferences: UserDefaults
     /// Remembered between launches (Settings > Experience).
-    var level: ExperienceLevel = ExperienceLevel(rawValue: UserDefaults.standard.string(forKey: AppStore.levelKey) ?? "")
-        ?? .gettingComfortable {
-        didSet { UserDefaults.standard.set(level.rawValue, forKey: Self.levelKey) }
+    var level: ExperienceLevel {
+        didSet { preferences.set(level.rawValue, forKey: Self.levelKey) }
     }
     nonisolated static let levelKey = "experienceLevel"
     /// Supervised hours driven before Baxi; they count toward the totals everywhere. Saved on the phone.
-    var priorHours = PriorHours.load() {
-        didSet { priorHours.save() }
+    var priorHours: PriorHours {
+        didSet { priorHours.save(preferences) }
+    }
+
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        self.level = ExperienceLevel(rawValue: preferences.string(forKey: Self.levelKey) ?? "") ?? .gettingComfortable
+        self.priorHours = PriorHours.load(preferences)
+    }
+
+    // MARK: Where a searched route starts
+
+    /// A starting point the driver chose (Home or Routes > From): kept for this session only. Until one is chosen,
+    /// a searched route starts where the phone is (`origin`), or at Carmel City Center when that is unknown.
+    private(set) var home: Coordinate = AppStore.carmelDemoHome
+    private(set) var homeLabel = "Carmel City Center (demo)"
+    private(set) var homeChosen = false
+    /// The start a searched route will use right now.
+    var start: Coordinate { homeChosen ? home : (originIsHere ? origin : home) }
+    var startLabel: String { homeChosen ? homeLabel : (originIsHere ? "Your location" : homeLabel) }
+    /// Only the newest route request may change the route or its loading state.
+    private var routeRequest = RouteRequestState()
+    var isRouting: Bool { routeRequest.isRouting }
+
+    func chooseStart(_ coordinate: Coordinate, label: String) {
+        guard CLLocationCoordinate2DIsValid(coordinate.clLocation) else { return }
+        routeRequest.cancel()
+        roadsTask?.cancel(); isFetchingRoads = false; routeStep = nil
+        home = coordinate; homeLabel = label; homeChosen = true
+        routeError = nil; routeOptions = []; calmerOptionId = nil; roadDataNote = nil; routeRoads = nil
+        // A searched route belongs to its old start; the practice loops keep their own.
+        if route?.source != "preset" { route = nil; prep = nil; prepTask?.cancel(); weather = nil }
+    }
+
+    /// Back to starting where the phone is.
+    func useOwnLocationAsStart() {
+        guard homeChosen else { return }
+        chooseStart(Self.carmelDemoHome, label: "Carmel City Center (demo)")
+        homeChosen = false
     }
     nonisolated static let log = Logger(subsystem: "com.vardaangoel.Baxi", category: "routes")
     /// Where a searched route starts: the phone's last known position, else Carmel City Center.
@@ -109,9 +147,15 @@ final class AppStore {
     @MainActor private func refreshWeather(for route: PlannedRoute) {
         guard let start = route.polyline.points.first else { return }
         let key = String(format: "%.2f,%.2f", start.lat, start.lon)
-        if let f = weatherFetched, f.key == key, Date().timeIntervalSince(f.at) < 900 { return }
+        if let f = weatherFetched, f.key == key, Date().timeIntervalSince(f.at) < 900, weather != nil { return }
         weatherFetched = (key, Date())
-        Task { @MainActor in weather = try? await WeatherService.weather(at: start) }
+        weather = nil
+        Task { @MainActor in
+            let fetched = try? await WeatherService.weather(at: start)
+            // The route may have changed while the forecast was on its way.
+            guard let now = self.route?.polyline.points.first, String(format: "%.2f,%.2f", now.lat, now.lon) == key else { return }
+            weather = fetched
+        }
     }
 
     /// `force` rebuilds a prep that exists, when better road data has arrived for the same route.
@@ -133,12 +177,15 @@ final class AppStore {
 
     /// Back to no route: the Routes panel shows search and the practice routes again.
     func clearRoute() {
+        routeRequest.cancel(); routeStep = nil
         route = nil; routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil
         prepTask?.cancel(); prep = nil
         roadsTask?.cancel(); isFetchingRoads = false
     }
 
     func choosePreset(_ id: String) {
+        routeRequest.cancel()
+        roadsTask?.cancel(); isFetchingRoads = false; routeStep = nil
         do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
         catch { routeError = "That practice route did not load."; Self.log.error("Preset \(id, privacy: .public) failed: \(error)") }
         refreshPrep()
@@ -167,12 +214,22 @@ final class AppStore {
     nonisolated static let roadDataSeconds = 45.0
 
     func routeTo(_ destination: Coordinate, name: String) async {
+        let request = routeRequest.begin()
+        defer {
+            if routeRequest.accepts(request) { routeStep = nil }
+            routeRequest.finish(request)
+        }
         await ensureLoaded()
+        guard routeRequest.accepts(request) else { return }
         routeStep = "Finding a route…"
-        defer { routeStep = nil }
-        await refreshOrigin()
+        if !homeChosen { await refreshOrigin() }
+        guard routeRequest.accepts(request) else { return }
+        let from = start
         do {
-            let options = try await RouteService.options(from: origin, to: destination, name: name)
+            let options = try await RouteService.options(from: from, to: destination, name: name)
+            // A newer destination, a chosen start or a practice route has taken over: this answer is dropped.
+            guard routeRequest.accepts(request) else { return }
+            guard !options.isEmpty else { throw URLError(.cannotFindHost) }
             routeError = nil
             routeOptions = options
             let calmer = RouteService.calmer(in: options)
@@ -181,6 +238,7 @@ final class AppStore {
             let pick = (level == .new ? calmer : nil) ?? options[0]
             await use(pick.route)
         } catch {
+            guard routeRequest.accepts(request) else { return }
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
             Self.log.error("Routing failed: \(error)")
         }
@@ -189,6 +247,8 @@ final class AppStore {
     /// Switches between the fastest and the calmer route.
     func chooseOption(_ id: String) async {
         guard let o = routeOptions.first(where: { $0.id == id }), o.id != route?.id else { return }
+        let request = routeRequest.begin()
+        defer { routeRequest.finish(request) }
         await use(o.route)
     }
 

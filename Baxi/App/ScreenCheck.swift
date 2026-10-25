@@ -64,6 +64,7 @@ struct ScreenCheckRoot: View {
             Palette.page.ignoresSafeArea()
             switch screen {
             case "welcome": WelcomeView {}
+            case "starting-point": StartingPointView()
             case "driver-details": DriverDetailsSheet {}
             case "settings": SettingsView()
             case "preview":

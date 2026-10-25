@@ -9,6 +9,32 @@ check with `swift test`, the lint and compile-only builds; the students check th
 Left: the students' briefings.json (readiness check fails until then), the device pass, merge to main,
 repo visibility, video and form.
 
+## Previous handoff: Oct 24 planning UI refinement (merged into the Oct 25 design on Oct 25)
+
+Continued on `codex/trip-start`. Home now uses compact branding, a clear destination action and
+neutral practice rows. Routes use plain selected fills; starting-point selection has shorter copy
+and a location-use disclosure. Larger accessibility text stacks the starting-place search controls.
+See DESIGN.md for the updated planning UI rules.
+Validation: design lint and whitespace checks pass; Mac Catalyst and signed iPhone builds pass.
+Reviewed phone-sized Home captures in light/dark, the starting-point sheet and a selected practice
+route. The larger-text Mac capture does not reflect iPhone Dynamic Type, which remains a phone check.
+No new logic tests were added for this presentation-only pass.
+
+## Previous handoff: Oct 24 trip starting points
+
+Built on `codex/trip-start` from main 8110e60. Home and Routes now expose the starting point.
+The picker supports current-location snapshots, Apple place search and the explicit Carmel demo start.
+Practice loops retain their original start. Warning level persists; start coordinates do not.
+Older route and road-data responses cannot overwrite a newer request or preset.
+Higgsfield generated the UI reference (job 73ebd3b3-fc3c-43b2-ab34-ff057e618b4b); the UI is native SwiftUI.
+Student briefings remain incomplete. Phone location permission/GPS, live place search, sharing and
+printing remain device checks. The GitHub pull request records this branch's merge status.
+
+Validation: 118 active tests pass, three opt-in live-network tests skipped (121 discovered).
+Unsigned iPhone and Mac Catalyst builds pass; design lint and whitespace checks pass.
+Captured and inspected the picker in light/dark modes and the Home/Routes entry points.
+The Mac captures do not establish on-device Dynamic Type, permission, GPS or live-search behavior.
+
 ## Previous handoff: Oct 22 official log export
 
 Synced main through ffd5a4a. Built official State Form 54706 export, optional driver details,

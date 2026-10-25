@@ -100,8 +100,8 @@ struct SettingsView: View {
         "What to do at each kind of road: the Indiana Driver's Manual. How early Baxi warns you is Baxi's own design, as are the practice goals on the Log.",
     ]
     static let privacy = [
-        "Baxi uses your location only while a drive is on screen. Drives are saved on this phone only; there is no account.",
-        "A destination search goes to Apple Maps. A new route sends its start and end to the OSRM route server, then its path, minus the first and last 200 m, to OpenStreetMap for its road details.",
+        "Baxi uses your location during a drive or when you tap Use current location while planning. A planning snapshot stays only for this app session. Drives are saved on this phone only; there is no account.",
+        "Place searches go to Apple Maps. A new route sends its start and end to the OSRM route server, then its path, minus the first and last 200 m, to OpenStreetMap for its road details.",
         "The weather comes from the National Weather Service for the route's start, rounded to about 1 km.",
         "During a drive nothing is sent, except to find a new route if you leave this one.",
     ]

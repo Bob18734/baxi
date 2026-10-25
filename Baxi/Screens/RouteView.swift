@@ -9,7 +9,9 @@ struct RouteView: View {
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     @State private var results: [MKMapItem] = []
-    @State private var routing = false
+    @State private var showStartingPoint = false
+    @State private var searchError: String?
+    @State private var searchID = UUID()
     @State private var showPreview = false
     @State private var startAfterPreview = false
 
@@ -28,11 +30,19 @@ struct RouteView: View {
         .onAppear {
             store.loadCarmelDemo(); store.refreshPrep()
             if let r = store.route { camera = Self.overview(r) }
-            else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
+            else { camera = .region(MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
         }
         .onChange(of: store.wantsSearch, initial: true) { _, want in
             if want { searchFocused = true; store.wantsSearch = false }
         }
+        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
+        .onChange(of: store.home) { _, home in
+            results = []; searchID = UUID(); searchError = nil
+            if store.route == nil, let home {
+                camera = .region(MKCoordinateRegion(center: home.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000))
+            }
+        }
+        .onChange(of: query) { _, _ in results = []; searchID = UUID(); searchError = nil }
         .sheet(isPresented: $showPreview, onDismiss: {
             // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
             if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
@@ -74,7 +84,7 @@ struct RouteView: View {
                     }
                 }
             } else if let home = store.home {
-                Annotation("Carmel", coordinate: home.clLocation) {
+                Annotation(store.homeLabel, coordinate: home.clLocation) {
                     Image(systemName: "mappin.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
                 }
             }
@@ -92,6 +102,20 @@ struct RouteView: View {
 
     private var panel: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
+            Button { showStartingPoint = true } label: {
+                HStack(spacing: BaxiSpace.sm) {
+                    Image(systemName: "mappin.circle.fill").foregroundStyle(BaxiColor.accent)
+                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                        Text("Starting point").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+                        Text(store.homeLabel).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    }
+                    Spacer(minLength: 0)
+                    Text("Change").font(BaxiFont.footnote).foregroundStyle(BaxiColor.accent)
+                }
+                .padding(.vertical, BaxiSpace.xs)
+            }
+            .accessibilityHint("Choose your current location or search for a starting place")
+            if let searchError { Text(searchError).font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText) }
             if store.route == nil { Eyebrow("Practice routes in Carmel") }
             ScrollViewReader { reader in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -110,7 +134,7 @@ struct RouteView: View {
                 .onAppear { if let id = store.route?.id { reader.scrollTo(id, anchor: .center) } }
                 .onChange(of: store.route?.id) { _, id in if let id { withAnimation { reader.scrollTo(id, anchor: .center) } } }
             }
-            if routing {
+            if store.isRouting {
                 RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
             } else if let err = store.routeError {
                 Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText)
@@ -173,10 +197,8 @@ struct RouteView: View {
         ForEach(results, id: \.self) { item in
             Button {
                 Task {
-                    routing = true
+                    query = ""; results = []; searchFocused = false
                     await store.routeTo(Coordinate(item.placemark.coordinate), name: item.name ?? "Destination")
-                    routing = false
-                    query = ""; results = []
                 }
             } label: {
                 VStack(alignment: .leading) {
@@ -188,18 +210,30 @@ struct RouteView: View {
     }
 
     private func switchTo(_ id: String) {
-        Task { routing = true; await store.chooseOption(id); routing = false }
+        Task { await store.chooseOption(id) }
     }
 
     /// Built in the background with the route's cues; empty for a moment after a route is picked.
     private var spots: [HardSpot] { store.hardSpots() }
 
     private func search() async {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { results = []; return }
+        let id = UUID(); searchID = id
         let req = MKLocalSearch.Request()
-        req.naturalLanguageQuery = query
+        req.naturalLanguageQuery = text
         req.region = MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation,
                                         latitudinalMeters: 25_000, longitudinalMeters: 25_000)
-        results = (try? await MKLocalSearch(request: req).start().mapItems) ?? []
+        do {
+            let found = try await MKLocalSearch(request: req).start().mapItems
+            guard searchID == id else { return }
+            results = found
+            searchError = found.isEmpty ? "No destinations found. Try another address or place." : nil
+        } catch {
+            guard searchID == id else { return }
+            results = []
+            searchError = "Destination search is unavailable. Check your connection and try again."
+        }
     }
 
     /// Fits the route line and its pins in the part of the map the panel leaves visible.
@@ -223,9 +257,8 @@ private struct PresetCard: View {
         Button(action: choose) {
             VStack(alignment: .leading, spacing: BaxiSpace.xs) {
                 Text(preset.name).font(BaxiFont.headline)
-                // Two lines reserved so every card is the same height.
-                Text(preset.summary).font(BaxiFont.caption).lineLimit(2, reservesSpace: true).opacity(selected ? 0.9 : 1)
-                    .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
+                Text(preset.id == "preset_roundabouts" ? "Roundabouts" : preset.id == "preset_highway" ? "Merges & exits" : "Multi-lane roads")
+                    .font(BaxiFont.footnote).foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
             }
             .frame(width: 220, alignment: .topLeading)
             .padding(.vertical, BaxiSpace.md)
@@ -240,7 +273,10 @@ private struct PresetCard: View {
 private struct PresetBackground: ViewModifier {
     let selected: Bool
     func body(content: Content) -> some View {
-        if selected { content.signPanel(radius: BaxiRadius.md) }
+        if selected {
+            content.foregroundStyle(BaxiColor.onSign)
+                .background(BaxiColor.sign, in: RoundedRectangle(cornerRadius: BaxiRadius.md))
+        }
         else {
             content.foregroundStyle(BaxiColor.ink)
                 .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))

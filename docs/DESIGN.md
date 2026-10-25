@@ -78,3 +78,16 @@ check those on the phone.
   Settings > About, one tap away.
 - Show driver-facing numbers only (time, miles, night minutes), not internal counts.
 
+
+
+## Planning UI refinement (Oct 24)
+
+- Home gives destination search the strongest hierarchy. The wordmark is compact; practice loops
+  share one neutral list with consistent icons, readable names, facts and chevrons.
+- Reserve filled green for selected choices and primary actions. Planning choices use native rows
+  and plain selected fills; the Drive guidance retains its road-sign treatment.
+- Keep hours and nighttime progress on separate lines so the summary has room to scale.
+- Starting-point selection uses concise native sections. Location-sharing details remain available
+  in a disclosure rather than filling the first screen with explanatory copy.
+- Larger accessibility text stacks starting-point search controls vertically. Preserve 44-point
+  touch targets and scalable type for all planning controls.

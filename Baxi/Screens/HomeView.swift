@@ -2,11 +2,12 @@ import SwiftUI
 import SwiftData
 
 /// Home answers one question: where are you driving? A destination search, the Carmel practice routes
-/// as guide signs, and how far along the 50 hours are. Settings sit behind the gear.
+/// as quiet list rows, and how far along the 50 hours are. Settings sit behind the gear.
 struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var showSettings = false
+    @State private var showStartingPoint = false
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
 
@@ -15,18 +16,47 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: BaxiSpace.xl) {
                     header
-                    whereTo
+                    VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                        Text("Plan a drive").font(BaxiFont.title).foregroundStyle(BaxiColor.ink)
+                            .padding(.bottom, BaxiSpace.sm)
+                        whereTo
+                        Button { showStartingPoint = true } label: {
+                            HStack(spacing: BaxiSpace.sm) {
+                                Image(systemName: "mappin.circle.fill")
+                                Text("From \(store.homeLabel)").multilineTextAlignment(.leading)
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                            .frame(minHeight: 44)
+                        }
+                        .accessibilityHint("Change the starting point for destination searches")
+                    }
                     VStack(alignment: .leading, spacing: BaxiSpace.md) {
-                        Eyebrow("Practice routes in Carmel")
-                        ForEach(RouteService.presets) { p in
-                            RouteSign(preset: p, miles: store.presetMeters[p.id].map { $0 / 1609.34 },
-                                      skills: store.presetSkills.first { $0.id == p.id }?.skills ?? [:]) {
-                                store.choosePreset(p.id)
-                                store.tab = .route
+                        HStack {
+                            Text("Practice routes").font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
+                            Spacer()
+                            Text("Carmel, IN").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                        }
+                        VStack(spacing: 0) {
+                            ForEach(RouteService.presets) { p in
+                                PracticeRouteRow(preset: p, miles: store.presetMeters[p.id].map { $0 / 1609.34 },
+                                          skills: store.presetSkills.first { $0.id == p.id }?.skills ?? [:]) {
+                                    store.choosePreset(p.id)
+                                    store.tab = .route
+                                }
+                                if p.id != RouteService.presets.last?.id {
+                                    Divider().padding(.leading, BaxiSpace.lg)
+                                }
                             }
                         }
+                        .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.lg))
                     }
-                    HoursLine(totals: totals) { store.tab = .log }
+                    VStack(alignment: .leading, spacing: BaxiSpace.md) {
+                        Text("Your hours").font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
+                        HoursLine(totals: totals) { store.tab = .log }
+                    }
+                    Divider()
                     DemoRow { store.startDemoDrive() }
                 }
                 .padding(.horizontal, BaxiSpace.page)
@@ -35,16 +65,17 @@ struct HomeView: View {
             .baxiPage()
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showStartingPoint) { StartingPointView() }
         }
         .task { store.loadCarmelDemo() }
     }
 
     private var header: some View {
         HStack(alignment: .center) {
-            Text("Baxi").font(BaxiFont.hero).foregroundStyle(BaxiColor.ink)
+            Text("Baxi").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
             Spacer()
             Button { showSettings = true } label: {
-                Image(systemName: "gearshape.fill").font(BaxiFont.section).foregroundStyle(BaxiColor.inkSoft)
+                Image(systemName: "gearshape").font(BaxiFont.section).foregroundStyle(BaxiColor.inkSoft)
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Settings")
@@ -60,10 +91,11 @@ struct HomeView: View {
         } label: {
             HStack(spacing: BaxiSpace.md) {
                 Image(systemName: "magnifyingglass").font(BaxiFont.headline).foregroundStyle(BaxiColor.inkSoft)
-                Text("Where are you driving?").font(BaxiFont.body).foregroundStyle(BaxiColor.inkSoft)
+                Text("Search a destination").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
                 Spacer()
             }
             .padding(.horizontal, BaxiSpace.lg)
+            .padding(.vertical, BaxiSpace.md)
             .frame(minHeight: 54)
             .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous).strokeBorder(BaxiColor.hairline, lineWidth: 1))
@@ -73,8 +105,8 @@ struct HomeView: View {
     }
 }
 
-/// A practice route as a highway guide sign: the name in sign lettering, what it practices, an arrow.
-private struct RouteSign: View {
+/// Consistent native rows keep practice choices secondary to destination search.
+private struct PracticeRouteRow: View {
     let preset: RouteService.Preset
     let miles: Double?
     let skills: SkillCounts
@@ -93,17 +125,21 @@ private struct RouteSign: View {
     var body: some View {
         Button(action: choose) {
             HStack(spacing: BaxiSpace.lg) {
+                Image(systemName: preset.id == "preset_roundabouts" ? "arrow.trianglehead.2.clockwise.rotate.90" : preset.id == "preset_highway" ? "arrow.merge" : "road.lanes")
+                    .font(BaxiFont.headline).foregroundStyle(BaxiColor.accent)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                    Text(preset.name).font(BaxiFont.signFace(24))
-                    Text(facts.isEmpty ? " " : facts).font(BaxiFont.signFace(14, weight: "Bold")).opacity(0.85)
+                    Text(preset.name).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    Text(facts.isEmpty ? "Loading route details…" : facts)
+                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").font(BaxiFont.signFace(30))
+                Image(systemName: "chevron.right").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
             }
-            .padding(.horizontal, BaxiSpace.xl)
-            .padding(.vertical, BaxiSpace.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .signPanel(radius: BaxiRadius.lg)
+            .padding(BaxiSpace.lg)
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel("\(preset.name). \(facts)")
@@ -111,7 +147,7 @@ private struct RouteSign: View {
     }
 }
 
-/// Hours toward the 50 in one line, with a thin bar. Opens the Log.
+/// Hours with a separate night line so the summary stays readable at larger text sizes.
 private struct HoursLine: View {
     let totals: DriveLog.Totals
     var open: () -> Void
@@ -123,7 +159,6 @@ private struct HoursLine: View {
                     Text(DriveLog.hm(totals.minutes)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
                     Text("of 50 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
                     Spacer()
-                    Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
                     Image(systemName: "chevron.right").font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.inkFaint)
                 }
                 GeometryReader { geo in
@@ -135,7 +170,10 @@ private struct HoursLine: View {
                     }
                 }
                 .frame(height: 6)
+                Text("\(DriveLog.hm(totals.nightMinutes)) of 10 hours at night")
+                    .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
             }
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
@@ -151,14 +189,15 @@ private struct DemoRow: View {
     var body: some View {
         Button(action: start) {
             HStack(spacing: BaxiSpace.md) {
-                Image(systemName: "play.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
+                Image(systemName: "play.circle").font(BaxiFont.section).foregroundStyle(BaxiColor.accent)
                 VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                    Text("Watch a 3-minute demo drive").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                    Text("A merge, two exits and two-lane roundabouts. Not logged.").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    Text("Try a demo drive").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    Text("3 minutes. Does not count toward your hours.").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
                 }
                 Spacer(minLength: 0)
             }
             .contentShape(Rectangle())
+            .frame(minHeight: 44)
         }
         .buttonStyle(PressableStyle())
     }

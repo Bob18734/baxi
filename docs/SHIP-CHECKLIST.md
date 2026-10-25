@@ -42,6 +42,10 @@ Feature freeze Thursday Oct 22. Video recorded Friday Oct 23.
   check this.
 - [ ] VoiceOver reads the Drive screen's sign, lane strip, light count and speed limit sensibly.
 
+- [ ] Starting point: allow/deny location, test a fresh GPS fix, search a place, and confirm the route starts there.
+- [ ] Switch starting points or select a practice loop while a route is loading; old results must not replace it.
+- [ ] Relaunch: warning level is retained and starting point resets to the labeled demo location.
+
 ## Before the freeze (Oct 22)
 
 - [ ] `python3 scripts/check-readiness.py` passes; all four student test suites execute without skips.

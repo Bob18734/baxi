@@ -63,6 +63,7 @@ struct ScreenCheckRoot: View {
             BaxiColor.page.ignoresSafeArea()
             switch screen {
             case "welcome": WelcomeView {}
+            case "starting-point": StartingPointView()
             case "driver-details": NavigationStack { DriverDetailsView() }
             case "preview":
                 if let r = store.route {

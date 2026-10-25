@@ -292,7 +292,7 @@ final class DriveSession {
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
             // Still heading to the route: no progress, no cues, until the car is on it.
             position = location
-            lastCueText = "Getting you to the start"
+            if lastCueText != Self.rerouteFailedText { lastCueText = "Getting you to the start" }
             if !saidGetToStart { saidGetToStart = true; speaker.say("First, let's get you to the start of the route.") }
             if !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return

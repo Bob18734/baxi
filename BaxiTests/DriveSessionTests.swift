@@ -148,6 +148,21 @@ struct RerouteFailureTests {
         #expect(rec.lines.filter { $0.contains("off the route") }.count == 1)
     }
 
+    /// Before the car first reaches the route, a failed reroute must stay on screen too.
+    @Test func failedRerouteBeforeReachingTheRouteStaysUp() async throws {
+        let route = PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
+                                 durationSeconds: 200, source: "test")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: [], highInjury: nil,
+                             level: .gettingComfortable, mode: .live, speaker: Recorder())
+        s.router = { _, _, _ in throw Offline() }
+        var t = 0.0
+        s.feed(TestRoute.point(metersEast: 0, metersNorth: 500), at: t)
+        for _ in 0..<50 where s.lastCueText != DriveSession.rerouteFailedText { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+        for _ in 0..<5 { t += 1; s.feed(TestRoute.point(metersEast: 0, metersNorth: 500), at: t) }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+    }
+
     @Test func noFixYetOnALiveDrive() {
         let s = DriveSession(route: PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
                                                  durationSeconds: 200, source: "test"),

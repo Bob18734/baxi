@@ -10,6 +10,8 @@ struct LogView: View {
     @State private var adding = false
     @State private var editing: DriveRecord?
     @State private var deleted: [DeletedDrive] = []
+    /// The latest delete; the Undo bar's timer only hides the bar if no newer delete came since.
+    @State private var deleteToken = UUID()
     @State private var pdfURLs: [URL] = []
     @State private var csvURL: URL?
     @State private var exportError: String?
@@ -111,12 +113,14 @@ struct LogView: View {
         let kept = records.map(DeletedDrive.init)
         records.forEach(context.delete)
         try? context.save()
-        deleted = kept
+        deleted += kept
         Haptics.tap()
-        // The Undo bar stays for 5 seconds after the last delete.
+        // The Undo bar stays for 5 seconds after the last delete, and Undo brings back all of them.
+        let token = UUID()
+        deleteToken = token
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))
-            if deleted.first?.start == kept.first?.start { deleted = [] }
+            if deleteToken == token { deleted = [] }
         }
     }
 
@@ -340,12 +344,25 @@ private struct DriveFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStore.self) private var store
     @Query private var drives: [DriveRecord]
-    @State private var start = Date().addingTimeInterval(-3600)
-    @State private var end = Date()
-    @State private var note = ""
+    @State private var start: Date
+    @State private var end: Date
+    @State private var note: String
+
+    /// The fields start from the record, set here rather than on appear: a later change to `start` would
+    /// shift `end` as if the user had moved it.
+    init(record: DriveRecord?) {
+        self.record = record
+        _start = State(initialValue: record?.start ?? Date().addingTimeInterval(-3600))
+        _end = State(initialValue: record?.end ?? Date())
+        _note = State(initialValue: record.map { $0.routeTitle == "Practice drive" ? "" : $0.routeTitle } ?? "")
+    }
 
     private var timesEditable: Bool { record?.manual ?? true }
-    private var split: (day: Int, night: Int) { Daylight.split(start: start, end: end, at: store.origin) }
+    private var split: (day: Int, night: Int) {
+        // A recorded drive keeps the split it was saved with (made where the drive began).
+        if let record, !timesEditable { return (record.dayMinutes, record.nightMinutes) }
+        return Daylight.split(start: start, end: end, at: store.origin)
+    }
     private var overlaps: Bool {
         timesEditable && DriveLog.overlaps(start, end, with: drives.map(\.row), excluding: record?.id)
     }
@@ -389,11 +406,6 @@ private struct DriveFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save).fontWeight(.bold).disabled(split.day + split.night == 0)
                 }
-            }
-            .onAppear {
-                guard let record else { return }
-                start = record.start; end = record.end
-                note = record.routeTitle == "Practice drive" ? "" : record.routeTitle
             }
         }
     }

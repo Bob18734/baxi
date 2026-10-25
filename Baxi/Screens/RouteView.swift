@@ -201,6 +201,8 @@ struct RouteView: View {
         }
         ForEach(results, id: \.self) { item in
             Button {
+                guard !routing else { return }
+                searchFocused = false   // close the suggestions so the loading steps show
                 Task {
                     routing = true
                     await store.routeTo(Coordinate(item.placemark.coordinate), name: item.name ?? "Destination")

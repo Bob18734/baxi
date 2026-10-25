@@ -97,11 +97,16 @@ final class DriveSession {
     static let replayStopSeconds = 2.0
     static let replayStepMeters = 5.0
     private(set) var startedAt = Date()
+    private var started = false
     private(set) var endedAt: Date?
     static let locationOffText = "Location is off. Turn it on in Settings."
+    static let farFromRouteText = "You're far from this route. Drive to it, or replay it from Routes."
+    static let farFromRouteMeters = 20_000.0
     static let rerouteFailedText = "No connection for a new route. Head back to the blue line."
     /// False on a live drive until the first location fix arrives.
     private(set) var hasFix = false
+    /// Fixes are arriving but too rough to follow a road (Precise Location off, or indoors).
+    private(set) var coarseFixes = false
     /// Where reroutes come from; a test swaps in one that fails.
     @ObservationIgnored var router: @Sendable (Coordinate, Coordinate, String) async throws -> PlannedRoute = {
         try await RouteService.route(from: $0, to: $1, name: $2)
@@ -229,6 +234,8 @@ final class DriveSession {
     // MARK: Start and stop
 
     func start() {
+        guard !started else { return }
+        started = true
         startedAt = Date()
         // Low sun depends on when the drive happens, so its cues are added now, from where the car is.
         let from = progress?.alongMeters ?? 0
@@ -372,6 +379,9 @@ final class DriveSession {
             guard let self, self.lastCueText != Self.locationOffText else { return }
             self.lastCueText = Self.locationOffText
             self.speaker.say(Line.locationOff)
+        }, onCoarseFix: { [weak self] in
+            guard let self, !self.hasFix else { return }
+            self.coarseFixes = true
         })
         locationDelegate = d
         d.manager.requestWhenInUseAuthorization()
@@ -384,6 +394,7 @@ final class DriveSession {
     func feed(_ location: Coordinate, at time: TimeInterval, speedMps: Double? = nil) {
         guard !isFinished else { return }
         hasFix = true
+        if lastCueText == Self.locationOffText { lastCueText = "" }
         lastSpeedMps = speedMps
         // A held fix (a far jump waiting for confirmation) changes nothing, not even the time of the last fix.
         guard let p = follower.update(location: location, at: time), !p.isHeld else { return }
@@ -391,6 +402,11 @@ final class DriveSession {
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
             // Still heading to the route: no progress, no cues, until the car is on it.
             position = location
+            // Nowhere near the route (another town): a new route to its start is not what the driver needs.
+            if p.crossTrackMeters > Self.farFromRouteMeters {
+                lastCueText = Self.farFromRouteText
+                return
+            }
             if lastCueText != Self.rerouteFailedText { lastCueText = "Getting you to the start" }
             if !saidGetToStart { saidGetToStart = true; speaker.say(Line.getToStart) }
             if !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
@@ -599,10 +615,12 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     let manager = CLLocationManager()
     let onFix: (CLLocation) -> Void
     let onDenied: () -> Void
+    let onCoarseFix: () -> Void
 
-    init(onFix: @escaping (CLLocation) -> Void, onDenied: @escaping () -> Void) {
+    init(onFix: @escaping (CLLocation) -> Void, onDenied: @escaping () -> Void, onCoarseFix: @escaping () -> Void) {
         self.onFix = onFix
         self.onDenied = onDenied
+        self.onCoarseFix = onCoarseFix
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
@@ -619,13 +637,17 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .denied, .restricted: onDenied()
+        // Allowed from Settings mid-drive: updates stopped with the denial, so ask for them again.
+        case .authorizedWhenInUse, .authorizedAlways: manager.startUpdatingLocation()
         default: break
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         // iOS often hands over a cached fix from minutes ago first; it would place the car where it was.
+        var usable = false
         for l in locations where l.horizontalAccuracy >= 0 && l.horizontalAccuracy < 50
-            && abs(l.timestamp.timeIntervalSinceNow) < 10 { onFix(l) }
+            && abs(l.timestamp.timeIntervalSinceNow) < 10 { usable = true; onFix(l) }
+        if !usable, locations.contains(where: { $0.horizontalAccuracy >= 50 }) { onCoarseFix() }
     }
 }

@@ -51,7 +51,7 @@ enum DriveLog {
         date.dateFormat = "MM/dd/yyyy"; time.dateFormat = "HH:mm"
         func field(_ s: String) -> String {
             // A typed route name starting with = + - @ would run as a formula in Excel; a leading ' keeps it text.
-            let safe = s.first.map { "=+-@".contains($0) } == true ? "'" + s : s
+            let safe = s.first.map { "=+-@\t\r".contains($0) } == true ? "'" + s : s
             return safe.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" })
                 ? "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : safe
         }

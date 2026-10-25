@@ -8,6 +8,8 @@ struct WelcomeView: View {
     @State private var page = 0
     @State private var level: ExperienceLevel = .gettingComfortable
     @State private var prior = PriorHours()
+    /// A page is turning, or setup is being saved: a second tap in that moment does nothing.
+    @State private var busy = false
     @Environment(AppStore.self) private var store
 
     private let setupPage = 5
@@ -38,8 +40,12 @@ struct WelcomeView: View {
             VStack(spacing: Space.s8) {
                 PageDots(count: setupPage + 1, current: page)
                 BigButton(title: page < setupPage ? "Next" : "Save and start") {
-                    if page < setupPage { withAnimation(Motion.standard) { page += 1 } }
-                    else {
+                    guard !busy else { return }
+                    busy = true
+                    if page < setupPage {
+                        withAnimation(Motion.standard) { page += 1 }
+                        Task { @MainActor in try? await Task.sleep(for: .milliseconds(400)); busy = false }
+                    } else {
                         store.level = level
                         store.priorHours = prior
                         store.locationPermission.requestWhenInUseAuthorization()
@@ -47,7 +53,7 @@ struct WelcomeView: View {
                         onDone()
                     }
                 }
-                BigButton(title: "Set up later", kind: .quiet, action: onDone)
+                BigButton(title: "Set up later", kind: .quiet) { guard !busy else { return }; busy = true; onDone() }
                     .opacity(page == setupPage ? 1 : 0)
                     .disabled(page != setupPage)
                     .accessibilityHidden(page != setupPage)

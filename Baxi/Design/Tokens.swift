@@ -79,6 +79,8 @@ enum Palette {
     static let panelLane = Color(hex: 0xF4F7F9).opacity(0.08)
     /// The one shadow: under the map's panel.
     static let shadow = Color(hex: 0x14202A).opacity(0.14)
+    /// A practice route drawn on the map that is not the chosen one: ink, faded, so the numbers read first.
+    static let mapRouteOther = Color(hex: 0x14202A).opacity(0.45)
 }
 
 extension Color {
@@ -248,6 +250,8 @@ enum Motion {
     static let reveal = Animation.smooth(duration: 0.6)
     /// Anything tactile: presses, a marker sliding to a new tab.
     static let press = Animation.spring(response: 0.25, dampingFraction: 0.7)
+    /// The Routes panel settling at a height after a drag.
+    static let sheet = Animation.spring(response: 0.35, dampingFraction: 0.86)
     /// The Drive map following the car, and the bar that empties toward a turn: steady, no easing.
     static let follow = Animation.linear(duration: 0.25)
     /// The chevrons sweeping toward the lane to be in.

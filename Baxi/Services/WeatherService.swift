@@ -58,7 +58,9 @@ enum WeatherService {
     }
 
     private static func get(_ url: String) async throws -> Data {
-        var req = URLRequest(url: URL(string: url)!, timeoutInterval: 15)
+        // The hourly link comes from the server's own answer: it must still be the weather service, over https.
+        guard let u = URL(string: url), u.scheme == "https", u.host() == "api.weather.gov" else { throw URLError(.badURL) }
+        var req = URLRequest(url: u, timeoutInterval: 15)
         req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("application/geo+json", forHTTPHeaderField: "Accept")
         let (data, resp) = try await URLSession.shared.data(for: req)

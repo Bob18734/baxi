@@ -27,10 +27,18 @@ Delete Baxi and install the newest build (ask Claude), then open it.
   and never count toward the 50 hours". Nothing added to the Log.
 
 ## 3. Routes and Preview, 5 min (on cellular for at least one)
-- [ ] Routes: the panel reaches the bottom bar (no map showing under it); your blue dot. Search a nearby store: places show while typing, and the bottom bar hides under the keyboard.
+- [ ] Routes: the map shows all five practice routes, each with a numbered green tab (1 to 5) matching the numbers on the
+  signs in the list; your blue dot. Tap a number on the map: that route is chosen. Tap × on the route to go back.
+- [ ] The panel: drag it down to just the search field (the map is the whole screen), up to half, up again to nearly
+  full. Flick it. With a route chosen, drag it down: the route's name and Start drive stay; drag it back up for
+  Preview and Replay. Pull the list down past its top at full height: the panel lowers.
+- [ ] Typing: tap the search field, type a few letters, delete them, type again. The keyboard must stay up the whole time
+  and every letter must land. Tap Home's search field: Routes opens with the keyboard already up.
+- [ ] Search a nearby store: places show while typing, and the bottom bar hides under the keyboard.
 - [ ] Search nonsense ("zzqqxx"): "No places found". Airplane mode, search again: "No connection". Turn it back off.
-- [ ] Pick a result: the shimmer shows "Finding a route…" then "Loading lanes and roundabouts…"; the route starts
-  where you are. Fastest/Calmer chips if offered.
+- [ ] Pick a result: the shimmer shows "Finding a route…", then the route appears at once with "Loading lanes and
+  roundabouts from OpenStreetMap…" under it (up to 45 s; the public map servers are slow). When it finishes, the
+  amber lane stretches appear on the map. The route starts where you are. Fastest/Calmer chips if offered.
 - [ ] Preview: Look Around photos load on cellular; spots without imagery show the map.
 
 ## 4. Short real drive, 10 to 15 min, with a supervising adult

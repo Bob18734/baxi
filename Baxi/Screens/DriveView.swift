@@ -57,7 +57,9 @@ struct DriveView: View {
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
-            if !session.isFinished { session.end() }
+            // Torn down mid-drive (the cover dismissed some other way): end it and keep the record, since the
+            // onChange below can no longer fire.
+            if !session.isFinished { session.end(); save() }
         }
         .onChange(of: session.position) { _, _ in follow() }
         .onChange(of: traveledStep) { _, _ in traveled = traveledPoints?.map(\.clLocation) ?? [] }
@@ -387,7 +389,8 @@ private struct StatusLine: View {
     var body: some View {
         Group {
             if session.mode == .live && !session.hasFix && session.lastCueText.isEmpty {
-                line(text: "Waiting for GPS", fill: look.surface, ink: look.text) { SignalDots(onFill: false) }
+                line(text: session.coarseFixes ? "Weak GPS. Check Precise Location in Settings" : "Waiting for GPS",
+                     fill: look.surface, ink: look.text) { SignalDots(onFill: false) }
             } else if session.lastCueText == DriveSession.locationOffText {
                 line(text: session.lastCueText, fill: Palette.stop, ink: Palette.onStop) {
                     Button("Settings") {

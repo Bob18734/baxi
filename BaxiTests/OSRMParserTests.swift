@@ -36,6 +36,22 @@ struct OSRMParserTests {
         #expect(turn.instruction == "Turn right onto E 116th St")
     }
 
+    @Test func brokenManeuverLocationsAreSkippedNotCrashed() throws {
+        // A step whose location has one number, and one off the planet: both are skipped, the route still parses.
+        let bad = Self.json
+            .replacingOccurrences(of: "\"exit\":2,\"location\":[-86.14766,39.95]", with: "\"exit\":2,\"location\":[-86.14766]")
+            .replacingOccurrences(of: "\"modifier\":\"right\",\"location\":[-86.14176,39.95]", with: "\"modifier\":\"right\",\"location\":[-86.14176,95]")
+        let r = try OSRMParser.parse(Data(bad.utf8), id: "t", name: "Test")
+        #expect(r.maneuvers.map(\.kind) == [.depart, .arrive])
+    }
+
+    @Test func absurdRoutesAreRejected() {
+        let far = Self.json.replacingOccurrences(of: "\"distance\":1000,\"duration\":90", with: "\"distance\":5000000,\"duration\":90")
+        #expect(throws: OSRMParser.ParseError.self) { try OSRMParser.parse(Data(far.utf8)) }
+        let nowhere = Self.json.replacingOccurrences(of: "[[-86.15,39.95],[-86.1441,39.95],[-86.1383,39.95]]", with: "[[-86.15,99],[-86.1441,99]]")
+        #expect(throws: OSRMParser.ParseError.self) { try OSRMParser.parse(Data(nowhere.utf8)) }
+    }
+
     @Test func errorsAreReported() {
         #expect(throws: OSRMParser.ParseError.self) {
             try OSRMParser.parse(Data(#"{"code":"NoRoute","message":"Impossible route"}"#.utf8))

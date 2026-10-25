@@ -177,7 +177,12 @@ private struct SpotSection: View {
     /// Look Around from just before the spot, so the image shows the approach.
     private func loadScene() async {
         let point = route.polyline.coordinate(atMeters: max(0, spot.alongMeters - 40)) ?? spot.location
-        let found = try? await MKLookAroundSceneRequest(coordinate: point.clLocation).scene
+        let found: MKLookAroundScene?
+        do { found = try await MKLookAroundSceneRequest(coordinate: point.clLocation).scene }
+        catch is CancellationError { return }
+        catch { found = nil }
+        // Scrolled away mid-load: say nothing, so the row asks again when it comes back.
+        guard !Task.isCancelled else { return }
         withAnimation(Motion.standard) { scene = found; looked = true }
     }
 }

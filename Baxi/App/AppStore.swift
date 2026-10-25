@@ -114,10 +114,11 @@ final class AppStore {
         Task { @MainActor in weather = try? await WeatherService.weather(at: start) }
     }
 
-    @MainActor func refreshPrep() {
+    /// `force` rebuilds a prep that exists, when better road data has arrived for the same route.
+    @MainActor func refreshPrep(force: Bool = false) {
         guard let route else { prep = nil; return }
         refreshWeather(for: route)
-        if prep?.routeId == route.id { return }
+        if prep?.routeId == route.id, !force { return }
         prepTask?.cancel()
         prepTask = Task { @MainActor in
             await ensureLoaded()
@@ -134,6 +135,7 @@ final class AppStore {
     func clearRoute() {
         route = nil; routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil
         prepTask?.cancel(); prep = nil
+        roadsTask?.cancel(); isFetchingRoads = false
     }
 
     func choosePreset(_ id: String) {
@@ -160,7 +162,9 @@ final class AppStore {
     private(set) var routeOptions: [RouteService.Option] = []
     private(set) var calmerOptionId: String?
 
-    nonisolated static let roadDataSeconds = 25.0
+    /// The public map servers take 30 s and more for a corridor (Oct 25, 2026), so the route shows first and the
+    /// details follow; after this long, the drive goes ahead without them.
+    nonisolated static let roadDataSeconds = 45.0
 
     func routeTo(_ destination: Coordinate, name: String) async {
         await ensureLoaded()
@@ -188,27 +192,34 @@ final class AppStore {
         await use(o.route)
     }
 
-    /// Makes `found` the route: downloads its road data from OpenStreetMap first, then builds its prep.
+    /// Makes `found` the route right away (turn-by-turn needs nothing more), then downloads its road data from
+    /// OpenStreetMap in the background and rebuilds the cues with the lanes, roundabouts, lights and limits.
     private func use(_ found: PlannedRoute) async {
         roadDataNote = nil
-        isFetchingRoads = true
-        routeStep = "Loading lanes and roundabouts…"
-        let line = found.polyline
-        // A slow map server must not hold the route: after this long, drive without lane details.
-        let corridor = await Deadline.run(seconds: Self.roadDataSeconds) { try await OverpassService.corridor(along: line) }
-        if let base = cache, let corridor {
-            let merged = OverpassService.combine(base, corridor)
-            let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
-            routeRoads = (found.id, merged, f)
-        } else {
-            roadDataNote = "Lane and roundabout details didn't load for this route (OpenStreetMap was slow or unreachable). "
-                + "Turn-by-turn still works."
-        }
-        isFetchingRoads = false
         routeStep = nil
         route = found
         refreshPrep()
+        roadsTask?.cancel()
+        roadsTask = Task { @MainActor in
+            isFetchingRoads = true
+            defer { isFetchingRoads = false }
+            let line = found.polyline
+            // A slow map server must not hold the drive: after this long, it goes ahead without lane details.
+            let corridor = await Deadline.run(seconds: Self.roadDataSeconds) { try await OverpassService.corridor(along: line) }
+            guard !Task.isCancelled, route?.id == found.id else { return }
+            if let base = cache, let corridor {
+                let merged = OverpassService.combine(base, corridor)
+                let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
+                guard !Task.isCancelled, route?.id == found.id else { return }
+                routeRoads = (found.id, merged, f)
+                refreshPrep(force: true)
+            } else {
+                roadDataNote = "Lane and roundabout details didn't load for this route (OpenStreetMap was slow or unreachable). "
+                    + "Turn-by-turn still works."
+            }
+        }
     }
+    @ObservationIgnored private var roadsTask: Task<Void, Never>?
 
     /// The skills each preset route contains, for suggesting what to drive next. Built in the background
     /// once the road data is loaded; empty until then.
@@ -261,8 +272,14 @@ final class AppStore {
         Task { @MainActor in
             await ensureLoaded()
             await prepTask?.value
-            activeSession = makeSession(replay: speed)
-            if let startMeters { activeSession?.skip(toMeters: startMeters) }
+            if routeError == nil, let s = makeSession(replay: speed) {
+                activeSession = s
+                if let startMeters { s.skip(toMeters: startMeters) }
+            } else {
+                // The road data didn't load: Routes shows why, instead of a button that does nothing.
+                if routeError == nil { routeError = dataStatus }
+                tab = .route
+            }
             isStartingDemo = false
         }
     }

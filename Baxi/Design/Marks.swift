@@ -563,8 +563,27 @@ private struct SchoolShape: Shape {
 
 /// A practice route as a guide sign: a small top line, the route's name in sign lettering, a line of facts, and the
 /// sign's arrow. The whole sign is the button.
+/// A route's number, as the small tab on a guide sign: white lettering in a white-bordered box. On the map it is
+/// the marker for a practice route; on the sign it is the same number, so the two match.
+struct NumberTab: View {
+    let number: Int
+    var size: CGFloat = MapLine.numberSign
+    var body: some View {
+        Text("\(number)")
+            .font(Typeface.signFixed(size * 0.55, .extraBold))
+            .foregroundStyle(Palette.onSign)
+            .frame(width: size, height: size)
+            .background(Palette.sign, in: RoundedRectangle(cornerRadius: SignSize.corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: SignSize.innerCorner, style: .continuous)
+                        .inset(by: SignSize.inset).stroke(Palette.onSign, lineWidth: SignSize.border))
+            .accessibilityLabel("Route \(number)")
+    }
+}
+
 struct RouteGuideSign: View {
     var kicker: String? = nil
+    /// The route's number on the Routes map, shown as a tab on the sign.
+    var number: Int? = nil
     let name: String
     let facts: String?
     var large = false
@@ -574,6 +593,7 @@ struct RouteGuideSign: View {
         Button { Haptic.tap(); action() } label: {
             GuideSign(padding: large ? Space.s24 : Space.s16) {
                 HStack(alignment: .center, spacing: Space.s12) {
+                    if let number { NumberTab(number: number) }
                     VStack(alignment: .leading, spacing: Space.s4) {
                         if let kicker { Text(kicker).role(.signLine).foregroundStyle(Palette.onSignSoft) }
                         Text(name).role(large ? .signTitle : .signTitle).fixedSize(horizontal: false, vertical: true)

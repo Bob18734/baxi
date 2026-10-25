@@ -153,15 +153,26 @@ final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate, AVAudi
         generation += 1
         queue.removeAll()
         player?.stop(); player = nil
+        chimePlayer?.stop()
         synth.stopSpeaking(at: .immediate)
         playing = false
         releaseAudioIfIdle()
+        // The session is still running sound at this instant and refuses to deactivate; ask again in a moment,
+        // or the driver's music stays quiet after End or Mute.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.releaseAudioIfIdle() }
+    }
+
+    deinit {
+        synth.stopSpeaking(at: .immediate)
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 
     func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully: Bool) { DispatchQueue.main.async { self.finished() } }
     func audioPlayerDecodeErrorDidOccur(_ p: AVAudioPlayer, error: Error?) { DispatchQueue.main.async { self.finished() } }
     func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { DispatchQueue.main.async { self.finished() } }
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) {}
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { DispatchQueue.main.async { self.releaseAudioIfIdle() } }
 
     // When nothing is left to say, give the audio back so the driver's music comes back to full volume.
     private func releaseAudioIfIdle() {

@@ -17,22 +17,21 @@ struct LogView: View {
     @State private var exportError: String?
     @State private var editingDriver = false
     @State private var editingPrior = false
-    /// Drives deleted since the last Undo offer, so Undo brings all of them back.
-    @State private var pendingUndo: [DeletedDrive] = []
+    /// The drives the Undo toast on screen would bring back.
+    @State private var undoBatch: [DeletedDrive] = []
     /// The exports are made once the Log has been opened (the tab stays alive from launch).
     @State private var opened = false
-    @AppStorage(OfficialLogPDF.driverNameKey) private var driverName = ""
-    @AppStorage(OfficialLogPDF.licenseNumberKey) private var licenseNumber = ""
+    /// The export being written; a newer one cancels it.
+    @State private var exportTask: Task<Void, Never>?
 
     private struct ExportTrigger: Equatable { let input: ExportInput; let opened: Bool }
     private struct ExportInput: Equatable {
         let rows: [LogRow]
-        let driver: OfficialLogPDF.Driver
         let prior: PriorHours
     }
-    private var exportInput: ExportInput {
-        ExportInput(rows: drives.map(\.row), driver: .init(name: driverName, licenseNumber: licenseNumber), prior: store.priorHours)
-    }
+    /// The driver's name and licence are read when the export is written, not watched: watching them would
+    /// redraw this whole tab on every keystroke in Driver details.
+    private var exportInput: ExportInput { ExportInput(rows: drives.map(\.row), prior: store.priorHours) }
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row), prior: store.priorHours) }
     /// Habit reports of recorded drives, oldest first (the chart reads left to right).
@@ -101,6 +100,7 @@ struct LogView: View {
             writeExports()
         }
         .onChange(of: editingDriver) { _, editing in if !editing && opened { writeExports() } }
+        .onDisappear { exportTask?.cancel() }
     }
 
     /// Hours driven before Baxi: a quiet way to add them, or what was entered, to change.
@@ -158,49 +158,62 @@ struct LogView: View {
     }
 
     private func delete(_ records: [DriveRecord]) {
-        pendingUndo += records.map(DeletedDrive.init)
+        // A delete while the last Undo toast is still up joins it, so one Undo brings every one of them back.
+        let batch = (toasts.current?.actionTitle == "Undo" ? undoBatch : []) + records.map(DeletedDrive.init)
+        undoBatch = batch
         records.forEach(context.delete)
         try? context.save()
         Haptic.tap()
-        let n = pendingUndo.count
+        let n = batch.count
         toasts.show(n == 1 ? "Drive deleted. It came off your hours." : "\(n) drives deleted. They came off your hours.", actionTitle: "Undo") {
-            pendingUndo.forEach { context.insert($0.restore()) }
-            pendingUndo = []
+            batch.forEach { context.insert($0.restore()) }
+            undoBatch = []
             try? context.save()
             Haptic.success()
         }
-        // The offer lasts as long as the toast; after that, deleted is deleted.
-        let token = n
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(7))
-            if pendingUndo.count == token { pendingUndo = [] }
-        }
     }
 
-    /// Writes both export files to a temporary folder so the share sheet can hand them off.
+    /// Writes both export files to a temporary folder so the share sheet can hand them off. The forms are drawn
+    /// off the main thread (a long log takes a moment), and the folder from the last export is removed.
     private func writeExports() {
         let input = exportInput
         let rows = input.rows
+        let driver = OfficialLogPDF.Driver(name: UserDefaults.standard.string(forKey: OfficialLogPDF.driverNameKey) ?? "",
+                                           licenseNumber: UserDefaults.standard.string(forKey: OfficialLogPDF.licenseNumberKey) ?? "")
+        exportTask?.cancel()
         pdfURLs = []; csvURL = nil; exportError = nil
         guard !rows.isEmpty else { return }
-        // Each snapshot gets its own files so a share sheet never reads a partly rewritten export.
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("baxi-export-\(UUID().uuidString)")
-        let csv = dir.appendingPathComponent("Baxi driving log.csv")
-        do {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let forms = try OfficialLogPDF.renderForms(rows, driver: input.driver)
-            var urls: [URL] = []
-            for (index, data) in forms.enumerated() {
-                let pdf = dir.appendingPathComponent("Baxi State Form 54706 - \(index + 1).pdf")
-                try data.write(to: pdf, options: .atomic)
-                urls.append(pdf)
+        exportTask = Task { @MainActor in
+            let written = await Task.detached(priority: .userInitiated) { () -> Result<(pdfs: [URL], csv: URL), Error> in
+                // Each snapshot gets its own files so a share sheet never reads a partly rewritten export.
+                let tmp = FileManager.default.temporaryDirectory
+                let dir = tmp.appendingPathComponent("baxi-export-\(UUID().uuidString)")
+                do {
+                    for old in (try? FileManager.default.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? []
+                    where old.lastPathComponent.hasPrefix("baxi-export-") {
+                        try? FileManager.default.removeItem(at: old)
+                    }
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let forms = try OfficialLogPDF.renderForms(rows, driver: driver)
+                    var urls: [URL] = []
+                    for (index, data) in forms.enumerated() {
+                        let pdf = dir.appendingPathComponent("Baxi State Form 54706 - \(index + 1).pdf")
+                        try data.write(to: pdf, options: [.atomic, .completeFileProtection])
+                        urls.append(pdf)
+                    }
+                    let csv = dir.appendingPathComponent("Baxi driving log.csv")
+                    try Data(DriveLog.csv(rows, prior: input.prior).utf8).write(to: csv, options: [.atomic, .completeFileProtection])
+                    return .success((urls, csv))
+                } catch {
+                    try? FileManager.default.removeItem(at: dir)
+                    return .failure(error)
+                }
+            }.value
+            guard !Task.isCancelled else { return }
+            switch written {
+            case .success(let files): pdfURLs = files.pdfs; csvURL = files.csv
+            case .failure(let error): pdfURLs = []; csvURL = nil; exportError = error.localizedDescription
             }
-            try DriveLog.csv(rows, prior: input.prior).write(to: csv, atomically: true, encoding: .utf8)
-            pdfURLs = urls; csvURL = csv
-        } catch {
-            pdfURLs = []; csvURL = nil
-            exportError = error.localizedDescription
-            try? FileManager.default.removeItem(at: dir)
         }
     }
 }
@@ -394,6 +407,7 @@ private struct DriveFormView: View {
         timesEditable && DriveLog.overlaps(start, end, with: drives.map(\.row), excluding: record?.id)
     }
     private var canSave: Bool { split.day + split.night > 0 }
+    @State private var saved = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -462,6 +476,9 @@ private struct DriveFormView: View {
     }
 
     private func save() {
+        // Save, then dismiss: a second tap during the dismiss must not add the drive twice.
+        guard !saved else { return }
+        saved = true
         let title = note.trimmingCharacters(in: .whitespacesAndNewlines)
         let s = split
         if let record {

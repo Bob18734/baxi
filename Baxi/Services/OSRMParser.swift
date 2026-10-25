@@ -60,13 +60,24 @@ enum OSRMParser {
         }
     }
 
+    /// A finite coordinate on Earth.
+    static func isPlace(lat: Double, lon: Double) -> Bool {
+        lat.isFinite && lon.isFinite && abs(lat) <= 90 && abs(lon) <= 180
+    }
+
     static func parse(_ data: Data, index: Int = 0, id: String? = nil, name: String? = nil, source: String = "osrm") throws -> PlannedRoute {
         let r = try JSONDecoder().decode(Response.self, from: data)
         guard r.code == "Ok" else { throw ParseError.notOk(r.message ?? r.code) }
         guard let routes = r.routes, index < routes.count else { throw ParseError.noRoute }
         let route = routes[index]
-
-        let line = Polyline(route.geometry.coordinates.compactMap { $0.count >= 2 ? Coordinate(lat: $0[1], lon: $0[0]) : nil })
+        // Bounds on what a router may send: a route across a continent, or a geometry the size of a map tile set,
+        // is a broken answer. Coordinates must be real places.
+        guard route.geometry.coordinates.count <= 200_000, route.distance.isFinite, route.distance >= 0, route.distance < 2_000_000,
+              route.duration.isFinite, route.duration >= 0 else { throw ParseError.noRoute }
+        let line = Polyline(route.geometry.coordinates.compactMap { c in
+            c.count >= 2 && Self.isPlace(lat: c[1], lon: c[0]) ? Coordinate(lat: c[1], lon: c[0]) : nil
+        })
+        guard line.points.count >= 2 else { throw ParseError.noRoute }
         // OSRM's step distances and our haversine length differ by a fraction of a percent; scale to match.
         let scale = route.distance > 0 ? line.lengthMeters / route.distance : 1
 
@@ -79,7 +90,9 @@ enum OSRMParser {
                 let isFirstDepart = li == 0 && si == 0
                 let isLastArrive = li == legs.count - 1 && si == leg.steps.count - 1
                 guard let kind = kind(for: step.maneuver, isFirstDepart: isFirstDepart, isLastArrive: isLastArrive) else { continue }
-                let loc = Coordinate(lat: step.maneuver.location[1], lon: step.maneuver.location[0])
+                let l = step.maneuver.location
+                guard l.count >= 2, Self.isPlace(lat: l[1], lon: l[0]) else { continue }
+                let loc = Coordinate(lat: l[1], lon: l[0])
                 let estimate = stepStart * scale
                 let along = isLastArrive ? line.lengthMeters
                     : (line.project(loc, expectedAlong: estimate)?.alongMeters ?? estimate)

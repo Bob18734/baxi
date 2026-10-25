@@ -116,6 +116,14 @@ All of them grow with the reader's text size; signs drawn at a fixed size clamp 
   `page` with one hairline above it, a fixed height, drawn icons, and a small `go` bar under the active tab.
   The space for that bar is always reserved, so labels never shift. On Routes, the map's panel ends where the
   bar begins. It steps away on the Drive screen.
+- **The Routes panel** (Oct 25 afternoon, after Vardaan asked for the map to be the whole screen): a sheet with a
+  grabber that rests at three heights: the search field alone, half the screen, or nearly all of it. It is dragged
+  or flicked between them, and pulling a list down past its top lowers it, as in Maps. It never grows past what
+  it holds. The one search field lives in the part that always shows, so it is never rebuilt while being typed in
+  (the old panel swapped between two copies of itself and dropped the keyboard). With no route chosen, the map
+  draws every practice route in faded ink with a numbered sign tab at its far end; the same number sits on the
+  route's guide sign in the list, and tapping either chooses it. With a route chosen, its name and Start drive
+  stay in the always-visible part, so the map can be the whole screen and the drive still starts from there.
 - **Buttons**: one press language: a dip to 0.95 scale and 0.7 opacity, springing back. `primary` is a
   `go` capsule with ink text, one per screen. `secondary` is an ink outline. `quiet` is ink text. `danger` is a
   `stop` capsule.

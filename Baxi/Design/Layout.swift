@@ -48,6 +48,11 @@ enum DriveSize {
 enum MapLine {
     static let route: CGFloat = 5
     static let edge: CGFloat = 9
+    /// A practice route that is not the chosen one, and its number sign.
+    static let other: CGFloat = 4
+    static let numberSign: CGFloat = 32
+    /// How close (in points) a tap must land to a drawn route to choose it.
+    static let tapReach: CGFloat = 28
     static let dot: CGFloat = 10
     static let dotEdge: CGFloat = 2
     static let pin: CGFloat = 30
@@ -58,10 +63,19 @@ enum MapSpan {
     static let search: Double = 25_000
 }
 
+/// The Routes panel: a sheet over the map with three resting heights (docs/DESIGN.md).
 enum PanelSize {
-    /// The tallest the Routes panel gets before it scrolls.
-    static let maxHeight: CGFloat = 540
-    static let placesHeight: CGFloat = 320
+    /// The middle height, as a share of the space above the bottom bar.
+    static let halfFraction: CGFloat = 0.5
+    /// The map that stays visible above the panel at its tallest.
+    static let topGap: CGFloat = 48
+    /// The part of the route's map area that the panel covers at its middle height, when framing a route.
+    static let grabberWidth: CGFloat = 36
+    static let grabberHeight: CGFloat = 5
+    /// Pulling the list down past its top by this much lowers the panel.
+    static let pullToLower: CGFloat = 40
+    /// A flick faster than this (points per second) moves one height in its direction.
+    static let flick: CGFloat = 500
     static let placeholderWide: CGFloat = 220
     static let placeholderNarrow: CGFloat = 140
 }

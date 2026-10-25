@@ -77,6 +77,10 @@ struct ReviewFixTests {
                            routeTitle: "=HYPERLINK(\"x\")", distanceMeters: 1000, manual: true)]
         let csv = DriveLog.csv(rows, timeZone: TimeZone(identifier: "UTC")!)
         #expect(csv.contains("\"'=HYPERLINK(\"\"x\"\")\""))
+        // A leading tab is the same trick.
+        let tabbed = [LogRow(start: start, end: start.addingTimeInterval(600), dayMinutes: 10, nightMinutes: 0,
+                             routeTitle: "\t=1+1", distanceMeters: 1000, manual: true)]
+        #expect(DriveLog.csv(tabbed, timeZone: TimeZone(identifier: "UTC")!).contains("'\t=1+1"))
     }
 
     // Crash data.

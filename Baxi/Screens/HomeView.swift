@@ -88,24 +88,9 @@ struct HomeView: View {
         .accessibilityHint("Opens Routes")
     }
 
-    /// Where a searched route starts (the phone's position unless one is chosen), and the way to change it.
-    private var startRow: some View {
-        Button { Haptic.tap(); showStartingPoint = true } label: {
-            HStack(spacing: Space.s8) {
-                Mark(glyph: .locate, size: MarkSize.tiny).foregroundStyle(Palette.meta)
-                Text("From \(store.startLabel)").role(.meta).foregroundStyle(Palette.read).lineLimit(1)
-                Spacer(minLength: Space.s8)
-                Text("Change").role(.metaStrong).foregroundStyle(Palette.ink)
-            }
-            .frame(minHeight: Size.tap)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(Press())
-        .accessibilityLabel("Searched routes start from \(store.startLabel)")
-        .accessibilityHint("Choose a starting point")
-    }
+    private var startRow: some View { StartFromRow { showStartingPoint = true } }
 
-    /// For a first look (and for judges): a replay of the highway loop at 4x, never logged. Quiet, not a main action.
+    /// For a first look (and for judges): a replay of the downtown route at 4x, never logged. Quiet, not a main action.
     private var demo: some View {
         Button {
             guard !store.isStartingDemo else { return }
@@ -124,7 +109,7 @@ struct HomeView: View {
             .frame(minHeight: Size.tap)
         }
         .buttonStyle(Press())
-        .accessibilityHint("A replay of the highway loop. It's not logged.")
+        .accessibilityHint("A replay of Downtown and the Palladium, eight roundabouts. It's not logged.")
     }
 }
 

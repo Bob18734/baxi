@@ -24,8 +24,9 @@ An unticked box beats one ticked from memory.
   say location is used during a drive and once on Routes so a searched route starts where you are.
 - [x] Every practice route replayed end to end at all three levels, and under simulated bad GPS (drift,
   30 s dropouts, 40 m jumps): same instructions in the same order, no false "off the route", distance within 1%.
-- [x] The judge demo (Home > "Watch a 3-minute demo drive") runs about 2 min 50 s and its "How it went" card
-  is clean: no hard stops, full stops at every judged stop sign, nothing over the limit.
+- [x] The judge demo (Home > "Watch a 3-minute demo drive") is now Downtown and the Palladium from its start
+  (Oct 25 afternoon): 193 s at 4x, 18 lines, 0 said late, 0 never said (`swift run baxi-demo-check 4`), and
+  every one of its 16 maneuvers checks `ok` against the map (`swift run baxi-audit preset_downtown`).
 - [x] Oct 25, UI rebuild (docs/DESIGN.md): every screen rewritten on one design layer; 167 tests pass; the lint now also fails
   on raw colours, numbers, system fonts and system symbols in screens, and is clean; iPhone Release build compiles;
   every screen photographed on the Mac copy (day and night Drive) and looked at; two review agents checked it against

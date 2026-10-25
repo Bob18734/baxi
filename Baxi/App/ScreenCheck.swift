@@ -86,7 +86,7 @@ struct ScreenCheckRoot: View {
             guard let route = store.route, let cache = store.cache else { return }
             let s = DriveSession(route: route, cache: cache, features: store.features, highInjury: store.highInjury,
                                  level: store.level, mode: .replay(speedMultiplier: 1), speaker: SilentSpeech())
-            s.skip(toMeters: AppStore.demoStartMeters)
+            if let m = AppStore.demoStartMeters { s.skip(toMeters: m) }
             _ = s.simulateWholeRoute()
             session = s
             }
@@ -127,10 +127,4 @@ extension ScreenCheck {
     }
 }
 
-/// Used for every drive in the Mac copy, which exists only for screenshots, so it never talks aloud.
-final class SilentSpeech: SpeechOutput {
-    var isMuted = false
-    func say(_ text: String) {}
-    func stop() {}
-}
 #endif

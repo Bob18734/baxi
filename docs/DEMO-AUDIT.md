@@ -63,6 +63,22 @@ Tests: `BaxiTests/DemoTimingTests.swift`. Each fix was undone on purpose and its
 - The only real check is riding each route as a passenger with the app running. This audit is
   against OpenStreetMap, which can be out of date.
 
+## The Home demo (Oct 25 afternoon)
+
+The Home demo is now `preset_downtown` from its start, the route the video shows: 193 s at 4x, 18 lines, 0 late,
+0 never said at 1x, 2x and 4x; every maneuver `ok` in the audit. (It was the highway loop from 4,400 m.)
+
+## The Drive screen at every Palladium maneuver (Oct 25 afternoon)
+
+`build/screens/palladium/` holds 26 frames (not committed): the Drive screen about 300 ft before each of the 13
+maneuvers, day and night, from the Mac copy (`scripts/screens.sh --no-build palladium/<name> --demo-drive
+preset_downtown --replay-speed 1 --replay-start <maneuver − 150> --snap-delay 6 --drive-time day|night`). Checked by
+eye, every frame: the arrow and the roundabout diagram match the audit's exit and side; the exit number and road name
+are right; at the two-lane roundabouts (Guilford/City Center, Range Line/City Center) the left lane is lit amber with
+"Move to the left lane", and at the 3rd Avenue circle both lanes are lit; the distance counts down and the bar
+empties; the "Then" line shows the next maneuver; the speed-limit sign and the car's speed show; nothing is clipped
+at either time of day. Nothing looked wrong.
+
 ## Results after the fixes
 
 Demo timing at 4x:

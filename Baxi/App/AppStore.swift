@@ -37,7 +37,7 @@ final class AppStore {
     /// A starting point the driver chose (Home or Routes > From): kept for this session only. Until one is chosen,
     /// a searched route starts where the phone is (`origin`), or at Carmel City Center when that is unknown.
     private(set) var home: Coordinate = AppStore.carmelDemoHome
-    private(set) var homeLabel = "Carmel City Center (demo)"
+    private(set) var homeLabel = "Carmel City Center"
     private(set) var homeChosen = false
     /// The start a searched route will use right now.
     var start: Coordinate { homeChosen ? home : (originIsHere ? origin : home) }
@@ -59,7 +59,7 @@ final class AppStore {
     /// Back to starting where the phone is.
     func useOwnLocationAsStart() {
         guard homeChosen else { return }
-        chooseStart(Self.carmelDemoHome, label: "Carmel City Center (demo)")
+        chooseStart(Self.carmelDemoHome, label: "Carmel City Center")
         homeChosen = false
     }
     nonisolated static let log = Logger(subsystem: "com.vardaangoel.Baxi", category: "routes")
@@ -84,10 +84,10 @@ final class AppStore {
     /// Lives as long as the app, so the permission prompt is not torn down with the welcome sheet.
     @ObservationIgnored let locationPermission = CLLocationManager()
 
-    /// The judge demo: the US 31 loop replayed at 4x, starting just before the merge onto the highway,
-    /// so a merge, two exit ramps, the interchange roundabout and multi-lane roundabouts happen in about three minutes.
-    nonisolated static let demoPreset = "preset_highway"
-    nonisolated static let demoStartMeters = 4_400.0
+    /// The judge demo: the downtown route past the Palladium, replayed at 4x from its start, so eight roundabouts
+    /// (five of them back to back) happen in about three minutes. The same route the video shows.
+    nonisolated static let demoPreset = "preset_downtown"
+    nonisolated static let demoStartMeters: Double? = nil
 
     /// Carmel City Center: the demo home point and the start of every preset route.
     nonisolated static let carmelDemoHome = RouteService.carmelCityCenter
@@ -347,17 +347,29 @@ final class AppStore {
     func makeSession(replay: Double?) -> DriveSession? {
         guard let route, let (cache, features) = roads else { return nil }
         let mode: DriveSession.Mode = replay.map { .replay(speedMultiplier: $0) } ?? .live
-        #if DEBUG && targetEnvironment(macCatalyst)
-        // The Mac copy is only for screenshots; keep it quiet.
-        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+        let s: DriveSession
+        #if DEBUG
+        // Screenshot copies (the Mac, or a simulator launched with --silent) must not talk through the Mac's speakers.
+        if Self.silentForScreenshots {
+            s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
                              mode: mode, speaker: SilentSpeech(), prep: prep)
-        s.weatherLine = weather?.spoken
-        return s
+        } else {
+            s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level, mode: mode, prep: prep)
+        }
         #else
-        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
-                             mode: mode, prep: prep)
+        s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level, mode: mode, prep: prep)
+        #endif
         s.weatherLine = weather?.spoken
         return s
+    }
+
+    #if DEBUG
+    nonisolated static var silentForScreenshots: Bool {
+        #if targetEnvironment(macCatalyst)
+        return true
+        #else
+        return ProcessInfo.processInfo.arguments.contains("--silent")
         #endif
     }
+    #endif
 }

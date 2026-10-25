@@ -281,21 +281,34 @@ struct SheetHeader: View {
     var subtitle: String? = nil
     var actionTitle = "Done"
     let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var textSize
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.s12) {
+        // At accessibility sizes the title takes the whole width and the action sits above it, so neither breaks mid-word.
+        let layout = textSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: Space.s4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: Space.s12))
+        layout {
+            if textSize.isAccessibilitySize { actionButton }
             VStack(alignment: .leading, spacing: Space.s4) {
                 Text(title).role(.screenTitle).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                if let subtitle { Text(subtitle).role(.meta).foregroundStyle(Palette.meta) }
+                if let subtitle {
+                    Text(subtitle).role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Spacer(minLength: Space.s8)
-            Button(actionTitle) { Haptic.tap(); action() }
-                .role(.bodyStrong).foregroundStyle(Palette.ink)
-                .buttonStyle(Press()).frame(minHeight: Size.tap)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if !textSize.isAccessibilitySize { actionButton }
         }
         .padding(.horizontal, Space.margin)
         .padding(.top, Space.s24)
         .padding(.bottom, Space.s16)
+    }
+
+    private var actionButton: some View {
+        Button(actionTitle) { Haptic.tap(); action() }
+            .role(.bodyStrong).foregroundStyle(Palette.ink)
+            .buttonStyle(Press()).frame(minHeight: Size.tap)
     }
 }
 

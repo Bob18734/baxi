@@ -249,6 +249,7 @@ struct RouteView: View {
         let height = panelHeight(available: available)
         return VStack(spacing: 0) {
             header
+                .fixedSize(horizontal: false, vertical: true)
                 .background(HeightReader(onChange: { headerHeight = $0 }))
             ScrollView {
                 content
@@ -395,22 +396,7 @@ struct RouteView: View {
         }
     }
 
-    /// Where a searched route starts, and the way to change it.
-    private var startRow: some View {
-        Button { Haptic.tap(); showStartingPoint = true } label: {
-            HStack(spacing: Space.s8) {
-                Mark(glyph: .locate, size: MarkSize.tiny).foregroundStyle(Palette.meta)
-                Text("From \(store.startLabel)").role(.meta).foregroundStyle(Palette.read).lineLimit(1)
-                Spacer(minLength: Space.s8)
-                Text("Change").role(.metaStrong).foregroundStyle(Palette.ink)
-            }
-            .frame(minHeight: Size.tap)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(Press())
-        .accessibilityLabel("Searched routes start from \(store.startLabel)")
-        .accessibilityHint("Choose a starting point")
-    }
+    private var startRow: some View { StartFromRow { showStartingPoint = true } }
 
     /// Places matching the search.
     private var places: some View {
@@ -578,7 +564,7 @@ private struct RouteCard: View {
             // Secondary actions as quiet links: Start drive is the one main action.
             HStack(spacing: Space.s32) {
                 Button { Haptic.tap(); showPreview() } label: {
-                    HStack(spacing: Space.s8) { Mark(glyph: .search, size: MarkSize.small); Text("Preview the hard spots").role(.bodyStrong) }
+                    HStack(spacing: Space.s8) { Mark(glyph: .search, size: MarkSize.small); Text("Preview hard spots").role(.bodyStrong) }
                         .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
                 }
                 .buttonStyle(Press())

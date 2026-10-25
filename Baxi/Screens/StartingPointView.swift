@@ -58,7 +58,7 @@ struct StartingPointView: View {
                 Text(error).role(.meta).foregroundStyle(Palette.stopText)
                     .fixedSize(horizontal: false, vertical: true).padding(.vertical, Space.s8)
             }
-            Button { Haptic.tap(); choose(AppStore.carmelDemoHome, label: "Carmel City Center (demo)") } label: {
+            Button { Haptic.tap(); choose(AppStore.carmelDemoHome, label: "Carmel City Center") } label: {
                 Row(title: "Carmel City Center", detail: "Where the practice routes begin", showsDivider: false,
                     leading: { SignalMark(size: MarkSize.row) },
                     trailing: { trailing(chosen: store.homeChosen && store.home == AppStore.carmelDemoHome, working: false) })

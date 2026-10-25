@@ -43,7 +43,7 @@ let cache = try BundledData.carmelCache()
 let features = FeatureExtractor.extract(from: cache)
 let hin = try? BundledData.highInjuryNetwork()
 // The Home demo: AppStore.demoPreset and demoStartMeters (App is not in the package).
-var runs: [(String, Double?)] = [("preset_highway", 4_400)]
+var runs: [(String, Double?)] = [("preset_downtown", nil)]
 for p in RouteService.presets { runs.append((p.id, nil)) }
 var totalLate = 0, totalMissing = 0
 

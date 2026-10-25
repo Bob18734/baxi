@@ -18,7 +18,7 @@ Delete Baxi and install the newest build (ask Claude), then open it.
 
 ## 2. Home and the demo, 5 min
 - [ ] Home: "Where are you driving?", the search field, "Your next drive" as one big green sign, the hours, six skill rings, the demo button. Routes lists five practice routes, First drive then Downtown and the Palladium. The bottom bar: Home, Routes in the middle, Log; a green mark under the open tab.
-- [ ] Tap "Watch a 3-minute demo drive": three small lights cycle red, amber, green in the button right away; a second tap does nothing.
+- [ ] Tap "Watch a 3-minute demo drive": three small lights cycle red, amber, green in the button right away; a second tap does nothing. The demo is Downtown and the Palladium from City Center, the video route: eight roundabouts in about 3 minutes.
 - [ ] During the demo: the recorded voice speaks with a soft tone first; the big distance, the instruction, the green bar
   emptying toward the turn, the amber lane panel, the roundabout diagram, the speed-limit sign and your speed beside it
   all show; nothing overlaps. After sunset the Drive screen is dark.

@@ -89,7 +89,7 @@ enum CueListBuilder {
                         chained.insert(next.id)
                     }
                 }
-                let lane = laneCue(for: m, direction: dir, line: line, wayIndex: wayIndex, features: features, mph: mph)
+                let lane = laneCue(for: m, direction: dir, side: nil, line: line, wayIndex: wayIndex, features: features, mph: mph)
                 // Said again with the turn, in case the early lane cue was too close to the last maneuver to fire.
                 if let label = lane?.laneLabel, m.kind != .offRamp { spokenWhat += ". Use \(LanePicker.spoken(label))" }
                 cues.append(Cue(id: "turn-\(m.id)", kind: .turn, targetMeters: m.alongMeters,
@@ -102,8 +102,15 @@ enum CueListBuilder {
                                 cardTemplate: "Roundabout: follow the map", laneStrip: nil, roadSpeedMph: mph, maneuverId: m.id))
             case .roundabout:
                 let exit = m.exitNumber ?? 1
-                let lanes = roundabout(near: m, features: features)?.lanes ?? 1
-                let lane = laneCue(for: m, direction: m.direction ?? .straight, line: line, wayIndex: wayIndex, features: features, mph: mph)
+                let rb = roundabout(near: m, features: features)
+                let lanes = rb?.lanes ?? 1
+                // Which side the exit leaves on, from where the route leaves the mapped circle; the exit count
+                // against the legs when the circle isn't mapped (a guessed middle can be 30-40° off).
+                let side = rb.flatMap { RoundaboutDiagram.shape(for: m, route: route, center: $0.coordinate) }
+                    .map { LanePicker.side(exitAngle: $0.exitAngle, exitNumber: exit) }
+                    ?? LanePicker.exitSide(exitNumber: exit, totalExits: rb?.legs ?? 4)
+                let lane = laneCue(for: m, direction: m.direction ?? .straight, side: side, line: line, wayIndex: wayIndex,
+                                   features: features, mph: mph)
                 var spoken = "{in}at the roundabout, take the \(ordinal(exit)) exit"
                 if let adviceLabel = lane?.laneLabel { spoken += ". Use \(LanePicker.spoken(adviceLabel))" }
                 else if lanes >= 2 { spoken += ". Either lane works" }
@@ -205,8 +212,10 @@ enum CueListBuilder {
 
     // MARK: Lane cues
 
-    private static func laneCue(for m: Maneuver, direction: Maneuver.Direction, line: Polyline, wayIndex: GeoIndex,
-                                features: [RoadFeature], mph: Int?) -> (laneLabel: String?, laneStrip: LaneStrip?, cue: Cue?)? {
+    /// `side`: roundabouts only, which side the exit leaves on.
+    private static func laneCue(for m: Maneuver, direction: Maneuver.Direction, side: LanePicker.ExitSide?, line: Polyline,
+                                wayIndex: GeoIndex, features: [RoadFeature], mph: Int?)
+        -> (laneLabel: String?, laneStrip: LaneStrip?, cue: Cue?)? {
         // The approach way is the one with turn:lanes closest to a point 40 m before the maneuver.
         guard let approach = line.coordinate(atMeters: max(0, m.alongMeters - 40)) else { return nil }
         // The road the car is on, then its tag: a tagged carriageway next to it is not the car's road.
@@ -215,15 +224,13 @@ enum CueListBuilder {
         var advice: LaneAdvice?
         var strip: LaneStrip?
         if let tl = way.flatMap({ w in heading.flatMap { w.turnLanes(travelling: $0, near: approach) } ?? w.turnLanes }) {
-            if m.kind == .roundabout {
-                let rb = roundabout(near: m, features: features)
-                let straight = LanePicker.exitSide(exitNumber: m.exitNumber ?? 1, totalExits: rb?.legs ?? 4) == .through
+            if m.kind == .roundabout, let side {
                 let options = LanePicker.throughLanes(tl)
-                if straight, options.count > 1 {
+                if side == .through, options.count > 1 {
                     // More than one lane goes straight through: show them all, ask for none.
                     return (nil, LaneStrip(laneCount: laneLabels(tl).count, highlighted: options, labels: laneLabels(tl)), nil)
                 }
-                advice = LanePicker.pick(turnLanes: tl, exitNumber: m.exitNumber ?? 1, totalExits: rb?.legs ?? 4)
+                advice = LanePicker.pick(turnLanes: tl, side: side, exitNumber: m.exitNumber ?? 1)
             } else {
                 let dir: LanePicker.TurnDirection
                 switch direction {
@@ -234,11 +241,13 @@ enum CueListBuilder {
                 advice = LanePicker.pickForTurn(turnLanes: tl, direction: dir)
             }
             if let advice { strip = LaneStrip(laneCount: advice.laneCount, highlighted: [advice.laneIndex], labels: laneLabels(tl)) }
-        } else if m.kind == .roundabout, m.laneCount == nil, let rb = roundabout(near: m, features: features),
-                  let tl = LanePicker.standardRoundaboutLanes(rb.lanes ?? 1),
-                  LanePicker.exitSide(exitNumber: m.exitNumber ?? 1, totalExits: rb.legs ?? 4) != .through {
-            // No lane data: the standard markings. Going straight either lane works, so no advice then.
-            advice = LanePicker.pick(turnLanes: tl, exitNumber: m.exitNumber ?? 1, totalExits: rb.legs ?? 4)
+        } else if m.kind == .roundabout, m.laneCount == nil, let side, let rb = roundabout(near: m, features: features),
+                  let tl = LanePicker.standardRoundaboutLanes(rb.lanes ?? 1) {
+            // No lane data: the standard markings. Going straight either lane works: both are shown, none asked for.
+            if side == .through {
+                return (nil, LaneStrip(laneCount: laneLabels(tl).count, highlighted: LanePicker.throughLanes(tl), labels: laneLabels(tl)), nil)
+            }
+            advice = LanePicker.pick(turnLanes: tl, side: side, exitNumber: m.exitNumber ?? 1)
             if let advice { strip = LaneStrip(laneCount: advice.laneCount, highlighted: [advice.laneIndex], labels: laneLabels(tl)) }
         } else if let count = m.laneCount, let valid = m.validLanes, !valid.isEmpty, count > 0 {
             // The router's own lane data, when OSM has no tag.

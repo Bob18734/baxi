@@ -28,6 +28,18 @@ let package = Package(
             path: "Tools/voicelines",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .executableTarget(
+            name: "baxi-audit",
+            dependencies: ["Baxi"],
+            path: "Tools/audit",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "baxi-demo-check",
+            dependencies: ["Baxi"],
+            path: "Tools/demo-check",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "BaxiTests",
             dependencies: ["Baxi"],

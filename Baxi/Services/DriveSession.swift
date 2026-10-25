@@ -69,7 +69,6 @@ final class DriveSession {
     private(set) var heading: Double = 0
     private(set) var lastCue: Cue?
     private(set) var lastCueText: String = ""
-    private(set) var laneStrip: LaneStrip?
     private(set) var spokenLog: [(meters: Double, text: String)] = []
     private(set) var isFinished = false
     /// One speed sample per fix on the route, for the habit report. Along positions on a later route
@@ -136,6 +135,12 @@ final class DriveSession {
     private var hasReachedRoute = false
 
     private var replayTimer: Timer?
+    /// False until the start line has been said; the replay car waits until then.
+    private var replayDeparted = false
+    /// Real seconds the replay has been held to real speed by one stretch of talking.
+    private var replayTalkSeconds = 0.0
+    /// Longer than any line Baxi says (with a line queued behind it); past this the voice is not waited on.
+    static let replayTalkLimitSeconds = 25.0
     private var replayMeters = 0.0
     private var clock: TimeInterval = 0
     private var locationDelegate: LocationDelegate?
@@ -216,6 +221,23 @@ final class DriveSession {
 
     // MARK: The next maneuver, for the big card
 
+    /// The lanes are shown from this far before a maneuver that has lane data (or from its first lane line,
+    /// when that comes earlier), so the driver sees them while there is still room to move over.
+    static let lanesAheadMeters = 800.0
+
+    /// The lanes at the next maneuver, the one(s) to be in lit, while it is close: from the approach's
+    /// turn:lanes tag, the router's lane data, or, at a roundabout mapped with two or more lanes, the standard
+    /// markings. nil where none of those exists, and while off the route. The phone cannot tell which lane the
+    /// car is in, so this never marks one as "you".
+    var upcomingLanes: LaneStrip? {
+        guard isOnRoute, let m = nextManeuver, let along = progress?.alongMeters else { return nil }
+        let mine = cues.filter { $0.maneuverId == m.id && $0.laneStrip != nil }
+        // The lane line's strip first (it marks the one lane asked for), as Preview does.
+        guard let strip = (mine.first { $0.kind == .laneChange } ?? mine.first)?.laneStrip, strip.laneCount >= 2 else { return nil }
+        let from = min(m.alongMeters - Self.lanesAheadMeters, mine.compactMap(\.fireAtMeters).min() ?? .infinity)
+        return along >= from ? strip : nil
+    }
+
     var nextManeuver: Maneuver? {
         let along = progress?.alongMeters ?? 0
         return route.maneuvers.first { $0.alongMeters > along + 5 && $0.kind != .depart && $0.kind != .continueStraight }
@@ -276,7 +298,22 @@ final class DriveSession {
     /// One replay timer tick (internal so tests can run a 4x replay without a timer).
     /// The car moves in steps no longer than the profile's cells, so at 4x it still slows into a stop sign the
     /// way the profile says, and the speed reported is the speed where it ends up.
-    func advanceReplay(tick: Double, multiplier: Double) {
+    ///
+    /// While Baxi is talking the replay runs at real speed, whatever the multiplier: the voice cannot talk four
+    /// times faster, so at a steady 4x most instructions were still being said when the car reached the turn
+    /// (35 across the demos, `swift run baxi-demo-check`). The car also waits at the start until the start line
+    /// has been said, as a driver would. Muted, the car still slows for as long as the line would have taken, so
+    /// the sign's text keeps the same pace. A voice that never finishes (an interrupted line the system never
+    /// reports) is waited on for at most `replayTalkLimitSeconds`, so a demo can never stall.
+    func advanceReplay(tick: Double, multiplier requested: Double) {
+        let talking = speaker.isSpeaking || (muted && clock < (scheduler.speechEndsAt ?? 0))
+        replayTalkSeconds = talking ? replayTalkSeconds + tick : 0
+        let waitForVoice = talking && replayTalkSeconds < Self.replayTalkLimitSeconds
+        if !replayDeparted {
+            guard !waitForVoice else { clock += tick; return }
+            replayDeparted = true
+        }
+        let multiplier = waitForVoice ? 1 : requested
         var left = tick * multiplier
         let length = route.polyline.lengthMeters
         while left > 0, replayMeters < length {
@@ -460,11 +497,6 @@ final class DriveSession {
                                        limitMph: CueListBuilder.speed(at: p.alongMeters, in: speeds)))
         }
 
-        // A lane strip stays up from its cue until the maneuver is passed.
-        if let c = lastLaneCue, p.alongMeters > c.targetMeters + 10 {
-            laneStrip = nil; lastLaneCue = nil
-        }
-
         if let cue = scheduler.due(from: cues, alongMeters: p.alongMeters, now: time) {
             let lights = lightsFor(cue, along: p.alongMeters)
             var spoken = cue.spoken(lights: lights, metersAway: cue.targetMeters - p.alongMeters)
@@ -475,17 +507,19 @@ final class DriveSession {
             }
             lastCue = cue
             lastCueText = cue.card(lights: lights)
-            if let s = cue.laneStrip { laneStrip = s; lastLaneCue = cue }
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken, chime: true)
-            // The line as actually said (light counts filled in), at the voice speed the user chose, on the
-            // session clock (a replay at 4x runs the clock 4 times faster than the voice).
+            // The line as actually said (light counts filled in), at the voice speed the user chose. A replay runs
+            // its clock at real speed while a line is being said (advanceReplay), so a line lasts the same on the
+            // session clock as in real time.
             let rate = UserDefaults.standard.object(forKey: Speaker.rateKey) as? Double ?? 1
-            let clockScale: Double = if case .replay(let m) = mode { m } else { 1 }
-            scheduler.noteSpeech(spoken, at: time, rate: rate, clockScale: clockScale)
+            scheduler.noteSpeech(spoken, at: time, rate: rate)
         }
         // Within 30 m of the end counts as there: GPS is often 10 to 20 m off, and people park short.
-        if p.remainingMeters < Self.arrivalMeters, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
+        // A replay has no GPS error, so it drives through every turn first (the practice routes end with a
+        // left into the lot 24 m before the pin, which "arrived" used to swallow).
+        let turnsLeft = mode != .live && route.maneuvers.contains { $0.kind != .arrive && $0.alongMeters > p.alongMeters + 5 }
+        if p.remainingMeters < Self.arrivalMeters, !turnsLeft, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
             if let arrive = cues.first(where: { $0.kind == .arrive }) { scheduler.markFired(arrive.id); lastCue = arrive }
             // The car is there: credit the last few meters and any turn in them, as if it drove to the pin.
             let destination = route.polyline.lengthMeters
@@ -514,7 +548,6 @@ final class DriveSession {
         static let roundaboutReminder = ". No lane changes inside the roundabout"
         static let all = [start, locationOff, getToStart, offRoute, arrived, rerouteFailed, newRoute]
     }
-    private var lastLaneCue: Cue?
     private var saidRoundaboutReminder = false
     private var previousAlong = 0.0
     private var saidGetToStart = false
@@ -578,7 +611,6 @@ final class DriveSession {
         progress = nil
         lastCue = nil
         lastFeedTime = nil; lastFixOnRoute = true
-        laneStrip = nil; lastLaneCue = nil
         lastCueText = "New route"
         rerouteCount += 1
     }

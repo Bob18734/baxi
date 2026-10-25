@@ -216,7 +216,7 @@ private struct InstructionPanel: View {
                 LaneChange(zone: zone, progress: session.laneZoneProgress,
                            metersLeft: zone.endMeters - (session.progress?.alongMeters ?? zone.startMeters), look: look)
                     .transition(.move(edge: .top).combined(with: .opacity))
-            } else if let strip = session.laneStrip {
+            } else if let strip = session.upcomingLanes {
                 LaneRow(strip: strip, onSign: true, height: DriveSize.laneTall).transition(.move(edge: .top).combined(with: .opacity))
             }
             if let m = session.nextManeuver {
@@ -271,7 +271,7 @@ private struct InstructionPanel: View {
         .overlay(RoundedRectangle(cornerRadius: SignStyle.corner, style: .continuous)
                     .inset(by: SignStyle.borderInset + 1).stroke(Palette.onSign, lineWidth: SignStyle.border))
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .animation(Motion.standard, value: session.laneStrip)
+        .animation(Motion.standard, value: session.upcomingLanes)
         .animation(Motion.standard, value: session.activeLaneZone?.id)
         .animation(Motion.standard, value: session.nextManeuver?.id)
     }

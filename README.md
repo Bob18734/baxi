@@ -99,7 +99,7 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 ## Code tour
 
 [CODE_TOUR.md](CODE_TOUR.md) follows one drive through the code, step by step, and lists the
-questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route.
+questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route. `swift run baxi-audit` checks every demo maneuver against the map and `swift run baxi-demo-check` plays the demos on a real-time clock to catch an instruction said too late ([docs/DEMO-AUDIT.md](docs/DEMO-AUDIT.md)).
 [docs/BRIEFINGS.md](docs/BRIEFINGS.md) explains the briefing file the students write.
 
 ## AI disclosure

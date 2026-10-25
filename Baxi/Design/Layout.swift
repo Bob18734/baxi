@@ -61,8 +61,11 @@ enum DriveFollow {
     static let headingSettle: Double = 0.5
     /// The road's bearing is read this far ahead of the car, so the turn starts as the car does.
     static let headingAhead: Double = 12
-    /// The route line is drawn from this far behind the car, so the line is always under it; nothing further back.
-    static let lineBehind: Double = 30
+    /// The stretch ahead drawn in ink ("now"); the rest of the way ahead is drawn quieter ("later"), so on a loop
+    /// the leg you come back on never looks like the one you're on.
+    static let nearAhead: Double = 1_200
+    /// The three stretches are re-cut when the car has moved this far, so their join stays under the arrow.
+    static let lineRecut: Double = 3
 }
 
 enum MapLine {

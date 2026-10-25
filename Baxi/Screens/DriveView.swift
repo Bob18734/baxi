@@ -20,10 +20,12 @@ struct DriveView: View {
     @State private var shownHeading: Double?
     @State private var car: Coordinate?
     @State private var lastFrame: Date?
-    /// The route from just behind the car onward, in ink; the driven part behind it in a pale grey, so on a loop
-    /// the way ahead and the way back never look alike.
-    @State private var remaining: [CLLocationCoordinate2D] = []
+    /// The route in three stretches that join under the arrow: driven (pale), the next stretch (ink), and the rest
+    /// (quieter), so on a loop "where you are going now" and "where you come back later" never look alike.
     @State private var behind: [CLLocationCoordinate2D] = []
+    @State private var near: [CLLocationCoordinate2D] = []
+    @State private var later: [CLLocationCoordinate2D] = []
+    @State private var linesCutAt: Double?
     /// The camera follows the car until the driver (the passenger, really) pans or zooms; it resumes on its own
     /// after a moment, or on Re-center.
     @State private var following = true
@@ -122,16 +124,21 @@ struct DriveView: View {
 
     private var map: some View {
         Map(position: $camera, interactionModes: [.pan, .zoom]) {
-            if behind.count > 1 {
-                MapPolyline(coordinates: behind)
+            if near.isEmpty {
+                MapPolyline(coordinates: session.routeCoordinates)
                     .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
-                MapPolyline(coordinates: behind)
-                    .stroke(look.traveled, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+                MapPolyline(coordinates: session.routeCoordinates)
+                    .stroke(look.route, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+            } else {
+                ForEach([(behind, look.traveled), (later, look.later), (near, look.route)], id: \.1) { line, tint in
+                    if line.count > 1 {
+                        MapPolyline(coordinates: line)
+                            .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
+                        MapPolyline(coordinates: line)
+                            .stroke(tint, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+                    }
+                }
             }
-            MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
-                .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
-            MapPolyline(coordinates: remaining.isEmpty ? session.routeCoordinates : remaining)
-                .stroke(look.route, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
             // Where to change lanes: amber, from the lane cue to "be in the lane by here".
             ForEach(zonesAhead) { z in
                 if let line = session.laneZoneCoordinates[z.id], line.count > 1 {
@@ -147,7 +154,8 @@ struct DriveView: View {
                         .background(Palette.go, in: Circle())
                 }
             }
-            if let p = car ?? session.position {
+            // The arrow appears with the first fix: before it, drawing the route's start would be a guess.
+            if session.hasFix, let p = car ?? session.position {
                 Annotation("", coordinate: p.clLocation) {
                     Mark(glyph: .locate, size: MarkSize.car).foregroundStyle(Palette.onDark)
                         .frame(width: DriveSize.car, height: DriveSize.car)
@@ -183,11 +191,7 @@ struct DriveView: View {
         }
         previousFix = lastFix
         lastFix = (p.alongMeters, Date())
-        // The line from just behind the car: rebuilt per fix, not per frame.
-        let line = session.route.polyline
-        remaining = line.slice(from: max(0, p.alongMeters - DriveFollow.lineBehind), to: line.lengthMeters).map(\.clLocation)
-        behind = p.alongMeters > DriveFollow.lineBehind ? line.slice(from: 0, to: p.alongMeters - DriveFollow.lineBehind).map(\.clLocation) : []
-        if shownAlong == nil { shownAlong = p.alongMeters }
+        if shownAlong == nil { shownAlong = p.alongMeters; recutLines(at: p.alongMeters) }
     }
 
     /// One frame: carry the car on from the last fix at its speed, settle the heading, set the marker and camera.
@@ -215,7 +219,18 @@ struct DriveView: View {
         shownAlong = along
         shownHeading = settled
         car = c
+        if abs(along - (linesCutAt ?? -.infinity)) >= DriveFollow.lineRecut { recutLines(at: along) }
         follow(now: now)
+    }
+
+    /// The three stretches of the route, joined exactly where the arrow is drawn.
+    private func recutLines(at along: Double) {
+        let line = session.route.polyline
+        linesCutAt = along
+        behind = along > 0 ? line.slice(from: 0, to: along).map(\.clLocation) : []
+        let nearEnd = min(line.lengthMeters, along + DriveFollow.nearAhead)
+        near = line.slice(from: along, to: nearEnd).map(\.clLocation)
+        later = nearEnd < line.lengthMeters ? line.slice(from: nearEnd, to: line.lengthMeters).map(\.clLocation) : []
     }
 
     /// The camera, set with no animation: it moves every frame, with the marker.
@@ -298,6 +313,8 @@ struct DriveLook {
     var routeEdge: Color { night ? Palette.night : Palette.field }
     /// The driven part of the route: pale, so the way ahead reads first.
     var traveled: Color { night ? Palette.nightLine : Palette.hairline }
+    /// The way ahead beyond the next stretch: quieter than the stretch you're on.
+    var later: Color { night ? Palette.nightRead : Palette.label }
 }
 
 // MARK: - The instruction

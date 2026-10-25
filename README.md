@@ -4,16 +4,18 @@ Navigation built for new drivers. Google Maps tells you where to turn; Baxi tell
 teen with a learner's permit what to do, early enough to stay calm: which lane to be in, said half a
 mile early; how many traffic lights until the turn; which roundabout exit and which lane; where the
 speed limit drops; where the crash-heavy corridors are. Before the drive, a preview shows the hardest
-spots as Look Around imagery with the rule from the Indiana Driver's Manual. Every drive logs toward
+spots as Look Around imagery, with the students' notes quoting the Indiana Driver's Manual where written
+(`Baxi/Resources/Content/briefings.json`). After each drive Baxi coaches habits (speed against the limit, full
+stops, braking, merges) and tracks skill levels. Every drive logs toward
 the 50 supervised hours (10 at night) the BMV requires. Exports fill the official State Form 54706 and include a CSV. Optional driver details are saved
 on this device; review the exported forms and complete the signatures on paper.
 
 Built for the 2026 Congressional App Challenge, Indiana's 5th District, by Vardaan Goel and [partner].
 
 Safety rule: the driver never touches the phone. It is mounted before the drive and the Drive screen
-has no controls except End drive. Cues are spoken once, one short line each. The wording of lane,
-roundabout, merge and school-zone cues cites the Indiana Driver's Manual; the timing of cues (how early
-a lane cue fires) is our own design and is not from the manual.
+has only Mute and End, for the passenger. Cues are spoken once, one short line each. The cue wording is
+our own plain-language phrasing, and the timing of cues (how early a lane cue fires) is our own design;
+neither is from the manual.
 
 ## Build and run
 

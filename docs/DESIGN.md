@@ -1,80 +1,144 @@
-# Baxi design system
+# Baxi design
 
-Every screen takes its colors, type, spacing and corners from `Baxi/Design/Theme.swift`, and its
-road-sign shapes from `Baxi/Design/Marks.swift`. `scripts/design-lint.sh` fails if a screen writes a
-raw value (a font size, a hex color, a spacing number) instead of a token.
+Written Oct 25, 2026, for the UI rebuild (docs/UI-REBUILD-BRIEF.md). It replaces the earlier design entirely.
 
 ## The idea
 
-A new driver is learning to read road signs, so Baxi looks like them.
+Baxi is the calm passenger who knows the way. Every screen reads like a traffic signal: one thing to look
+at, and colour that means exactly what it means on the road.
 
-- **Guide-sign green panels** with a white rule inset from the edge (`.signPanel()`): the Drive
-  screen's maneuver card, the demo card, the Arrived banner, the chosen route.
-- **Warning yellow** (`BaxiColor.warning`) lights the lane to be in, the same yellow as the app icon.
-- **School-zone yellow-green** and a pentagon for school zones; **orange** and a diamond for
-  crash-heavy roads; **stop red** for End drive and the hands-off sign (`stopText`, a lighter red in dark mode, for error text).
-- **Overpass** for headings and numbers: an open-source typeface drawn after Highway Gothic, the
-  lettering on US highway signs (SIL Open Font License, `Baxi/Resources/Fonts/OFL.txt`). The speed
-  limit sign uses it too, so it looks like the real sign. Body text stays in the system font so it
-  follows the reader's text size.
+Why: a new driver is nervous, and everything they look at is competing with the road. A traffic signal
+works because it has three colours that never mean anything else and you read it in a fraction of a
+second. Baxi borrows that discipline, not the look of a road sign. Green means go, amber means get
+ready, red means stop, and nothing else in the app is coloured.
 
-## Tokens
+## Who it is for, and when
 
-| Scale | Names |
-|---|---|
-| Color | `sign`, `signDeep`, `accent`, `warning`, `school`, `caution`, `stop`, `route`, `signInk`, `page`, `surface`, `sunken`, `ink`, `inkSoft`, `inkFaint`, `hairline`, `onSign` |
-| Type | Overpass: `hero` 40, `title` 28, `number` 36, `numberSmall` 24, `signFace(size)` for drawn signs. System: `section` (title3 bold), `headline`, `button`, `body`, `callout`, `footnote`, `caption`, `eyebrow` (subheadline semibold) |
-| Type (system) | `body`, `bodyBold`, `callout`, `footnote`, `caption` |
-| Spacing | `xxs` 2, `xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 24, `xxl` 32, `page` 20 |
-| Radius | `sm` 8, `md` 12, `lg` 18, `xl` 26 |
+- **Planning at home**: sitting, relaxed, maybe a parent beside them. Calm, roomy screens with one clear
+  next step.
+- **In the car**: the phone is mounted at arm's length and read in under a second, in glare or at night.
+  The Drive screen shows one instruction, very large, at very high contrast. The lane to be in is the
+  brightest thing on it.
+- **After the drive**: proud or rattled. Show what went well first, then at most three things to work on,
+  and the hours toward the goal.
+- **Judges** meet Baxi in a video, so Welcome and Home must say "this was designed" in the first ten seconds.
 
-`ink` is for text you read; `inkSoft` for secondary sentences; `inkFaint` only for labels you glance
-at (eyebrows, units). Colors have light and dark values; the Drive screen turns dark after sunset.
+## What we took from the best, and why
 
-## Components
+- **Apple Maps' turn card, CarPlay and Waze**: one huge distance, one instruction, nothing else competing.
+  That is the Drive screen.
+- **Apple Weather**: one big number with a quiet line under it says more than a dashboard. That is Home's
+  hours and the Arrived score.
+- **Apple Fitness rings**: progress you can read without reading. That is the skills.
+- **Things**: no boxes around everything; space and thin lines do the separating. That is every list.
 
-- `.signPanel(radius:deep:)`, `.card()`, `.baxiPage()`, `Eyebrow("…")`
-- Buttons: `.baxiPrimary`, `.baxiSecondary`, `.baxiOnSign`, `.baxiStop`, `PressableStyle` for cards
-- `.shimmer()` while something with a known shape loads (Look Around imagery). No spinners there.
-- `Haptics.tap()`, `.success()`: for whoever is tapping, the passenger or a parked driver. Nothing in
-  a moving drive depends on them.
-- Marks: `SpeedLimitSign`, `SchoolZoneChip`, `CrashChip`, `TrafficLightMark`, `LaneArrows`,
-  `HoursRing`, `SpotPin`, shapes `Pentagon`, `Diamond`, `Octagon`, `Shield`.
+## Colour (each one has one meaning)
+
+Contrast is measured against the colour it sits on (WCAG ratio; 4.5 is the floor for text you read, 3 for
+large text and labels).
+
+| Token | Hex | Means | Contrast |
+|---|---|---|---|
+| `page` | #EEF1F3 | The ground of every planning screen: a cool, overcast daylight grey. Not white, not cream. | |
+| `field` | #FFFFFF | Only things you type into or pick from (search, forms). | |
+| `ink` | #14202A | Headlines, numbers, the main text. | 14.6 on page |
+| `read` | #475561 | Text you read that is not the headline. | 6.8 on page |
+| `meta` | #5B6873 | Times, distances, small facts. | 5.0 on page |
+| `label` | #75818B | Words you glance at: tab labels, field hints. Steps to `meta` with Increase Contrast. | 3.5 on page |
+| `hairline` | #D5DBDF | The only separator. | |
+| `go` | #22C58B | Go: the main action, you're on track, done. Signal-light green. Ink text on it. | ink on it 7.4 |
+| `goText` | #0B7A55 | Green words on the page ("Saved to your log"). | 4.7 on page |
+| `ready` | #F5B700 | Get ready: the lane to move into, heads-ups, more than 5 over the limit. Ink text on it. | ink on it 9.2 |
+| `readyText` | #8A5A00 | Amber words on the page. | 5.2 on page |
+| `stop` | #D0263E | Stop: End drive, delete, errors. White text on it. | white on it 5.2 |
+| `stopText` | #B3172F | Red words on the page. | 6.0 on page |
+| `night` | #0D171E | The Drive screen's ground after sunset only. | white on it 18.1 |
+| `nightRead` | #A9B6BF | Text you read on `night`. | 8.8 |
+
+Rules: solid fills, no gradients (charts are the only exception). No other hues. On maps, the planned route
+is drawn in `ink` with a white edge (a road you are going to drive), lane-change stretches in `ready`, and the
+part already driven in `label`.
+
+**One identity, light.** Planning screens are always light. The Drive screen alone goes `night` after sunset,
+because glare in a dark car is a safety problem; that is the only dark screen.
+
+## Type
+
+Two families with named roles.
+
+- **Atkinson Hyperlegible Next** (SIL Open Font License, bundled) for headlines, big numbers, primary buttons
+  and everything on the Drive screen. The Braille Institute designed it so that letters that look alike
+  (I, l, 1; 0, O; 5, S) never do, for readers with low vision. That is exactly the problem of reading at a
+  glance from arm's length in a moving car.
+- **The system font** for text you read, so it follows the reader's chosen text size.
+
+| Role | Face | Size / weight | Tracking | Use |
+|---|---|---|---|---|
+| `hero` | Atkinson | 44 ExtraBold, line 0.95 | -1.0 | One per screen at most: Welcome, Home's question |
+| `screenTitle` | Atkinson | 30 ExtraBold | -0.6 | Screen and sheet titles |
+| `driveDistance` | Atkinson | 76 ExtraBold | -2.0 | Drive: distance to the next move |
+| `driveInstruction` | Atkinson | 28 Bold, line 1.05 | -0.3 | Drive: the instruction |
+| `number` | Atkinson | 40 ExtraBold | -1.0 | Hours, score |
+| `numberSmall` | Atkinson | 24 Bold | -0.4 | Miles, minutes, counts |
+| `rowTitle` | Atkinson | 18 Bold | -0.2 | A route or drive name in a list |
+| `button` | Atkinson | 18 Bold | 0 | Primary and secondary buttons |
+| `tab` | Atkinson | 11 SemiBold (clamped) | 0.2 | Bottom bar |
+| `body` | System | body | | Reading text |
+| `bodyStrong` | System | body semibold | | A key fact inside reading text |
+| `meta` | System | footnote | | Times, sources, small facts |
+| `group` | System | subheadline semibold, sentence case | | A group's name above a list ("Practice routes") |
+
+Display sizes follow the reader's text size up to a cap, so nothing clips at the largest size.
+
+## Space, shape, motion, touch
+
+- **Spacing** (pt): 4, 8, 12, 16, 24, 32, 48. Page margin 20. Rows at least 56 tall.
+- **Radius**: 12 for fields and tiles, 22 for the top of sheets and panels; buttons are capsules. Nothing else
+  is rounded.
+- **No shadows**, except the one under a panel that sits on the map.
+- **Motion**: `quick` 0.18 s (taps), `standard` 0.3 s (content changes), `reveal` 0.6 s (a score ring
+  filling), `press` spring (0.25 s response, 0.7 damping). Numbers change with numeric transitions. Layouts
+  never jump.
+- **Haptics** by meaning: `tap`, `success`, `error`, `reveal`. Only for the person tapping. Nothing in a moving
+  drive depends on one.
+
+## Components (one of each)
+
+- **Bottom bar** (Baxi's own): Home, Routes in the middle (the reason you open the app), Log. It sits on
+  `page` with one hairline above it, a fixed height, drawn icons, and a small `go` bar under the active tab.
+  The space for that bar is always reserved, so labels never shift. On Routes, the map's panel ends where the
+  bar begins. It steps away on the Drive screen.
+- **Buttons**: one press language: a dip to 0.95 scale and 0.7 opacity, springing back. `primary` is a
+  `go` capsule with ink text, one per screen. `secondary` is an ink outline. `quiet` is ink text. `danger` is a
+  `stop` capsule.
+- **Working**: the signal. Three small dots in a row light in turn (red, amber, green) inside the button,
+  which keeps its width. No spinners anywhere.
+- **Done**: the button becomes its finished state with a `success` haptic, or a toast says what happened.
+- **Toast**: one ink capsule above the bottom bar, shown from anywhere. Failures say what went wrong in
+  plain words.
+- **Shimmer**: the shape of what is coming, in a lighter band of `page`. Nothing shows "0 hours" before the
+  data loads.
+- **Field**: white, radius 12, hairline edge, 52 tall.
+- **Row**: full width, hairline between rows, no boxes.
+- **Sheet header**: `screenTitle` on the left, a quiet Close or Done on the right. Sheets are only as tall as
+  what is in them.
+- **Empty state**: the signal mark, one sentence, one action.
+
+## Marks (drawn, not borrowed)
+
+Baxi's icons are drawn in code in one style: a 24 pt grid, 2.25 pt round-capped stroke, no fills except the
+signal's lights. They cover the tab icons, the maneuver arrows on the Drive screen, the signal mark, and the
+skill marks. System symbols appear only inside system controls (share sheets, pickers).
 
 ## Rules
 
-1. No raw values in `Baxi/Screens` or `Baxi/App`. A value that truly cannot be a token ends its line
-   with `// design-lint:allow <reason>`.
-2. Nothing on the Drive screen needs a tap while the car moves. Mute and End are for the passenger.
-3. The Drive screen is read at a glance: the distance is the biggest thing on it, the lit lane is
-   the brightest.
-4. A fact is not shown before it is known. Look Around shimmers until it answers; the hours rings
-   come from the saved drives.
-5. Animate state changes (`.snappy`, numeric text transitions), never layout jumps.
-
-## Checking screens without the Simulator
-
-The team's Mac cannot run the iOS Simulator, so `scripts/screens.sh` builds Baxi as a Mac app (Mac
-Catalyst, Debug only, from `.catalyst.yml`) and photographs screens into `build/screens/`:
-
-```
-scripts/screens.sh                                  # build, then every tab and the demo drive
-scripts/screens.sh --no-build drive2 --demo-drive preset_highway --replay-start 8790 --appearance light
-scripts/screens.sh --no-build arrived --screen arrived      # welcome | preview | arrived on their own
-```
-
-The iPhone build is unchanged; the screenshot code (`Baxi/App/ScreenCheck.swift`) is compiled only
-in Debug. Known limits: the Routes map and text-size changes do not show in these screenshots, so
-check those on the phone.
-
-## Restraint rules (Oct 14 polish pass)
-
-- Overpass is for things that are signs: screen titles, sign faces, the big numbers. Everything read or
-  tapped is the system font.
-- The guide-sign panel is the one bold element. Use it for what is a sign (route choices, the Drive sign,
-  "You made it"), not as decoration. Other content sits on the page, not in a card per section.
-- Section names are sentence case. No all-caps labels, no dots between words.
-- One job per screen, a sentence or two of text at most. Fine print (the law, sources, privacy) lives in
-  Settings > About, one tap away.
-- Show driver-facing numbers only (time, miles, night minutes), not internal counts.
-
+1. One primary action per screen. Everything else is visibly secondary.
+2. No card inside a card. No box around a section. Space and hairlines separate.
+3. Colour only with its meaning. If it doesn't mean go, get ready or stop, it's ink or grey.
+4. Fewer words: no internal counts, no legal text on main screens (it lives in Settings), sentence case,
+   no exclamation marks, no emoji.
+5. Every state is designed: first launch, loading, empty, offline, error, lots of data, night.
+6. Readability floor: reading text 13 pt or larger, labels 10 pt, label grey 3:1 or better, tap targets 44 pt.
+   Check every screen at the largest text size.
+7. Every value is a named token in `Baxi/Design`. `scripts/design-lint.sh` fails on raw numbers and colours in
+   screens; a real one-off ends its line with `// design-lint:allow <reason>`.

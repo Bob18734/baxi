@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import CoreLocation
+import os
 
 /// App-wide state: the loaded road data, the experience level, the chosen route.
 /// Kept small on purpose; drives live in SwiftData.
@@ -19,6 +20,7 @@ final class AppStore {
         didSet { UserDefaults.standard.set(level.rawValue, forKey: Self.levelKey) }
     }
     nonisolated static let levelKey = "experienceLevel"
+    nonisolated static let log = Logger(subsystem: "com.vardaangoel.Baxi", category: "routes")
     /// Where a searched route starts: the phone's last known position, else Carmel City Center.
     private(set) var origin: Coordinate = RouteService.carmelCityCenter
     /// True once `origin` is the phone's own position.
@@ -123,7 +125,7 @@ final class AppStore {
 
     func choosePreset(_ id: String) {
         do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
-        catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
+        catch { routeError = "That practice route did not load."; Self.log.error("Preset \(id, privacy: .public) failed: \(error)") }
         refreshPrep()
     }
 
@@ -163,7 +165,7 @@ final class AppStore {
             await use(pick.route)
         } catch {
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
-            print("Routing failed: \(error)")
+            Self.log.error("Routing failed: \(error)")
         }
     }
 

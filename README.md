@@ -72,6 +72,14 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 - `Baxi/Core/Practice.swift` — skills practiced per drive (single and two-lane roundabouts, merges, exit ramps,
   multi-lane turns, miles at 45 mph or more), totals on the Log, and which practice route fills the biggest gap.
   The goals (20, 10, 6, 6, 10, 25) are Baxi's own suggestion, not from the statute or the Driver's Manual.
+  Each skill climbs four levels (Started, Steady, Confident, Test-ready) at a quarter, half, three quarters and all
+  of its goal.
+- `Baxi/Core/DriveHabits.swift` — how a drive went, from one GPS speed sample per second: time more than 5 mph over
+  the posted limit, full stops (under 3 mph) at all-way stops only (the map cannot say which road a two-way stop
+  sign faces), hard braking (slowing faster than 3.4 m/s² from above 10 mph), merging up to within 10 mph of the
+  limit 150 m past a merge (not when an exit follows within 300 m), and top speed near a school on roads posted
+  40 or under (a reminder only: Baxi cannot see whether the zone's lights were flashing). A 0 to 100 score and up
+  to three tips. Every threshold is Baxi's own coaching choice, not Indiana law.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `OfficialLogPDF` (fills the bundled official State Form 54706).
 - `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn
@@ -88,6 +96,8 @@ questions a judge is likely to ask. `swift run baxi-transcript` prints everythin
 
 ## AI disclosure
 
-See [AI_DISCLOSURE.md](AI_DISCLOSURE.md). The four modules listed there are reserved for the students
-and currently contain AI scaffolding. The surrounding app was built with Claude Code; Codex has
-also implemented the reliability fixes and checks recorded in the disclosure. Student review is pending.
+See [AI_DISCLOSURE.md](AI_DISCLOSURE.md), a dated log of every use. The app's code was written with Claude Code,
+including the four modules first reserved for the students (the team decided on Oct 14 that Claude would write
+all app code); the partner's pull requests were written with ChatGPT Codex. The students' part is the idea, the
+product decisions, testing on the phone, the Indiana Driver's Manual briefings (`briefings.json`), the written
+answers and the video.

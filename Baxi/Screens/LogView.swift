@@ -393,8 +393,8 @@ private struct DriveFormView: View {
     /// shift `end` as if the user had moved it.
     init(record: DriveRecord?) {
         self.record = record
-        _start = State(initialValue: record?.start ?? Date().addingTimeInterval(-3600))
-        _end = State(initialValue: record?.end ?? Date())
+        _start = State(initialValue: record?.start ?? Date().addingTimeInterval(-3600))   // design-lint:allow a new drive's default: the last hour
+        _end = State(initialValue: record?.end ?? Date())   // design-lint:allow a new drive's default: ending now
         _note = State(initialValue: record.map { $0.routeTitle == "Practice drive" ? "" : $0.routeTitle } ?? "")
     }
 

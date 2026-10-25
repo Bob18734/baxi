@@ -20,8 +20,8 @@ struct WelcomeView: View {
                                     "Baxi speaks each cue once. The only buttons on the Drive screen are Mute and End, for the passenger or for when you are parked.",
                                     "If Baxi and a sign or a police officer disagree, follow the sign or the officer."]) { HandsOffSign() }
                     .tag(1)
-                WelcomePage(title: "Your location stays on your phone",
-                            lines: ["Baxi uses your location only while a drive is on screen, to follow the route.",
+                WelcomePage(title: "Your drives stay on your phone",
+                            lines: ["Baxi uses your location during a drive, to follow the route, and once on the Routes screen, so a searched route starts where you are.",
                                     "Drives are saved on this phone only. There is no account and nothing is uploaded.",
                                     "A destination search goes to Apple Maps. A new route sends its start and end points to the OSRM route server, then its path, minus the first and last 200 m, to OpenStreetMap to download the lanes, roundabouts and lights along it. The weather check sends the start, rounded to about 1 km, to the National Weather Service. Nothing is sent during the drive except to find a new route if you leave this one. The Carmel practice routes need no internet."]) { LocationMark() }
                     .tag(2)

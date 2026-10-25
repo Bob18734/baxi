@@ -161,7 +161,7 @@ struct DriveView: View {
     private func save() {
         guard !didSave else { return }
         didSave = true
-        let end = session.endedAt ?? Date()
+        let end = session.endedAt ?? Date()   // design-lint:allow end() always sets endedAt before isFinished; never nil here
         // A replay is a demo, not a supervised drive, and a drive where the car never moved is not practice.
         guard DriveSession.shouldLog(mode: session.mode, seconds: end.timeIntervalSince(session.startedAt),
                                      meters: session.drivenMeters) else { return }

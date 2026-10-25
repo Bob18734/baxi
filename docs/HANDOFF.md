@@ -1,4 +1,15 @@
-# Latest handoff: Oct 22 official log export
+# Latest handoff: Oct 24 final push (branch final-push)
+
+Plan: docs/superpowers/plans/2026-10-24-final-push.md. Done: the audit's holes (routes from your location,
+search and loading feedback, End confirmation, location-off and GPS states, log edit/undo), drive habits
+(DriveHabits.swift, speed pill, Arrived "How it went"), skill levels and habit trends, the First drive route,
+a RouteFollower fix for parallel streets, two review passes, hygiene lint, FINAL-QA.md and DEVICE-PASS.md.
+160 tests pass; lint clean; fresh clone compiles for iPhone in Release. Never open app windows on the Mac:
+check with `swift test`, the lint and compile-only builds; the students check the phone with DEVICE-PASS.md.
+Left: the students' briefings.json (readiness check fails until then), the device pass, merge to main,
+repo visibility, video and form.
+
+## Previous handoff: Oct 22 official log export
 
 Synced main through ffd5a4a. Built official State Form 54706 export, optional driver details,
 multiple editable forms for more than 108 drives, and visible export failures on

@@ -211,15 +211,12 @@ struct RouteView: View {
     }
 
     private var practiceRoutes: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            GroupLabel("Practice routes in Carmel").padding(.bottom, Space.s4)
-            ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
-                Button { Haptic.tap(); store.choosePreset(p.id) } label: {
-                    Row(title: p.name, detail: [store.presetMeters[p.id].map { "\(Int(max(1, ($0 / 1609.34).rounded()))) mi" }, p.short]
-                            .compactMap { $0 }.joined(separator: ", "), showsDivider: i < RouteService.presets.count - 1) { RowArrow() }
-                }
-                .buttonStyle(Press())
-                .accessibilityHint("Shows the route on the map")
+        VStack(alignment: .leading, spacing: Space.s8) {
+            GroupLabel("Practice routes in Carmel")
+            ForEach(RouteService.presets) { p in
+                RouteGuideSign(name: p.name, facts: [p.short, store.presetMeters[p.id].map { "\(Int(max(1, ($0 / 1609.34).rounded()))) mi" }]
+                                .compactMap { $0 }.joined(separator: ", ")) { store.choosePreset(p.id) }
+                    .accessibilityHint("Shows the route on the map")
             }
         }
     }

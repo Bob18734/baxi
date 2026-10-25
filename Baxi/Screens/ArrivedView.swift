@@ -98,8 +98,14 @@ struct ArrivedView: View {
             let tips = DriveHabits.tipItems(h)
             ForEach(Array(tips.enumerated()), id: \.element.text) { i, tip in
                 HStack(alignment: .top, spacing: Space.s12) {
-                    Mark(glyph: Self.glyph(tip.kind), size: MarkSize.inline, weight: MarkWeight.emphasis)
-                        .foregroundStyle(tip.kind == .clean ? Palette.goText : Palette.readyText)
+                    // Where the tip is about a road sign, the sign itself; otherwise the drawn mark.
+                    switch tip.kind {
+                    case .school: WarningSign(kind: .school, size: MarkSize.standard)
+                    case .stops: WarningSign(kind: .stop, size: MarkSize.standard)
+                    default:
+                        Mark(glyph: Self.glyph(tip.kind), size: MarkSize.inline, weight: MarkWeight.emphasis)
+                            .foregroundStyle(tip.kind == .clean ? Palette.goText : Palette.readyText)
+                    }
                     VStack(alignment: .leading, spacing: Space.s4) {
                         // The school line is a reminder, not a mark-down: say so, so it can't read as a contradiction.
                         if tip.kind == .school { Text("Reminder").role(.metaStrong).foregroundStyle(Palette.readyText) }

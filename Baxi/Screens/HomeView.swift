@@ -116,23 +116,16 @@ private struct NextDrive: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s12) {
-            GroupLabel("Your next drive")
-            VStack(alignment: .leading, spacing: Space.s4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(suggestion.preset.name).role(.screenTitle).foregroundStyle(Palette.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: Space.s8)
-                    if let miles = suggestion.miles {
-                        Text("\(Int(max(1, (miles / 1609.34).rounded()))) mi").role(.numberSmall).foregroundStyle(Palette.meta)
-                    }
-                }
-                if let reason = suggestion.reason {
-                    Text(reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
-                }
+            // The screen's main action, as the guide sign it is on the road.
+            RouteGuideSign(kicker: "Your next drive", name: suggestion.preset.name,
+                           facts: suggestion.miles.map { "\(Int(max(1, ($0 / 1609.34).rounded()))) miles in Carmel" }, large: true) {
+                go(suggestion.preset)
             }
-            BigButton(title: "See the route", glyph: .route) { go(suggestion.preset) }
+            .accessibilityHint("Shows the route on the map")
+            if let reason = suggestion.reason {
+                Text(reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .accessibilityElement(children: .contain)
     }
 }
 

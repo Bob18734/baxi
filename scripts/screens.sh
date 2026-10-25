@@ -26,7 +26,7 @@ shoot() { # name, args...
 if [ $# -ge 1 ]; then shoot "$@"; exit; fi
 shoot welcome --screen welcome
 shoot home --skip-welcome
-shoot route --skip-welcome --carmel-demo
+shoot route --skip-welcome --tab route
 shoot log --skip-welcome --tab log --sample-drives
 shoot route-chosen --skip-welcome --route preset_highway --snap-delay 7
 shoot preview --skip-welcome --screen preview --snap-delay 7

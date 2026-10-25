@@ -12,7 +12,7 @@ enum Glyph: Hashable {
     // Driving
     case turnLeft, turnRight, slightLeft, slightRight, straight, uturn, merge, exitLeft, exitRight, roundabout, arrive, start
     // Heads-ups
-    case school, crash, railroad, sun, moon, offRoute, waiting, stopSign, brake
+    case school, crash, railroad, sun, moon, offRoute, waiting, stopSign, brake, person
     // Skills
     case oneLane, twoLane, highwayMerge, exitRamp, laneTurn, fastRoad
     // Welcome
@@ -199,6 +199,12 @@ enum MarkPaths {
             return [p { $0.move(to: CGPoint(x: 12, y: 3.5)); $0.addLine(to: CGPoint(x: 21.5, y: 20)); $0.addLine(to: CGPoint(x: 2.5, y: 20)); $0.closeSubpath()
                         $0.move(to: CGPoint(x: 12, y: 10)); $0.addLine(to: CGPoint(x: 12, y: 14)) },
                     fill { $0.addEllipse(in: CGRect(x: 10.8, y: 16, width: 2.4, height: 2.4)) }]
+        case .person:
+            // A person crossing, as on the school-zone sign.
+            return [fill { $0.addEllipse(in: CGRect(x: 10, y: 2, width: 5, height: 5)) },
+                    p { $0.move(to: CGPoint(x: 12, y: 9)); $0.addLine(to: CGPoint(x: 11, y: 15))
+                        $0.addLine(to: CGPoint(x: 7, y: 21)); $0.move(to: CGPoint(x: 11, y: 15)); $0.addLine(to: CGPoint(x: 15, y: 21))
+                        $0.move(to: CGPoint(x: 7, y: 11)); $0.addLine(to: CGPoint(x: 12, y: 9.5)); $0.addLine(to: CGPoint(x: 17, y: 12)) }]
         case .stopSign:
             // The stop sign's octagon.
             var oct = Path()
@@ -338,6 +344,8 @@ struct RoundaboutMark: View {
     let shape: RoundaboutShape
     var size: CGFloat = 72
     var ink: Color = Palette.onDark
+    /// The way through. On a guide sign it's the sign's white, as on a diagrammatic road sign.
+    var way: Color = Palette.go
 
     var body: some View {
         Canvas { ctx, canvas in
@@ -363,13 +371,13 @@ struct RoundaboutMark: View {
             for i in 1...steps { way.addLine(to: point(180 - sweep * Double(i) / Double(steps), r)) }
             let tip = point(shape.exitAngle, canvas.width * 0.46)
             way.addLine(to: tip)
-            ctx.stroke(way, with: .color(Palette.go), style: StrokeStyle(lineWidth: w * 1.35, lineCap: .round, lineJoin: .round))
+            ctx.stroke(way, with: .color(self.way), style: StrokeStyle(lineWidth: w * 1.35, lineCap: .round, lineJoin: .round))
             let a = (shape.exitAngle - 90) * .pi / 180
             for side in [-1.0, 1.0] {
                 var h = Path(); h.move(to: tip)
                 let back = a + .pi + side * .pi / 4.2
                 h.addLine(to: CGPoint(x: tip.x + w * 3 * cos(back), y: tip.y + w * 3 * sin(back)))
-                ctx.stroke(h, with: .color(Palette.go), style: StrokeStyle(lineWidth: w * 1.35, lineCap: .round))
+                ctx.stroke(h, with: .color(self.way), style: StrokeStyle(lineWidth: w * 1.35, lineCap: .round))
             }
         }
         .frame(width: size, height: size)
@@ -385,8 +393,8 @@ struct SpeedLimitSign: View {
     let mph: Int
     var body: some View {
         VStack(spacing: 0) {
-            Text("SPEED\nLIMIT").font(Typeface.fixed(10, .bold)).multilineTextAlignment(.center)
-            Text("\(mph)").font(Typeface.fixed(28, .extraBold)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
+            Text("SPEED\nLIMIT").font(Typeface.signFixed(10, .bold)).multilineTextAlignment(.center)
+            Text("\(mph)").font(Typeface.signFixed(28, .black)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
         }
         .foregroundStyle(Palette.ink)
         .frame(width: SignSize.width, height: SignSize.height)
@@ -406,8 +414,8 @@ struct SpeedReadout: View {
     private var over: Bool { limit.map { Double(mph) > Double($0) + DriveHabits.overMph } ?? false }
     var body: some View {
         VStack(spacing: 0) {
-            Text("\(mph)").font(Typeface.fixed(22, .extraBold)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
-            Text("mph").font(Typeface.fixed(10, .bold))
+            Text("\(mph)").font(.system(size: 22, weight: .bold)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
+            Text("mph").font(.system(size: 10, weight: .semibold))
         }
         .foregroundStyle(over ? Palette.ink : (night ? Palette.onDark : Palette.ink))
         .frame(width: SignSize.width, height: SignSize.readout)
@@ -447,5 +455,137 @@ struct SignalMark: View {
         }
         .background(Palette.ink, in: Capsule())
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Signs
+
+/// A US highway guide sign: highway green, a white border set in from the edge, white Overpass lettering.
+/// Baxi uses it for places and directions: the practice routes, the next drive, the instruction while driving.
+struct GuideSign<Content: View>: View {
+    var fill: Color = Palette.sign
+    var padding: CGFloat = Space.s16
+    @ViewBuilder var content: Content
+    var body: some View {
+        content
+            .foregroundStyle(Palette.onSign)
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(fill, in: RoundedRectangle(cornerRadius: SignStyle.corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: SignStyle.innerCorner, style: .continuous)
+                        .inset(by: SignStyle.borderInset).stroke(Palette.onSign, lineWidth: SignStyle.border))
+    }
+}
+
+/// A heads-up as the sign it is on the road: the school pentagon in fluorescent yellow-green, a yellow warning
+/// diamond, the round railroad sign. Ink mark inside.
+struct WarningSign: View {
+    enum Kind { case school, warning, railroad, sun, stop }
+    let kind: Kind
+    var size: CGFloat = SignStyle.icon
+
+    var body: some View {
+        ZStack {
+            switch kind {
+            case .school:
+                SchoolShape().fill(Palette.school)
+                SchoolShape().stroke(Palette.ink, lineWidth: size * 0.05)
+            case .railroad:
+                Circle().fill(Palette.warningSign)
+                Circle().stroke(Palette.ink, lineWidth: size * 0.05)
+            case .warning, .sun:
+                Diamond().fill(Palette.warningSign)
+                Diamond().stroke(Palette.ink, lineWidth: size * 0.05)
+            case .stop:
+                Octagon().fill(Palette.stop)
+                Octagon().inset(by: size * 0.08).stroke(Palette.onStop, lineWidth: size * 0.05)
+            }
+            if kind != .stop {
+                Mark(glyph: inner, size: size * 0.5, weight: MarkWeight.emphasis).foregroundStyle(Palette.ink)
+                    .offset(y: kind == .school ? size * 0.06 : 0)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    private var inner: Glyph {
+        switch kind {
+        case .school: .person
+        case .railroad: .railroad
+        case .warning: .crash
+        case .sun: .sun
+        case .stop: .stopSign
+        }
+    }
+}
+
+/// The stop sign's octagon.
+private struct Octagon: InsettableShape {
+    var amount: CGFloat = 0
+    func inset(by a: CGFloat) -> Octagon { Octagon(amount: amount + a) }
+    func path(in r: CGRect) -> Path {
+        let rect = r.insetBy(dx: amount, dy: amount)
+        let c = CGPoint(x: rect.midX, y: rect.midY), radius = rect.width / 2 / cos(.pi / 8)
+        return Path { p in
+            for i in 0..<8 {
+                let a = (Double(i) * 45 + 22.5) * .pi / 180
+                let pt = CGPoint(x: c.x + radius * cos(a) * cos(.pi / 8), y: c.y + radius * sin(a) * cos(.pi / 8))
+                if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+            }
+            p.closeSubpath()
+        }
+    }
+}
+
+private struct Diamond: Shape {
+    func path(in r: CGRect) -> Path {
+        let inset = r.width * 0.04
+        return Path { p in
+            p.move(to: CGPoint(x: r.midX, y: r.minY + inset)); p.addLine(to: CGPoint(x: r.maxX - inset, y: r.midY))
+            p.addLine(to: CGPoint(x: r.midX, y: r.maxY - inset)); p.addLine(to: CGPoint(x: r.minX + inset, y: r.midY)); p.closeSubpath()
+        }
+    }
+}
+
+private struct SchoolShape: Shape {
+    func path(in r: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: r.midX, y: r.minY + r.height * 0.04))
+            p.addLine(to: CGPoint(x: r.maxX - r.width * 0.08, y: r.minY + r.height * 0.38))
+            p.addLine(to: CGPoint(x: r.maxX - r.width * 0.08, y: r.maxY - r.height * 0.06))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.08, y: r.maxY - r.height * 0.06))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.08, y: r.minY + r.height * 0.38))
+            p.closeSubpath()
+        }
+    }
+}
+
+/// A practice route as a guide sign: a small top line, the route's name in sign lettering, a line of facts, and the
+/// sign's arrow. The whole sign is the button.
+struct RouteGuideSign: View {
+    var kicker: String? = nil
+    let name: String
+    let facts: String?
+    var large = false
+    let action: () -> Void
+
+    var body: some View {
+        Button { Haptic.tap(); action() } label: {
+            GuideSign(padding: large ? Space.s24 : Space.s16) {
+                HStack(alignment: .center, spacing: Space.s12) {
+                    VStack(alignment: .leading, spacing: Space.s4) {
+                        if let kicker { Text(kicker).role(.signLine).foregroundStyle(Palette.onSignSoft) }
+                        Text(name).role(large ? .signTitle : .signTitle).fixedSize(horizontal: false, vertical: true)
+                        if let facts { Text(facts).role(.signLine).foregroundStyle(Palette.onSignSoft).fixedSize(horizontal: false, vertical: true) }
+                    }
+                    Spacer(minLength: Space.s8)
+                    Mark(glyph: .slightRight, size: large ? MarkSize.feature * 0.75 : MarkSize.car, weight: MarkWeight.drive)
+                }
+            }
+        }
+        .buttonStyle(Press())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 }

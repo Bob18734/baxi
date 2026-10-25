@@ -185,10 +185,11 @@ struct DriveView: View {
 struct DriveLook {
     let night: Bool
     var ground: Color { night ? Palette.night : Palette.page }
-    /// The instruction panel: ink by day (white words on dark read best in sun), a lifted panel at night.
-    var panel: Color { night ? Palette.nightPanel : Palette.ink }
-    var panelText: Color { Palette.onDark }
-    var panelSoft: Color { Palette.nightRead }
+    /// The instruction is an overhead guide sign: highway green with a white border, white sign lettering (the
+    /// format drivers are trained to read at a glance); a dimmer green at night.
+    var panel: Color { night ? Palette.signNight : Palette.sign }
+    var panelText: Color { Palette.onSign }
+    var panelSoft: Color { Palette.onSignSoft }
     var surface: Color { night ? Palette.nightPanel : Palette.field }
     var text: Color { night ? Palette.onDark : Palette.ink }
     var soft: Color { night ? Palette.nightRead : Palette.meta }
@@ -214,12 +215,12 @@ private struct InstructionPanel: View {
                            metersLeft: zone.endMeters - (session.progress?.alongMeters ?? zone.startMeters), look: look)
                     .transition(.move(edge: .top).combined(with: .opacity))
             } else if let strip = session.laneStrip {
-                LaneRow(strip: strip, night: true, height: DriveSize.laneTall).transition(.move(edge: .top).combined(with: .opacity))
+                LaneRow(strip: strip, onSign: true, height: DriveSize.laneTall).transition(.move(edge: .top).combined(with: .opacity))
             }
             if let m = session.nextManeuver {
                 HStack(alignment: .center, spacing: Space.s16) {
                     if let shape = session.roundaboutShapes[m.id] {
-                        RoundaboutMark(shape: shape, size: DriveSize.markBig + Space.s8, ink: look.panelText)
+                        RoundaboutMark(shape: shape, size: DriveSize.markBig + Space.s8, ink: look.panelText, way: Palette.onSign)
                     } else {
                         Mark(glyph: .maneuver(m), size: DriveSize.markBig, weight: MarkWeight.drive).foregroundStyle(look.panelText)
                     }
@@ -230,14 +231,14 @@ private struct InstructionPanel: View {
                             .contentTransition(.numericText())
                             .animation(Motion.quick, value: session.metersToNextManeuver.map { Int($0 / 15) })
                         Text(m.instruction).role(.driveInstruction).foregroundStyle(look.panelText)
-                            .lineLimit(2).minimumScaleFactor(0.7)
+                            .lineLimit(3).minimumScaleFactor(0.75)
                     }
                     Spacer(minLength: 0)
                     if let n = session.lightsToNextManeuver { LightsLeft(count: n, look: look) }
                 }
                 if let p = session.nextManeuverProgress {
                     // Empties toward the turn, so "almost there" reads without the number.
-                    ProgressLine(fraction: 1 - p, tint: Palette.go, track: Palette.panelTrack)
+                    ProgressLine(fraction: 1 - p, tint: Palette.onSign, track: Palette.signTrack)
                         .animation(Motion.follow, value: p)
                 }
                 // What Baxi just said, quietly, so a passenger can read it (unless a state above is showing).
@@ -262,9 +263,11 @@ private struct InstructionPanel: View {
                 }
             }
         }
-        .padding(Space.s16)
+        .padding(Space.s16 + SignStyle.borderInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(look.panel, in: RoundedRectangle(cornerRadius: Corner.sheet, style: .continuous))
+        .background(look.panel, in: RoundedRectangle(cornerRadius: SignStyle.corner + Space.s4, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: SignStyle.corner, style: .continuous)
+                    .inset(by: SignStyle.borderInset + 1).stroke(Palette.onSign, lineWidth: SignStyle.border))
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .animation(Motion.standard, value: session.laneStrip)
         .animation(Motion.standard, value: session.activeLaneZone?.id)
@@ -302,7 +305,7 @@ private struct LaneChange: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(committed ? "Stay in this lane" : zone.instruction).role(.rowTitle).foregroundStyle(Palette.ready)
+                Text(committed ? "Stay in this lane" : zone.instruction).role(.signTitle).foregroundStyle(look.panelText)
                 Spacer(minLength: Space.s8)
                 if !committed {
                     Text("\(DriveView.distance(metersLeft)) to do it").role(.metaStrong).foregroundStyle(look.panelSoft)
@@ -311,7 +314,7 @@ private struct LaneChange: View {
                 }
             }
             road
-            ProgressLine(fraction: committed ? 0 : 1 - progress, tint: Palette.ready, track: Palette.panelTrack)
+            ProgressLine(fraction: committed ? 0 : 1 - progress, tint: Palette.ready, track: Palette.signTrack)
         }
         .onAppear { if !reduceMotion { withAnimation(Motion.sweep) { sweep = true } } }
         .accessibilityElement(children: .ignore)
@@ -325,7 +328,7 @@ private struct LaneChange: View {
         return HStack(spacing: 0) {
             ForEach(0..<s.laneCount, id: \.self) { i in
                 ZStack {
-                    Rectangle().fill(lit.contains(i) ? Palette.ready : Palette.panelLane)
+                    Rectangle().fill(lit.contains(i) ? Palette.ready : Palette.signLane)
                     LaneMark(label: i < s.labels.count ? s.labels[i] : "", size: MarkSize.lane)
                         .foregroundStyle(lit.contains(i) ? Palette.ink : look.panelSoft)
                     if !lit.contains(i) && !committed, let toward = direction(from: i, lit: lit) {
@@ -433,19 +436,19 @@ private struct StatusLine: View {
 private struct AlertChip: View {
     let kind: CueKind
     var body: some View {
-        let (glyph, text): (Glyph, String) = switch kind {
+        let (sign, text): (WarningSign.Kind, String) = switch kind {
         case .schoolZone: (.school, "School zone")
         case .railroad: (.railroad, "Railroad")
         case .glare: (.sun, "Low sun")
-        default: (.crash, "Crash-heavy")
+        default: (.warning, "Crash-heavy")
         }
+        // The heads-up as its road sign, with one word beside it.
         return HStack(spacing: Space.s8) {
-            Mark(glyph: glyph, size: MarkSize.small, weight: MarkWeight.emphasis)
-            Text(text).role(.metaStrong)
+            WarningSign(kind: sign)
+            Text(text).role(.metaStrong).foregroundStyle(Palette.ink)
         }
-        .foregroundStyle(Palette.ink)
-        .padding(.horizontal, Space.s12).padding(.vertical, Space.s8)
-        .background(Palette.ready, in: Capsule())
+        .padding(.leading, Space.s4).padding(.trailing, Space.s12).padding(.vertical, Space.s4)
+        .background(Palette.field, in: Capsule())
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .accessibilityElement(children: .combine)
     }

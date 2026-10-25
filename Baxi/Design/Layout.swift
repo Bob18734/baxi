@@ -68,6 +68,15 @@ enum PanelSize {
 
 enum SkillPanelSize { static let segments: CGFloat = 76 }
 
+/// The guide sign's shape: an outer corner, the white border set in from the edge, and the warning-sign icons.
+enum SignStyle {
+    static let corner: CGFloat = 14
+    static let innerCorner: CGFloat = 10
+    static let borderInset: CGFloat = 4
+    static let border: CGFloat = 2
+    static let icon: CGFloat = 30
+}
+
 enum SignSize {
     static let width: CGFloat = 58
     static let height: CGFloat = 70

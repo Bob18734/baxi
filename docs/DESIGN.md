@@ -4,8 +4,9 @@ Written Oct 25, 2026, for the UI rebuild (docs/UI-REBUILD-BRIEF.md). It replaces
 
 ## The idea
 
-Baxi is the calm passenger who knows the way. Every screen reads like a traffic signal: one thing to look
-at, and colour that means exactly what it means on the road.
+Baxi is the calm passenger who knows the way, and it speaks the language of the road: signals for state, signs for
+places. Colour means what it means at a traffic signal (green go, amber get ready, red stop), and anything about where
+you're going is drawn as the sign you'd see on the road, in highway green with sign lettering.
 
 Why: a new driver is nervous, and everything they look at is competing with the road. A traffic signal
 works because it has three colours that never mean anything else and you read it in a fraction of a
@@ -64,31 +65,38 @@ because glare in a dark car is a safety problem; that is the only dark screen.
 
 ## Type
 
-Two families with named roles.
+Two faces, each with one job (changed Oct 25 after Vardaan asked for a cleaner face and more character):
 
-- **Atkinson Hyperlegible Next** (SIL Open Font License, bundled) for headlines, big numbers, primary buttons
-  and everything on the Drive screen. The Braille Institute designed it so that letters that look alike
-  (I, l, 1; 0, O; 5, S) never do, for readers with low vision. That is exactly the problem of reading at a
-  glance from arm's length in a moving car.
-- **The system font** for text you read, so it follows the reader's chosen text size.
+- **San Francisco, Apple's system font,** for everything you read and tap: headlines, numbers, buttons, body. It is
+  the cleanest, most native face on an iPhone and follows the reader's text size, so the planning screens look
+  professional and calm.
+- **Overpass** (SIL Open Font License, bundled), drawn after the US highway sign alphabet, only for lettering on
+  signs: the guide signs (practice routes, the next drive), the Drive screen's instruction, the speed-limit sign.
+  Used nowhere else, so it always reads as a road sign.
 
-| Role | Face | Size / weight | Tracking | Use |
-|---|---|---|---|---|
-| `hero` | Atkinson | 44 ExtraBold, line 0.95 | -1.0 | One per screen at most: Welcome, Home's question |
-| `screenTitle` | Atkinson | 30 ExtraBold | -0.6 | Screen and sheet titles |
-| `driveDistance` | Atkinson | 76 ExtraBold | -2.0 | Drive: distance to the next move |
-| `driveInstruction` | Atkinson | 28 Bold, line 1.05 | -0.3 | Drive: the instruction |
-| `number` | Atkinson | 40 ExtraBold | -1.0 | Hours, score |
-| `numberSmall` | Atkinson | 24 Bold | -0.4 | Miles, minutes, counts |
-| `rowTitle` | Atkinson | 18 Bold | -0.2 | A route or drive name in a list |
-| `button` | Atkinson | 18 Bold | 0 | Primary and secondary buttons |
-| `tab` | Atkinson | 11 SemiBold (clamped) | 0.2 | Bottom bar |
-| `body` | System | body | | Reading text |
-| `bodyStrong` | System | body semibold | | A key fact inside reading text |
-| `meta` | System | footnote | | Times, sources, small facts |
-| `group` | System | subheadline semibold, sentence case | | A group's name above a list ("Practice routes") |
+| Role | Face | Size / weight | Use |
+|---|---|---|---|
+| `hero` | System | 38 bold | Welcome, Home's question, Arrived |
+| `screenTitle` | System | 30 bold | Screen and sheet titles |
+| `number` / `numberSmall` | System | 40 bold / 24 semibold | Hours, score, stats |
+| `rowTitle`, `button` | System | headline | Rows, buttons |
+| `body`, `bodyStrong`, `meta`, `group` | System | text styles | Reading text |
+| `signTitle` / `signLine` | Overpass | 24 extra bold / 15 bold | A guide sign's lines |
+| `signNumber` | Overpass | 44 black | A distance on a sign |
+| `driveDistance` / `driveInstruction` | Overpass | 72 black / 27 bold | The Drive screen's guide sign |
 
-Display sizes follow the reader's text size up to a cap, so nothing clips at the largest size.
+All of them grow with the reader's text size; signs drawn at a fixed size clamp their own type.
+
+## Signs (the brand)
+
+- **Guide sign:** highway green (`sign`, #00694B; white on it 7.0:1) with a white border set in from the edge and
+  Overpass lettering. Practice routes are guide signs; Home's next drive is one big sign; the Drive instruction is an
+  overhead guide sign (a dimmer green at night). Lane arrows on a sign are white, the lane to be in amber.
+- **Warning signs** keep their real shapes and colours: the school pentagon in fluorescent yellow-green, the yellow
+  diamond, the round railroad sign, the stop sign's octagon. They mark heads-ups while driving and the coaching tips.
+- **Regulatory sign:** the speed limit, black on white.
+- Signal green (`go`) stays for your own action and progress; sign green is road information. They never sit on top
+  of each other.
 
 ## Space, shape, motion, touch
 
@@ -147,8 +155,7 @@ A design critic reviewed every screen against Apple Maps, Waze, Weather, Fitness
   one line of fine print at the bottom. The school line is labelled "Reminder", because it never lowers the score.
 - **Welcome has one hero and one moment**: inside the drive card, the signal lights red, amber, green, then the
   instruction appears and the distance counts down. It is the design idea in two seconds of video.
-- **The slashed zero stays.** Atkinson Hyperlegible Next draws 0 with a slash so it can never be read as O; that
-  is the reason the face was chosen, and it has no plain-zero variant.
+- **Type changed after that review** (see Type): the system font for reading, Overpass for sign lettering only.
 
 ## Rules
 

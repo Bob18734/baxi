@@ -45,6 +45,24 @@ enum Palette {
     /// Text on `stop`.
     static let onStop = Color.white
 
+    /// Road information: the green of US highway guide signs (where you're going). White lettering on it, 7.0:1.
+    /// Not `go`, which is the signal's green for your action and progress.
+    static let sign = Color(hex: 0x00694B)
+    /// A guide sign at night on the Drive screen: the same green, dimmer, for glare.
+    static let signNight = Color(hex: 0x004A36)
+    /// A lane tile that isn't the one to be in, on a guide sign.
+    static let signLane = Color(hex: 0x00563D)
+    /// Lettering and borders on a guide sign.
+    static let onSign = Color.white
+    /// A guide sign's second line.
+    static let onSignSoft = Color.white.opacity(0.82)
+    /// An empty track on a guide sign.
+    static let signTrack = Color.white.opacity(0.22)
+    /// The school-zone sign's fluorescent yellow-green.
+    static let school = Color(hex: 0xC6DC00)
+    /// Warning signs' yellow (the diamond): the same meaning as `ready`.
+    static let warningSign = Color(hex: 0xF5B700)
+
     /// The Drive screen's ground after sunset (the only dark screen).
     static let night = Color(hex: 0x0D171E)
     /// A raised panel on `night`.
@@ -79,60 +97,64 @@ extension UIColor {
 
 // MARK: - Type
 
-/// Named type roles. Atkinson Hyperlegible Next (the Braille Institute's face for telling look-alike letters
-/// apart) for headlines, numbers, buttons and the Drive screen; the system font for reading text, so it follows
-/// the reader's text size.
+/// Named type roles. Apple's system font (San Francisco) for everything you read and tap: the cleanest face on an
+/// iPhone, and it follows the reader's text size. Overpass, after the US highway sign alphabet, only for lettering
+/// on signs: the guide signs, the Drive screen's instruction, the speed limit.
 enum TypeRole {
     case hero, screenTitle, driveDistance, driveInstruction, number, numberSmall, rowTitle, button, tab
     case body, bodyStrong, meta, group, metaStrong
+    /// Sign lettering: a guide sign's main line, and its smaller second line.
+    case signTitle, signLine, signNumber
 
     var font: Font {
         switch self {
-        case .hero: Typeface.display(44, .extraBold, relativeTo: .largeTitle)
-        case .screenTitle: Typeface.display(30, .extraBold, relativeTo: .title)
-        case .driveDistance: Typeface.display(76, .extraBold, relativeTo: .largeTitle)
-        case .driveInstruction: Typeface.display(28, .bold, relativeTo: .title)
-        case .number: Typeface.display(40, .extraBold, relativeTo: .largeTitle)
-        case .numberSmall: Typeface.display(24, .bold, relativeTo: .title2)
-        case .rowTitle: Typeface.display(18, .bold, relativeTo: .headline)
-        case .button: Typeface.display(18, .bold, relativeTo: .headline)
-        case .tab: Typeface.fixed(11, .semiBold)
+        case .hero: Typeface.system(38, .bold, relativeTo: .largeTitle)
+        case .screenTitle: Typeface.system(30, .bold, relativeTo: .title1)
+        case .driveDistance: Typeface.sign(72, .black, relativeTo: .largeTitle)
+        case .driveInstruction: Typeface.sign(27, .bold, relativeTo: .title)
+        case .number: Typeface.system(40, .bold, relativeTo: .largeTitle)
+        case .numberSmall: Typeface.system(24, .semibold, relativeTo: .title2)
+        case .rowTitle: .headline
+        case .button: .headline
+        case .tab: .system(size: 11, weight: .medium)
         case .body: .body
         case .bodyStrong: .body.weight(.semibold)
         case .meta: .footnote
         case .metaStrong: .footnote.weight(.semibold)
         case .group: .subheadline.weight(.semibold)
+        case .signTitle: Typeface.sign(24, .extraBold, relativeTo: .title2)
+        case .signLine: Typeface.sign(15, .bold, relativeTo: .subheadline)
+        case .signNumber: Typeface.sign(44, .black, relativeTo: .largeTitle)
         }
     }
 
-    /// Letter spacing in points: tight for big display type, open for the small tab label.
+    /// Letter spacing in points: a little tighter for big system type, as Apple sets its own large titles.
     var tracking: CGFloat {
         switch self {
-        case .hero: -1.0
-        case .screenTitle: -0.6
-        case .driveDistance: -2.0
-        case .driveInstruction: -0.3
-        case .number: -1.0
-        case .numberSmall: -0.4
-        case .rowTitle: -0.2
-        case .tab: 0.2
+        case .hero: -0.6
+        case .screenTitle: -0.4
+        case .number: -0.8
+        case .driveDistance: -1.0
         default: 0
         }
     }
 }
 
 enum Typeface {
-    enum Weight: String { case regular = "Regular", semiBold = "SemiBold", bold = "Bold", extraBold = "ExtraBold" }
+    enum SignWeight: String { case bold = "Bold", extraBold = "ExtraBold", black = "Black" }
 
-    static func name(_ w: Weight) -> String { "AtkinsonHyperlegibleNext-\(w.rawValue)" }
-
-    /// Display type that grows with the reader's text size (screens cap the largest sizes where a layout is fixed).
-    static func display(_ size: CGFloat, _ w: Weight, relativeTo style: Font.TextStyle) -> Font {
-        .custom(name(w), size: size, relativeTo: style)
+    /// The system font at a size that grows with the reader's text size, like a text style does.
+    static func system(_ size: CGFloat, _ weight: Font.Weight, relativeTo style: UIFont.TextStyle) -> Font {
+        .system(size: UIFontMetrics(forTextStyle: style).scaledValue(for: size), weight: weight)
     }
 
-    /// Display type at a fixed size, for marks drawn at a set size (the bottom bar, a speed-limit sign).
-    static func fixed(_ size: CGFloat, _ w: Weight) -> Font { .custom(name(w), fixedSize: size) }
+    /// Sign lettering (Overpass), growing with the reader's text size.
+    static func sign(_ size: CGFloat, _ weight: SignWeight, relativeTo style: Font.TextStyle) -> Font {
+        .custom("Overpass-\(weight.rawValue)", size: size, relativeTo: style)
+    }
+
+    /// Sign lettering at a fixed size, for signs drawn at a set size (a speed-limit sign).
+    static func signFixed(_ size: CGFloat, _ weight: SignWeight) -> Font { .custom("Overpass-\(weight.rawValue)", fixedSize: size) }
 }
 
 extension View {

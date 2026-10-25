@@ -81,10 +81,8 @@ private struct SpotSection: View {
             }
             said
             if let strip = spot.laneStrip {
-                // The same dark lane panel as the Drive screen, so the driver recognises it on the road.
-                LaneRow(strip: strip, night: true)
-                    .padding(Space.s12)
-                    .background(Palette.ink, in: RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
+                // The same lane sign as the Drive screen, so the driver recognises it on the road.
+                GuideSign(padding: Space.s12 + SignStyle.borderInset) { LaneRow(strip: strip) }
             }
             if let note = spot.mapDataNote {
                 Text(note).role(.meta).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
@@ -184,10 +182,10 @@ private struct SpotSection: View {
     }
 }
 
-/// The lanes at a spot or a turn, as painted on the road: the lanes to use lit amber (get ready).
+/// The lanes at a spot or a turn, as on a diagrammatic guide sign: white arrows on green, the lanes to use lit amber.
 struct LaneRow: View {
     let strip: LaneStrip
-    let night: Bool
+    var onSign = true
     var height: CGFloat = LaneSize.row
 
     var body: some View {
@@ -195,12 +193,10 @@ struct LaneRow: View {
             ForEach(0..<strip.laneCount, id: \.self) { i in
                 let lit = strip.highlighted.contains(i)
                 LaneMark(label: i < strip.labels.count ? strip.labels[i] : "", size: height * LaneSize.markRatio)
-                    .foregroundStyle(lit ? Palette.ink : (night ? Palette.nightRead : Palette.meta))
+                    .foregroundStyle(lit ? Palette.ink : (onSign ? Palette.onSign : Palette.meta))
                     .frame(maxWidth: .infinity, minHeight: height)
-                    .background(lit ? Palette.ready : (night ? Palette.nightPanel : Palette.field),
+                    .background(lit ? Palette.ready : (onSign ? Palette.signLane : Palette.field),
                                 in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous)
-                                .strokeBorder(lit || night ? Color.clear : Palette.hairline, lineWidth: Size.hairline))
             }
         }
         .accessibilityElement()

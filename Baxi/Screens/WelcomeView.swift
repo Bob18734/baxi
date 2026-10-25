@@ -127,40 +127,32 @@ private struct WelcomeAlong: View {
     }
 }
 
-/// A miniature of the Drive screen's instruction: the signal, then the distance, the roundabout and the lanes.
+/// A miniature of the Drive screen's guide sign: the signal, then the distance, the roundabout and the lanes.
 private struct SampleCue: View {
     let lit: Int?
     let revealed: Bool
     let tenths: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.s16) {
-            SignalMark(size: SignalSize.welcome, lit: lit, horizontal: true)
-            VStack(alignment: .leading, spacing: Space.s12) {
-                HStack(alignment: .center, spacing: Space.s16) {
-                    RoundaboutMark(shape: RoundaboutShape(exitNumber: 2, exitAngle: 0, passedAngles: [270]), size: MarkSize.feature + Space.s16)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("0.\(tenths) mi").role(.number).foregroundStyle(Palette.onDark)
-                            .contentTransition(.numericText(countsDown: true))
-                        Text("Second exit, either lane").role(.rowTitle).foregroundStyle(Palette.onDark)
+        GuideSign(padding: Space.s16 + SignStyle.borderInset) {
+            VStack(alignment: .leading, spacing: Space.s16) {
+                SignalMark(size: SignalSize.welcome, lit: lit, horizontal: true)
+                VStack(alignment: .leading, spacing: Space.s12) {
+                    HStack(alignment: .center, spacing: Space.s16) {
+                        RoundaboutMark(shape: RoundaboutShape(exitNumber: 2, exitAngle: 0, passedAngles: [270]), size: MarkSize.feature + Space.s16,
+                                       ink: Palette.onSign, way: Palette.onSign)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("0.\(tenths) mi").role(.signNumber)
+                                .contentTransition(.numericText(countsDown: true))
+                            Text("Second exit, either lane").role(.signLine)
+                        }
                     }
+                    LaneRow(strip: LaneStrip(laneCount: 4, highlighted: [1, 2], labels: ["←", "↑", "↑", "→"]), height: LaneSize.sample)
                 }
-                HStack(spacing: Space.s8) {
-                    ForEach(Array(["←", "↑", "↑", "→"].enumerated()), id: \.offset) { i, label in
-                        let lit = i == 1 || i == 2
-                        LaneMark(label: label, size: MarkSize.inline)
-                            .foregroundStyle(lit ? Palette.ink : Palette.nightRead)
-                            .frame(maxWidth: .infinity, minHeight: LaneSize.sample)
-                            .background(lit ? Palette.ready : Palette.nightPanel, in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
-                    }
-                }
+                .opacity(revealed ? 1 : 0)
+                .offset(y: revealed ? 0 : Space.s16)
             }
-            .opacity(revealed ? 1 : 0)
-            .offset(y: revealed ? 0 : Space.s16)
         }
-        .padding(Space.s16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.ink, in: RoundedRectangle(cornerRadius: Corner.sheet, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Example: in 0.3 miles, take the second exit at the roundabout, either lane.")
     }

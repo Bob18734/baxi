@@ -142,7 +142,7 @@ struct SettingsView: View {
         "Routes: the public OSRM route server, with Apple Maps as a backup. Weather: the National Weather Service.",
         "Crash-heavy roads and intersections: the Indianapolis MPO High Injury Network and Intersection Safety Studies. Fatal crashes: NHTSA FARS 2023, shown in Preview only.",
         "What to do at each kind of road: the Indiana Driver's Manual. How early Baxi warns you is Baxi's own design, as are the practice goals, levels and driving-habit coaching.",
-        "The practice routes' voice: recorded on the team's Mac with Kokoro, an open-source voice model. Type: Atkinson Hyperlegible Next, by the Braille Institute (SIL Open Font License).",
+        "The practice routes' voice: recorded on the team's Mac with Kokoro, an open-source voice model. Sign lettering: Overpass, after the US highway sign alphabet (SIL Open Font License).",
     ]
     static let privacy = [
         "Baxi uses your location during a drive, and once on the Routes screen so a searched route starts where you are. Drives are saved on this phone only; there is no account.",

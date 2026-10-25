@@ -58,7 +58,7 @@ python3 scripts/build_crash_layers.py     # MPO High Injury Network, intersectio
 ```
 
 Sources: OpenStreetMap contributors (ODbL) via the Overpass API; OSRM public demo router;
-Apple MapKit; Atkinson Hyperlegible Next typeface by the Braille Institute (SIL Open Font License, Baxi/Resources/Fonts; static weights cut from the variable font with fontTools); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
+Apple MapKit; Overpass typeface, after the US highway sign alphabet, used for sign lettering (SIL Open Font License, Baxi/Resources/Fonts); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
 services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 54706.
 
 ## Code map
@@ -84,9 +84,8 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   to three tips. Every threshold is Baxi's own coaching choice, not Indiana law.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `OfficialLogPDF` (fills the bundled official State Form 54706).
-- `Baxi/Design` — the design system, built on one idea (Baxi reads like a traffic signal: one thing to look at,
-  and colour only for go, get ready and stop). `Tokens.swift` (colours with their meanings and measured contrast,
-  type roles in Atkinson Hyperlegible Next and the system font, spacing, corners, motion, haptics),
+- `Baxi/Design` — the design system, built on one idea (the language of the road: signals for state, signs for places). `Tokens.swift` (colours with their meanings and measured contrast,
+  type roles in the system font, with Overpass for sign lettering, spacing, corners, motion, haptics),
   `Components.swift` (the one button press, the signal-dots working state, toast, shimmer, field, row, sheet
   header, empty state), `Marks.swift` (every icon drawn in one stroke style), `BottomBar.swift` (Baxi's own tab
   bar) and `Layout.swift`. Explained in [docs/DESIGN.md](docs/DESIGN.md).

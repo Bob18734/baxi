@@ -27,7 +27,10 @@ struct RouteView: View {
                 do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
                 await search()
             }
-            .onAppear {
+            // The tab stays alive while hidden, so its work runs each time it is opened, not when the app launches
+            // (which would ask for location over the Welcome screen).
+            .onChange(of: store.tab, initial: true) { _, tab in
+                guard tab == .route else { searchFocused = false; return }
                 store.loadCarmelDemo(); store.refreshPrep()
                 Task { await store.refreshOrigin() }
                 if let r = store.route { camera = Self.overview(r) } else { camera = .region(homeRegion) }
@@ -112,7 +115,24 @@ struct RouteView: View {
 
     // MARK: Panel
 
+    /// The panel scrolls only when its content is taller than it can be (a long route card at the largest text).
     private var panel: some View {
+        ViewThatFits(in: .vertical) {
+            panelContent
+            ScrollView { panelContent }.scrollBounceBehavior(.basedOnSize).frame(height: PanelSize.maxHeight)
+        }
+        .padding(.horizontal, Space.margin)
+        .padding(.top, Space.s16)
+        .padding(.bottom, Space.s16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: Corner.sheet, topTrailingRadius: Corner.sheet, style: .continuous)
+                .fill(Palette.page)
+                .shadow(color: Palette.shadow, radius: Space.s16, y: -Space.s4)
+        }
+    }
+
+    private var panelContent: some View {
         VStack(alignment: .leading, spacing: Space.s16) {
             if !(store.route != nil && !searching && !routing) { searchField }
             if searching {
@@ -135,15 +155,7 @@ struct RouteView: View {
                 practiceRoutes
             }
         }
-        .padding(.horizontal, Space.margin)
-        .padding(.top, Space.s16)
-        .padding(.bottom, Space.s16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: Corner.sheet, topTrailingRadius: Corner.sheet, style: .continuous)
-                .fill(Palette.page)
-                .shadow(color: Palette.shadow, radius: Space.s16, y: -Space.s4)
-        }
     }
 
     private var searchField: some View {
@@ -309,12 +321,17 @@ private struct RouteCard: View {
                     .frame(maxWidth: .infinity, minHeight: Size.button)
                     .background(Capsule().strokeBorder(Palette.ink, lineWidth: Size.outline))
                 }
+                .buttonStyle(Press())
                 .disabled(store.isPreparing)
             }
             BigButton(title: "Start drive", working: store.isPreparing) {
                 store.activeSession = store.makeSession(replay: nil)
             }
             .accessibilityHint(store.isPreparing ? "Getting the route ready" : "Mount the phone first")
+            if store.isPreparing {
+                Text("Getting the route ready…").role(.meta).foregroundStyle(Palette.meta)
+                    .frame(maxWidth: .infinity).transition(.opacity)
+            }
         }
     }
 

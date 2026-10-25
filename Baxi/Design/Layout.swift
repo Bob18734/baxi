@@ -58,6 +58,8 @@ enum MapSpan {
 }
 
 enum PanelSize {
+    /// The tallest the Routes panel gets before it scrolls.
+    static let maxHeight: CGFloat = 540
     static let placesHeight: CGFloat = 320
     static let placeholderWide: CGFloat = 220
     static let placeholderNarrow: CGFloat = 140

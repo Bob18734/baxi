@@ -103,7 +103,7 @@ struct ArrivedView: View {
         case 95...: "Smooth and safe"
         case 80..<95: "Good drive"
         case 60..<80: "A few things to work on"
-        default: "Let's work on this together"
+        default: "Needs practice"
         }
     }
 
@@ -119,8 +119,8 @@ struct ArrivedView: View {
         switch kind {
         case .clean: .check
         case .speed: .fastRoad
-        case .stops: .crash
-        case .braking: .crash
+        case .stops: .stopSign
+        case .braking: .brake
         case .merge: .merge
         case .school: .school
         }
@@ -213,7 +213,7 @@ struct ArrivedView: View {
             }
             .padding(.top, Space.s12)
         } label: {
-            Text("What Baxi said (\(session.spokenLog.count))").role(.bodyStrong).foregroundStyle(Palette.ink)
+            Text("What Baxi said").role(.bodyStrong).foregroundStyle(Palette.ink)
         }
         .tint(Palette.ink)
     }

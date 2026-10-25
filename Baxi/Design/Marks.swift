@@ -12,7 +12,7 @@ enum Glyph: Hashable {
     // Driving
     case turnLeft, turnRight, slightLeft, slightRight, straight, uturn, merge, exitLeft, exitRight, roundabout, arrive, start
     // Heads-ups
-    case school, crash, railroad, sun, moon, offRoute, waiting
+    case school, crash, railroad, sun, moon, offRoute, waiting, stopSign, brake
     // Skills
     case oneLane, twoLane, highwayMerge, exitRamp, laneTurn, fastRoad
     // Welcome
@@ -195,6 +195,24 @@ enum MarkPaths {
             return [p { $0.move(to: CGPoint(x: 12, y: 3.5)); $0.addLine(to: CGPoint(x: 21.5, y: 20)); $0.addLine(to: CGPoint(x: 2.5, y: 20)); $0.closeSubpath()
                         $0.move(to: CGPoint(x: 12, y: 10)); $0.addLine(to: CGPoint(x: 12, y: 14)) },
                     fill { $0.addEllipse(in: CGRect(x: 10.8, y: 16, width: 2.4, height: 2.4)) }]
+        case .stopSign:
+            // The stop sign's octagon.
+            var oct = Path()
+            for i in 0..<8 {
+                let a = (Double(i) * 45 + 22.5) * .pi / 180
+                let pt = CGPoint(x: 12 + 9.5 * cos(a), y: 12 + 9.5 * sin(a))
+                if i == 0 { oct.move(to: pt) } else { oct.addLine(to: pt) }
+            }
+            oct.closeSubpath()
+            return [Part(path: oct), p { $0.move(to: CGPoint(x: 8, y: 12)); $0.addLine(to: CGPoint(x: 16, y: 12)) }]
+        case .brake:
+            // The brake light: a circle between two brackets, an exclamation inside.
+            return [p { $0.addEllipse(in: CGRect(x: 6.5, y: 6.5, width: 11, height: 11)) },
+                    p { $0.addArc(center: CGPoint(x: 12, y: 12), radius: 9.5, startAngle: .degrees(130), endAngle: .degrees(230), clockwise: false)
+                        $0.move(to: CGPoint(x: 12 + 9.5 * cos(-50 * .pi / 180), y: 12 + 9.5 * sin(-50 * .pi / 180)))
+                        $0.addArc(center: CGPoint(x: 12, y: 12), radius: 9.5, startAngle: .degrees(-50), endAngle: .degrees(50), clockwise: false) },
+                    p { $0.move(to: CGPoint(x: 12, y: 9)); $0.addLine(to: CGPoint(x: 12, y: 12.5)) },
+                    fill { $0.addEllipse(in: CGRect(x: 11, y: 14, width: 2, height: 2)) }]
         case .railroad:
             return [p { $0.move(to: CGPoint(x: 4, y: 6)); $0.addLine(to: CGPoint(x: 20, y: 18)); $0.move(to: CGPoint(x: 20, y: 6)); $0.addLine(to: CGPoint(x: 4, y: 18)) }]
         case .sun:

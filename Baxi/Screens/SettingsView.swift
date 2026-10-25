@@ -49,6 +49,8 @@ struct SettingsView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(store.level == level ? [.isButton, .isSelected] : .isButton)
             }
+            Text("Timing only. What Baxi tells you to do is the same at every level.")
+                .role(.meta).foregroundStyle(Palette.meta).padding(.top, Space.s8)
         }
     }
 
@@ -77,7 +79,9 @@ struct SettingsView: View {
                     Spacer()
                     Text(rate < 0.95 ? "Slower" : rate > 1.05 ? "Faster" : "Normal").role(.meta).foregroundStyle(Palette.meta)
                 }
-                Slider(value: $rate, in: 0.8...1.2, step: 0.05).tint(Palette.go)
+                Slider(value: $rate, in: 0.8...1.2, step: 0.05) { Text("Speaking speed") }
+                    .tint(Palette.go)
+                    .accessibilityValue(rate < 0.95 ? "Slower" : rate > 1.05 ? "Faster" : "Normal")
             }
             BigButton(title: "Hear a cue", kind: .secondary, glyph: .speaker) {
                 if speaker == nil { speaker = Speaker() }

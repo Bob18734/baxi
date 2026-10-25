@@ -16,9 +16,14 @@ struct LogView: View {
     @State private var csvURL: URL?
     @State private var exportError: String?
     @State private var editingDriver = false
+    /// Drives deleted since the last Undo offer, so Undo brings all of them back.
+    @State private var pendingUndo: [DeletedDrive] = []
+    /// The exports are made once the Log has been opened (the tab stays alive from launch).
+    @State private var opened = false
     @AppStorage(OfficialLogPDF.driverNameKey) private var driverName = ""
     @AppStorage(OfficialLogPDF.licenseNumberKey) private var licenseNumber = ""
 
+    private struct ExportTrigger: Equatable { let input: ExportInput; let opened: Bool }
     private struct ExportInput: Equatable {
         let rows: [LogRow]
         let driver: OfficialLogPDF.Driver
@@ -82,14 +87,16 @@ struct LogView: View {
         .sheet(isPresented: $adding) { DriveFormView(record: nil) }
         .sheet(item: $editing) { DriveFormView(record: $0) }
         .sheet(isPresented: $editingDriver) { DriverDetailsSheet { editingDriver = false } }
-        .task(id: exportInput) {
+        .onChange(of: store.tab, initial: true) { _, tab in if tab == .log { opened = true } }
+        .task(id: ExportTrigger(input: exportInput, opened: opened)) {
+            guard opened else { return }
             pdfURLs = []; csvURL = nil
             guard !editingDriver else { return }
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             writeExports()
         }
-        .onChange(of: editingDriver) { _, editing in if !editing { writeExports() } }
+        .onChange(of: editingDriver) { _, editing in if !editing && opened { writeExports() } }
     }
 
     private var header: some View {
@@ -126,14 +133,22 @@ struct LogView: View {
     }
 
     private func delete(_ records: [DriveRecord]) {
-        let kept = records.map(DeletedDrive.init)
+        pendingUndo += records.map(DeletedDrive.init)
         records.forEach(context.delete)
         try? context.save()
         Haptic.tap()
-        toasts.show(kept.count == 1 ? "Drive deleted. It came off your hours." : "\(kept.count) drives deleted.", actionTitle: "Undo") {
-            kept.forEach { context.insert($0.restore()) }
+        let n = pendingUndo.count
+        toasts.show(n == 1 ? "Drive deleted. It came off your hours." : "\(n) drives deleted. They came off your hours.", actionTitle: "Undo") {
+            pendingUndo.forEach { context.insert($0.restore()) }
+            pendingUndo = []
             try? context.save()
             Haptic.success()
+        }
+        // The offer lasts as long as the toast; after that, deleted is deleted.
+        let token = n
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(7))
+            if pendingUndo.count == token { pendingUndo = [] }
         }
     }
 
@@ -289,6 +304,7 @@ private struct DriveRow: View {
                 Text(drive.start.formatted(.dateTime.weekday(.abbreviated))).role(.meta).foregroundStyle(Palette.meta)
             }
             .frame(width: DriveRowSize.date)
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         } trailing: {
             Text(DriveLog.hm(drive.dayMinutes + drive.nightMinutes)).role(.bodyStrong).monospacedDigit().foregroundStyle(Palette.ink)
         }

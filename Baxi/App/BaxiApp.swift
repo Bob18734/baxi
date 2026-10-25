@@ -103,3 +103,16 @@ struct RootView: View {
         }
     }
 }
+
+/// Pushed pages draw their own header (the system bar is hidden), which would also switch off the edge swipe
+/// back. This keeps the swipe wherever there is a page to go back to.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
+    }
+}

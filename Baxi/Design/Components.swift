@@ -7,12 +7,20 @@ import SwiftUI
 
 /// The one press: a dip to 0.95 and 0.7 opacity, springing back.
 struct Press: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(Motion.press, value: configuration.isPressed)
-            .contentShape(Rectangle())
+    func makeBody(configuration: Configuration) -> some View { Pressed(configuration: configuration) }
+
+    private struct Pressed: View {
+        let configuration: ButtonStyleConfiguration
+        /// A button that can't be used now looks it: faded, and it doesn't dip.
+        @Environment(\.isEnabled) private var isEnabled
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed && isEnabled ? 0.95 : 1)
+                .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.7 : 1)
+                .animation(Motion.press, value: configuration.isPressed)
+                .animation(Motion.quick, value: isEnabled)
+                .contentShape(Rectangle())
+        }
     }
 }
 
@@ -32,7 +40,8 @@ struct BigButton: View {
             ZStack {
                 HStack(spacing: Space.s8) {
                     if let glyph { Mark(glyph: glyph, size: MarkSize.row, weight: 1.15) }
-                    Text(title).role(.button).lineLimit(1).minimumScaleFactor(0.75)
+                    // Two lines at the largest text sizes rather than a cut-off label.
+                    Text(title).role(.button).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
                 }
                 .opacity(working ? 0 : 1)
                 if working { SignalDots(onFill: kind == .primary || kind == .danger) }
@@ -124,6 +133,7 @@ final class ToastCenter {
         self.action = action
         withAnimation(Motion.standard) { current = t }
         if isError { Haptic.error() }
+        AccessibilityNotification.Announcement(message).post()
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(actionTitle == nil ? 3 : 6))
             if current == t { withAnimation(Motion.standard) { current = nil } }

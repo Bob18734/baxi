@@ -29,7 +29,7 @@ struct BottomBar: View {
                             Capsule().fill(Palette.go).frame(width: BarSize.marker, height: BarSize.markerHeight)
                                 .opacity(active ? 1 : 0)
                         }
-                        .foregroundStyle(active ? Palette.ink : Palette.label)
+                        .foregroundStyle(active ? Palette.ink : Palette.meta)
                         .frame(maxWidth: .infinity, minHeight: Size.bar)
                         .contentShape(Rectangle())
                     }
@@ -39,6 +39,8 @@ struct BottomBar: View {
                 }
             }
             .frame(height: Size.bar)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isTabBar)
         }
         .background(Palette.page.ignoresSafeArea(edges: .bottom))
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

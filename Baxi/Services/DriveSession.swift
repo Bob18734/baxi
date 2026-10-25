@@ -251,9 +251,10 @@ final class DriveSession {
         locationDelegate?.manager.stopUpdatingLocation(); locationDelegate = nil
         if stopSpeech { speaker.stop() }
         endedAt = Date()
-        isFinished = true
+        // The report first: saving the drive is triggered by isFinished and stores the report with it.
         habits = DriveHabits.report(samples: samples, stopSignAlongs: habitStops, schoolZones: schoolZones,
                                     mergeAlongs: mergeAlongs, isDemo: mode != .live)
+        isFinished = true
     }
 
     /// Replays the route at a believable speed: the posted limit where known, else 30 mph,
@@ -359,10 +360,14 @@ final class DriveSession {
     }
 
     private func startLive() {
+        var previous: (at: Coordinate, t: TimeInterval)?
         let d = LocationDelegate(onFix: { [weak self] loc in
             guard let self else { return }
             self.clock = loc.timestamp.timeIntervalSince(self.startedAt)
-            self.feed(Coordinate(loc.coordinate), at: self.clock, speedMps: loc.speed)
+            let here = Coordinate(loc.coordinate)
+            let speed = Self.speedFromFixes(reported: loc.speed, from: previous?.at, at: previous?.t ?? 0, to: here, at: self.clock)
+            previous = (here, self.clock)
+            self.feed(here, at: self.clock, speedMps: speed ?? -1)
         }, onDenied: { [weak self] in
             guard let self, self.lastCueText != Self.locationOffText else { return }
             self.lastCueText = Self.locationOffText
@@ -557,6 +562,15 @@ final class DriveSession {
             return cue.kind == .signal ? n : (n > 0 ? n : nil)
         default: return nil
         }
+    }
+
+    /// The car's speed at a fix: the GPS's own when it knows it, else the distance from the previous fix over the
+    /// time between them (iOS often reports -1 while the car is stopped, which is exactly when a stop is judged).
+    static func speedFromFixes(reported: Double, from prev: Coordinate?, at t0: TimeInterval, to here: Coordinate,
+                               at t1: TimeInterval) -> Double? {
+        if reported >= 0 { return reported }
+        guard let prev, t1 - t0 > 0, t1 - t0 <= 5 else { return nil }
+        return Geo.distanceMeters(prev, here) / (t1 - t0)
     }
 
     /// Only a real supervised drive counts toward the 50 hours: live, at least a minute, and the car moved.

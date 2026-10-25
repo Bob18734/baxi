@@ -53,7 +53,9 @@ final class AppStore {
     /// Asks for one location fix and makes it the start of searched routes. Keeps the last good one
     /// when no new fix comes.
     func refreshOrigin() async {
-        guard let fix = await CurrentLocation.once() else { return }
+        // The first time, the permission prompt is on screen: give the person time to answer it.
+        let undecided = locationPermission.authorizationStatus == .notDetermined
+        guard let fix = await CurrentLocation.once(timeout: undecided ? 30 : 4) else { return }
         origin = RouteService.origin(fix: fix)
         originIsHere = true
     }

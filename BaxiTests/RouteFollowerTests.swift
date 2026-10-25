@@ -155,3 +155,32 @@ struct ParallelStreetTests {
         #expect(p.alongMeters > 1700)
     }
 }
+
+/// Final review (Oct 24): a return stretch only 50 m from the outbound one (a divided road). A driver who
+/// really crosses over must be followed there once two fixes agree, not pinned to the outbound stretch.
+struct NearParallelReturnTests {
+    static var hairpin50: Polyline {
+        Polyline((0...10).map { TestRoute.point(metersEast: Double($0) * 100) }
+                 + [TestRoute.point(metersEast: 1000, metersNorth: 50)]
+                 + (0...10).reversed().map { TestRoute.point(metersEast: Double($0) * 100, metersNorth: 50) })
+    }
+
+    @Test func crossingToTheCloseReturnStretchIsFollowed() throws {
+        let f = RouteFollower(polyline: Self.hairpin50)
+        var t = 0.0
+        for m in stride(from: 0.0, through: 300, by: 10) { _ = f.update(location: TestRoute.point(metersEast: m), at: t); t += 1 }
+        _ = f.update(location: TestRoute.point(metersEast: 300, metersNorth: 50), at: t); t += 1
+        _ = f.update(location: TestRoute.point(metersEast: 290, metersNorth: 50), at: t); t += 1
+        let p = try #require(f.update(location: TestRoute.point(metersEast: 280, metersNorth: 50), at: t))
+        #expect(p.alongMeters > 1700, "pinned at \(Int(p.alongMeters)) m")
+    }
+
+    @Test func oneFixBetweenTheStretchesStaysPut() throws {
+        let f = RouteFollower(polyline: Self.hairpin50)
+        var t = 0.0
+        for m in stride(from: 0.0, through: 300, by: 10) { _ = f.update(location: TestRoute.point(metersEast: m), at: t); t += 1 }
+        _ = f.update(location: TestRoute.point(metersEast: 310, metersNorth: 30), at: t); t += 1   // a wobble toward the other side
+        let p = try #require(f.update(location: TestRoute.point(metersEast: 320), at: t))
+        #expect(p.alongMeters < 400)
+    }
+}

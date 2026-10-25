@@ -280,3 +280,15 @@ struct HabitReviewFixTests {
         (0..<seconds).map { i in SpeedSample(t: Double(i), along: Double(i) * mph * 0.44704, mps: mph * 0.44704, limitMph: limit) }
     }
 }
+
+/// Final review (Oct 24): iOS reports speed -1 on some fixes, often while stopped. Those fixes still say
+/// where the car is, so the speed comes from the distance moved since the last fix.
+struct UnknownSpeedTests {
+    @Test func speedFromDistanceWhenTheGPSDoesNotKnow() {
+        let a = TestRoute.point(metersEast: 0), b = TestRoute.point(metersEast: 0.3)
+        let derived = DriveSession.speedFromFixes(reported: -1, from: a, at: 0, to: b, at: 1)
+        #expect(derived != nil && derived! >= 0 && derived! < 1)   // stopped: 0.3 m in a second
+        #expect(DriveSession.speedFromFixes(reported: 12, from: a, at: 0, to: b, at: 1) == 12)
+        #expect(DriveSession.speedFromFixes(reported: -1, from: nil, at: 0, to: b, at: 1) == nil)
+    }
+}

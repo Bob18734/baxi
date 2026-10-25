@@ -30,6 +30,8 @@ final class RouteFollower {
     private var pendingJump: (along: Double, time: TimeInterval)?
     /// Further along than this in one step needs a second fix to agree.
     static let confirmJumpMeters = 250.0
+    /// A fix this much closer to the other stretch than to the current one counts as being on the other stretch.
+    static let clearlyOtherMeters = 20.0
     /// How far a confirming fix may have moved on from the first (about 100 mph per second, plus GPS error).
     static let maxPlausibleMps = 45.0
 
@@ -64,12 +66,20 @@ final class RouteFollower {
 
         // Far further along in one step (a bad fix on a parallel street, a GPS jump): hold where the car was
         // until the next fix confirms it.
+        var keepPending = false
         if lastOnLineTime != nil, p.alongMeters - alongMeters > Self.confirmJumpMeters,
            let here = polyline.project(location, expectedAlong: alongMeters, tolerance: Self.confirmJumpMeters),
            here.crossTrackMeters <= Self.offRouteMeters {
             // Still within GPS error of the street the car is on: stay on it, even if a later stretch of the
-            // route (a parallel street) happens to be closer to this fix.
-            p = here
+            // route (a parallel street) happens to be closer to this fix. Unless fixes keep landing clearly on
+            // that other stretch: two that agree mean the car really is there (a turnaround on a divided road).
+            let far = p
+            if here.crossTrackMeters - far.crossTrackMeters > Self.clearlyOtherMeters, confirmsJump(to: far.alongMeters, at: time) {
+                p = far
+            } else {
+                p = here
+                keepPending = true
+            }
         }
         if lastOnLineTime != nil, !confirmsJump(to: p.alongMeters, at: time) {
             let here = polyline.project(location, expectedAlong: alongMeters, tolerance: 250)
@@ -81,7 +91,7 @@ final class RouteFollower {
 
         // Back on the line.
         lastOnLineTime = time
-        pendingJump = nil
+        if !keepPending { pendingJump = nil }
         offRouteSince = nil
         isOffRoute = false
         // Returning behind the previous fix must not rewind distance or re-count maneuvers.

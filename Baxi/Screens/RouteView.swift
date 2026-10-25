@@ -38,6 +38,13 @@ struct RouteView: View {
             if let r = store.route { camera = Self.overview(r) }
             else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
         }
+        // Once the phone's location arrives, show it (until a route is picked).
+        .onChange(of: store.originIsHere) { _, here in
+            guard here, store.route == nil else { return }
+            withAnimation(.smooth) {
+                camera = .region(MKCoordinateRegion(center: store.origin.clLocation, latitudinalMeters: 6_000, longitudinalMeters: 6_000))
+            }
+        }
         .onChange(of: store.wantsSearch, initial: true) { _, want in
             if want { searchFocused = true; store.wantsSearch = false }
         }

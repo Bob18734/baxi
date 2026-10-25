@@ -99,7 +99,7 @@ struct ArrivedView: View {
                     let totals = DriveLog.totals(drives.map(\.row))
                     Text("Saved to your log. \(DriveLog.hm(totals.minutes)) of 50 hours so far.")
                 } else {
-                    Text(session.mode == .live ? "Drives under a minute are not logged." : "Replays are demos and never count toward the 50 hours.")
+                    Text(session.mode == .live ? "Drives under a minute or 200 m aren't logged." : "Replays are demos and never count toward the 50 hours.")
                 }
             }
             .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)

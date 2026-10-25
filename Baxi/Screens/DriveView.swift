@@ -21,6 +21,7 @@ struct DriveView: View {
             VStack(spacing: BaxiSpace.sm) {
                 ManeuverSign(session: session, night: isNight)
                 if !session.lastCueText.isEmpty { SaidBanner(session: session) }
+                else if session.mode == .live && !session.hasFix { WaitingForGPS() }
                 HStack(alignment: .top) {
                     if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
                     Spacer()
@@ -46,11 +47,17 @@ struct DriveView: View {
         .onAppear {
             // The phone is mounted for the whole drive, so the screen must not lock.
             UIApplication.shared.isIdleTimerDisabled = true
-            // After sunset the whole screen goes dark so it does not glare in the driver's eyes.
-            if let s = Daylight.sunriseSunset(on: Date(), at: session.startCoordinate ?? AppStore.carmelDemoHome) {
-                isNight = Date() < s.sunrise || Date() >= s.sunset
-            }
+            isNight = nightNow()
             session.start(); follow()
+        }
+        // After sunset the whole screen goes dark so it does not glare in the driver's eyes; checked every
+        // minute so a drive across sunset switches over.
+        .task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                let night = nightNow()
+                if night != isNight { withAnimation(.smooth(duration: 1.5)) { isNight = night } }
+            }
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
@@ -65,6 +72,12 @@ struct DriveView: View {
         .preferredColorScheme(isNight ? .dark : nil)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
+    }
+
+    private func nightNow() -> Bool {
+        let at = session.position ?? session.startCoordinate ?? AppStore.carmelDemoHome
+        guard let s = Daylight.sunriseSunset(on: Date(), at: at) else { return false }
+        return Date() < s.sunrise || Date() >= s.sunset
     }
 
     // MARK: Map
@@ -144,8 +157,9 @@ struct DriveView: View {
         guard !didSave else { return }
         didSave = true
         let end = session.endedAt ?? Date()
-        // A replay is a demo, not a supervised drive, so it never counts toward the 50 hours.
-        guard session.mode == .live, end.timeIntervalSince(session.startedAt) >= 60 else { return }
+        // A replay is a demo, not a supervised drive, and a drive where the car never moved is not practice.
+        guard DriveSession.shouldLog(mode: session.mode, seconds: end.timeIntervalSince(session.startedAt),
+                                     meters: session.drivenMeters) else { return }
         let split = Daylight.split(start: session.startedAt, end: end, at: session.startCoordinate ?? AppStore.carmelDemoHome)
         let record = DriveRecord(start: session.startedAt, end: end, dayMinutes: split.day, nightMinutes: split.night,
                                  level: session.level, routeTitle: session.route.name,
@@ -287,7 +301,9 @@ private struct LightCount: View {
 private struct SaidBanner: View {
     let session: DriveSession
     var body: some View {
-        let off = session.progress?.isOffRoute == true || session.isRerouting
+        let locationOff = session.lastCueText == DriveSession.locationOffText
+        let off = session.progress?.isOffRoute == true || session.isRerouting || locationOff
+            || session.lastCueText == DriveSession.rerouteFailedText
         HStack(spacing: BaxiSpace.md) {
             Image(systemName: off ? "arrow.triangle.branch" : "waveform")
                 .font(BaxiFont.headline)
@@ -296,6 +312,16 @@ private struct SaidBanner: View {
             Text(session.lastCueText).font(BaxiFont.bodyBold).lineLimit(2)
                 .foregroundStyle(off ? BaxiColor.signInk : BaxiColor.ink)
             Spacer(minLength: 0)
+            if locationOff {
+                // For the passenger: straight to Baxi's page in Settings.
+                Button("Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.signInk)
+                .padding(.horizontal, BaxiSpace.md).frame(minHeight: 44)
+                .background(.white.opacity(0.6), in: Capsule())
+                .accessibilityHint("Opens Settings to turn on location for Baxi")
+            }
         }
         .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
         .background {
@@ -303,14 +329,29 @@ private struct SaidBanner: View {
             else { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(.regularMaterial) }
         }
         .animation(.snappy, value: session.lastCueText)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: locationOff ? .contain : .ignore)
         .accessibilityLabel("Baxi said: \(session.lastCueText)")
+    }
+}
+
+/// A live drive before the first location fix: the sign has nothing true to show yet.
+private struct WaitingForGPS: View {
+    var body: some View {
+        HStack(spacing: BaxiSpace.md) {
+            ProgressView()
+            Text("Waiting for GPS…").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
 /// Mute, distance and arrival time, End. For the passenger; the driver never needs it.
 private struct DriveBottomBar: View {
     let session: DriveSession
+    @State private var confirmEnd = false
 
     private var remaining: Double { session.progress?.remainingMeters ?? session.route.distanceMeters }
     private var arrival: Date? {
@@ -343,12 +384,17 @@ private struct DriveBottomBar: View {
             .frame(maxWidth: .infinity, minHeight: 60)
             .background(.regularMaterial, in: Capsule())
 
-            Button { session.end() } label: {
+            // A live drive asks first: one stray tap from the passenger must not end it. Replays just end.
+            Button { if session.mode == .live { confirmEnd = true } else { session.end() } } label: {
                 Text("End").font(BaxiFont.button).foregroundStyle(.white)
                     .frame(width: 84, height: 60)
                     .background(BaxiColor.stop, in: Capsule())
             }
             .accessibilityLabel("End drive")
+            .confirmationDialog("End this drive?", isPresented: $confirmEnd, titleVisibility: .visible) {
+                Button("End drive", role: .destructive) { session.end() }
+                Button("Keep driving", role: .cancel) {}
+            }
         }
     }
 }

@@ -75,6 +75,12 @@ final class DriveSession {
     private(set) var startedAt = Date()
     private(set) var endedAt: Date?
     static let locationOffText = "Location is off. Turn it on in Settings."
+    static let rerouteFailedText = "No connection for a new route. Head back to the blue line."
+    /// False on a live drive until the first location fix arrives.
+    private(set) var hasFix = false
+    /// Where reroutes come from; a test swaps in one that fails.
+    var router: @Sendable (Coordinate, Coordinate, String) async throws -> PlannedRoute = RouteService.route
+    private var saidRerouteFailed = false
     private(set) var isRerouting = false
     private(set) var rerouteCount = 0
     /// Meters driven on routes replaced by a reroute.
@@ -279,7 +285,9 @@ final class DriveSession {
     // MARK: Each location fix
 
     func feed(_ location: Coordinate, at time: TimeInterval) {
-        guard !isFinished, let p = follower.update(location: location, at: time) else { return }
+        guard !isFinished else { return }
+        hasFix = true
+        guard let p = follower.update(location: location, at: time) else { return }
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
             // Still heading to the route: no progress, no cues, until the car is on it.
@@ -317,7 +325,8 @@ final class DriveSession {
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading
 
         if p.isOffRoute {
-            if lastCueText != "Off the route" {
+            // After a failed reroute its message stays up until the car is back or a new route comes.
+            if lastCueText != "Off the route", lastCueText != Self.rerouteFailedText {
                 lastCueText = "Off the route"
                 speaker.say("You're off the route. Keep driving, I'm finding a new way.")
             }
@@ -329,7 +338,8 @@ final class DriveSession {
         // instructions on the old line valid while the car is already away from that line.
         guard p.crossTrackMeters <= RouteFollower.offRouteMeters else { return }
 
-        if lastCueText == "Off the route" { lastCueText = "" }
+        if lastCueText == "Off the route" || lastCueText == Self.rerouteFailedText { lastCueText = "" }
+        saidRerouteFailed = false
 
         // A lane strip stays up from its cue until the maneuver is passed.
         if let c = lastLaneCue, p.alongMeters > c.targetMeters + 10 {
@@ -389,9 +399,19 @@ final class DriveSession {
         isRerouting = true
         lastRerouteAttempt = time
         Task { @MainActor [weak self] in
-            let approach = try? await RouteService.route(from: location, to: target, name: original.name)
+            guard let router = self?.router else { return }
+            let approach = try? await router(location, target, original.name)
             guard let self, !self.isFinished else { return }
-            guard let approach else { self.isRerouting = false; return }
+            guard let approach else {
+                // Keep trying every 30 s, but tell the driver now what to do meanwhile, once per stretch off the route.
+                self.isRerouting = false
+                self.lastCueText = Self.rerouteFailedText
+                if !self.saidRerouteFailed {
+                    self.saidRerouteFailed = true
+                    self.speaker.say("I can't get a new route right now. Head back to the blue line when it's safe.")
+                }
+                return
+            }
             let new = original.rejoined(by: approach, at: rejoin)
             // Cue building takes a moment; do it off the main thread so fixes keep flowing meanwhile.
             let (cache, features, hin) = (self.cache, self.features, self.highInjury)
@@ -437,6 +457,12 @@ final class DriveSession {
             return cue.kind == .signal ? n : (n > 0 ? n : nil)
         default: return nil
         }
+    }
+
+    /// Only a real supervised drive counts toward the 50 hours: live, at least a minute, and the car moved.
+    static let minLoggedMeters = 200.0
+    static func shouldLog(mode: Mode, seconds: TimeInterval, meters: Double) -> Bool {
+        mode == .live && seconds >= 60 && meters >= minLoggedMeters
     }
 
     var minutes: Double { ((endedAt ?? Date()).timeIntervalSince(startedAt)) / 60 }

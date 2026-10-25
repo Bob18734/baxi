@@ -43,12 +43,18 @@ struct HomeView: View {
     /// the route that covers the skills furthest from their goals (Practice.suggest).
     private var next: NextDrive.Suggestion {
         let first = RouteService.presets[0]
-        guard !drives.isEmpty, let s = Practice.suggest(done: done, routes: store.presetSkills),
+        if drives.isEmpty {
+            return .init(preset: first, reason: "Start here: quiet streets and all-way stops at 20 to 25 mph.", miles: store.presetMeters[first.id])
+        }
+        guard let s = Practice.suggest(done: done, routes: store.presetSkills),
               let preset = RouteService.presets.first(where: { $0.id == s.presetId }) else {
-            return .init(preset: first, reason: "Start here: quiet streets and all-way stops at 20 to 25 mph.",
+            // Every goal met, or the routes' skills are still being counted: no claim about what it practices.
+            return .init(preset: first, reason: store.presetSkills.isEmpty ? nil : "Every skill goal is met. Any route keeps you sharp.",
                          miles: store.presetMeters[first.id])
         }
-        let what = s.covers.prefix(2).map { "\($0.count) \($0.skill.title.lowercased())" }.joined(separator: " and ")
+        // The skills furthest from their goals first, the same order the suggestion weighs them.
+        let what = s.covers.sorted { Double($0.count) / Double($0.skill.goal) > Double($1.count) / Double($1.skill.goal) }
+            .prefix(2).map { $0.skill.count($0.count) }.joined(separator: " and ")
         return .init(preset: preset, reason: "Practices what you need most: \(what).", miles: store.presetMeters[preset.id])
     }
 
@@ -104,7 +110,7 @@ struct HomeView: View {
 
 /// The next drive: one route, why it's the one, and the screen's main action.
 private struct NextDrive: View {
-    struct Suggestion { let preset: RouteService.Preset; let reason: String; let miles: Double? }
+    struct Suggestion { let preset: RouteService.Preset; let reason: String?; let miles: Double? }
     let suggestion: Suggestion
     let go: (RouteService.Preset) -> Void
 
@@ -120,7 +126,9 @@ private struct NextDrive: View {
                         Text("\(Int(max(1, (miles / 1609.34).rounded()))) mi").role(.numberSmall).foregroundStyle(Palette.meta)
                     }
                 }
-                Text(suggestion.reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+                if let reason = suggestion.reason {
+                    Text(reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+                }
             }
             BigButton(title: "See the route", glyph: .route) { go(suggestion.preset) }
         }

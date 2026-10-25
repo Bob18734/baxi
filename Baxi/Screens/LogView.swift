@@ -192,6 +192,16 @@ private extension View {
 /// Hours toward 50, and toward 10 at night, and what's left.
 private struct HoursPanel: View {
     let totals: DriveLog.Totals
+    /// What's left, as one true sentence: when the night hours still needed are more than the total left, those
+    /// night hours are what's left.
+    private var toGo: String {
+        if totals.isComplete { return "Requirement met. Export the official log, check it, and sign it on paper." }
+        let total = totals.minutesLeft, night = totals.nightMinutesLeft
+        if night >= total { return "\(Self.words(night)) to go, all of it at night." }
+        if night == 0 { return "\(Self.words(total)) to go. The 10 night hours are done." }
+        return "\(Self.words(total)) to go, \(Self.words(night)) of it at night."
+    }
+
     /// "46 h 25 m": a duration in words, where a clock reading ("46:25") would look like a time of day.
     static func words(_ minutes: Int) -> String {
         let h = minutes / 60, m = minutes % 60
@@ -209,9 +219,7 @@ private struct HoursPanel: View {
                 Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").role(.meta).foregroundStyle(Palette.meta)
             }
             ProgressLine(fraction: Double(totals.nightMinutes) / Double(DriveLog.requiredNightMinutes), tint: Palette.meta)
-            Text(totals.isComplete ? "Requirement met. Export the official log, check it, and sign it on paper."
-                 : "\(Self.words(totals.minutesLeft)) to go, \(Self.words(totals.nightMinutesLeft)) of it at night.")
-                .role(.body).foregroundStyle(totals.isComplete ? Palette.goText : Palette.read)
+            Text(toGo).role(.body).foregroundStyle(totals.isComplete ? Palette.goText : Palette.read)
         }
         .accessibilityElement(children: .combine)
     }
@@ -244,7 +252,7 @@ private struct SkillsPanel: View {
                let name = RouteService.presets.first(where: { $0.id == next.presetId })?.name {
                 HStack(alignment: .top, spacing: Space.s12) {
                     Mark(glyph: .route, size: MarkSize.inline).foregroundStyle(Palette.goText)
-                    Text("Next, try the \(name): " + next.covers.prefix(3).map { "\($0.count) \($0.skill.title.lowercased())" }
+                    Text("Next, try the \(name): " + next.covers.prefix(3).map { $0.skill.count($0.count) }
                             .joined(separator: ", ") + ".")
                         .role(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                 }

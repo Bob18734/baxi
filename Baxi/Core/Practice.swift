@@ -18,6 +18,21 @@ enum Skill: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// The title for one of it: "1 highway merge", not "1 highway merges".
+    var singular: String {
+        switch self {
+        case .singleLaneRoundabout: "Single-lane roundabout"
+        case .multiLaneRoundabout: "Two-lane roundabout"
+        case .highwayMerge: "Highway merge"
+        case .exitRamp: "Exit ramp"
+        case .laneTurn: "Turn from a multi-lane road"
+        case .fastRoadMiles: "Mile at 45 mph or more"
+        }
+    }
+
+    /// "2 exit ramps", "1 exit ramp", in lower case for the middle of a sentence.
+    func count(_ n: Int) -> String { "\(n) \((n == 1 ? singular : title).lowercased())" }
+
     /// How many to practice before the driving test. Baxi's suggestion.
     var goal: Int {
         switch self {

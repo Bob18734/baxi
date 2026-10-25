@@ -64,3 +64,11 @@ struct SkillLevelTests {
         #expect(Practice.levelUps(before: [:], after: [:]).isEmpty)
     }
 }
+
+struct SkillWordingTests {
+    @Test func oneIsSingular() {
+        #expect(Skill.highwayMerge.count(1) == "1 highway merge")
+        #expect(Skill.highwayMerge.count(2) == "2 highway merges")
+        #expect(Skill.multiLaneRoundabout.count(1) == "1 two-lane roundabout")
+    }
+}

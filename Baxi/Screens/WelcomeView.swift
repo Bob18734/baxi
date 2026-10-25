@@ -109,17 +109,20 @@ private struct WelcomeAlong: View {
             guard isShown else { return }
             if reduceMotion { lit = 2; revealed = true; tenths = 3; return }
             lit = 0; revealed = false; tenths = 5
-            for step in [1, 2] {
-                try? await Task.sleep(for: .milliseconds(500))
-                withAnimation(Motion.standard) { lit = step }
-            }
-            Haptic.reveal()
-            try? await Task.sleep(for: .milliseconds(250))
-            withAnimation(Motion.reveal) { revealed = true }
-            for t in [4, 3] {
-                try? await Task.sleep(for: .milliseconds(700))
-                withAnimation(Motion.standard) { tenths = t }
-            }
+            // Stops when the page is swiped away (the task is cancelled), so nothing fires on another page.
+            do {
+                for step in [1, 2] {
+                    try await Task.sleep(for: .milliseconds(500))
+                    withAnimation(Motion.standard) { lit = step }
+                }
+                Haptic.reveal()
+                try await Task.sleep(for: .milliseconds(250))
+                withAnimation(Motion.reveal) { revealed = true }
+                for t in [4, 3] {
+                    try await Task.sleep(for: .milliseconds(700))
+                    withAnimation(Motion.standard) { tenths = t }
+                }
+            } catch { return }
         }
     }
 }

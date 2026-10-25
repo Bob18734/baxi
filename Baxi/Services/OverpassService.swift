@@ -20,8 +20,13 @@ enum OverpassService {
     /// The road data along `line`, merged across the query pieces.
     static func corridor(along line: Polyline) async throws -> OSMCache {
         var ways: [Int: OSMWay] = [:], nodes: [Int: OSMNode] = [:]
-        for piece in pieces(of: line) {
-            let part = try await fetch(query(around: piece))
+        // The pieces are fetched at the same time (a route has one to a few), so a long route waits
+        // about as long as a short one.
+        let parts = try await withThrowingTaskGroup(of: OSMCache.self) { group in
+            for piece in pieces(of: line) { group.addTask { try await fetch(query(around: piece)) } }
+            return try await group.reduce(into: [OSMCache]()) { $0.append($1) }
+        }
+        for part in parts {
             for w in part.ways { ways[w.id] = merge(ways[w.id], w) }
             for n in part.nodes { nodes[n.id] = n }
         }
@@ -74,7 +79,7 @@ enum OverpassService {
             var c = URLComponents(string: url)!
             c.queryItems = [URLQueryItem(name: "data", value: query)]
             // GET, not POST: overpass-api.de answered POST with an HTML error page on Oct 13, 2026.
-            var req = URLRequest(url: c.url!, timeoutInterval: 30)
+            var req = URLRequest(url: c.url!, timeoutInterval: 15)
             req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
             guard let (data, resp) = try? await URLSession.shared.data(for: req),
                   (resp as? HTTPURLResponse)?.statusCode == 200,

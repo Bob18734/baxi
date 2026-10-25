@@ -20,6 +20,13 @@ enum RouteService {
         return try OSRMParser.parse(Data(contentsOf: url), source: "preset")
     }
 
+    /// Carmel City Center, where the presets start; also where a searched route starts when the phone's
+    /// location is unknown (denied, no fix yet).
+    static let carmelCityCenter = Coordinate(lat: 39.9765, lon: -86.1281)
+
+    /// Where a searched route starts: the phone's own position when known, else Carmel City Center.
+    static func origin(fix: Coordinate?) -> Coordinate { fix ?? carmelCityCenter }
+
     static let osrmBase = "https://router.project-osrm.org/route/v1/driving/"
 
     /// A route to choose, with how much of it is on fast, busy roads (nil when the router did not say).

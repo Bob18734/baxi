@@ -13,9 +13,20 @@ final class AppStore {
     var tab: AppTab = .home
     /// Set by Home's "Where to?" field: Routes opens with its search field active.
     var wantsSearch = false
-    var level: ExperienceLevel = .gettingComfortable
-    var home: Coordinate? = nil
-    var homeLabel: String = ""
+    /// Remembered between launches (Settings > Experience).
+    var level: ExperienceLevel = ExperienceLevel(rawValue: UserDefaults.standard.string(forKey: AppStore.levelKey) ?? "")
+        ?? .gettingComfortable {
+        didSet { UserDefaults.standard.set(level.rawValue, forKey: Self.levelKey) }
+    }
+    nonisolated static let levelKey = "experienceLevel"
+    /// Where a searched route starts: the phone's last known position, else Carmel City Center.
+    private(set) var origin: Coordinate = RouteService.carmelCityCenter
+    /// True once `origin` is the phone's own position.
+    private(set) var originIsHere = false
+    /// What a route search is doing right now, shown under the loading shimmer. nil when idle.
+    private(set) var routeStep: String?
+    /// From the demo button's tap until the demo drive is on screen.
+    private(set) var isStartingDemo = false
     var cache: OSMCache?
     var features: [RoadFeature] = []
     var highInjury: HighInjuryNetwork?
@@ -35,7 +46,15 @@ final class AppStore {
     nonisolated static let demoStartMeters = 4_400.0
 
     /// Carmel City Center: the demo home point and the start of every preset route.
-    nonisolated static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
+    nonisolated static let carmelDemoHome = RouteService.carmelCityCenter
+
+    /// Asks for one location fix and makes it the start of searched routes. Keeps the last good one
+    /// when no new fix comes.
+    func refreshOrigin() async {
+        guard let fix = await CurrentLocation.once() else { return }
+        origin = RouteService.origin(fix: fix)
+        originIsHere = true
+    }
 
     /// Starts loading the bundled Carmel data in the background (decoding and feature extraction take a
     /// noticeable moment); safe to call again.
@@ -53,8 +72,6 @@ final class AppStore {
             }.value
             if let (c, f, hin) = loaded {
                 cache = c; features = f; highInjury = hin
-                home = Self.carmelDemoHome
-                homeLabel = "Carmel City Center (demo)"
                 let roundabouts = f.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
                 dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
             } else {
@@ -128,10 +145,15 @@ final class AppStore {
     private(set) var routeOptions: [RouteService.Option] = []
     private(set) var calmerOptionId: String?
 
+    nonisolated static let roadDataSeconds = 25.0
+
     func routeTo(_ destination: Coordinate, name: String) async {
         await ensureLoaded()
+        routeStep = "Finding a route…"
+        defer { routeStep = nil }
+        await refreshOrigin()
         do {
-            let options = try await RouteService.options(from: home ?? Self.carmelDemoHome, to: destination, name: name)
+            let options = try await RouteService.options(from: origin, to: destination, name: name)
             routeError = nil
             routeOptions = options
             let calmer = RouteService.calmer(in: options)
@@ -155,15 +177,20 @@ final class AppStore {
     private func use(_ found: PlannedRoute) async {
         roadDataNote = nil
         isFetchingRoads = true
-        if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
+        routeStep = "Loading lanes and roundabouts…"
+        let line = found.polyline
+        // A slow map server must not hold the route: after this long, drive without lane details.
+        let corridor = await Deadline.run(seconds: Self.roadDataSeconds) { try await OverpassService.corridor(along: line) }
+        if let base = cache, let corridor {
             let merged = OverpassService.combine(base, corridor)
             let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
             routeRoads = (found.id, merged, f)
         } else {
-            roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
+            roadDataNote = "Lane and roundabout details didn't load for this route (OpenStreetMap was slow or unreachable). "
                 + "Turn-by-turn still works."
         }
         isFetchingRoads = false
+        routeStep = nil
         route = found
         refreshPrep()
     }
@@ -213,12 +240,15 @@ final class AppStore {
     /// Starts a replay once the road data and the route's prep are ready (both build in the background).
     @MainActor func startDemoDrive(preset: String = AppStore.demoPreset, speed: Double = 4,
                                    startMeters: Double? = AppStore.demoStartMeters) {
+        guard !isStartingDemo, activeSession == nil else { return }
+        isStartingDemo = true
         choosePreset(preset)
         Task { @MainActor in
             await ensureLoaded()
             await prepTask?.value
             activeSession = makeSession(replay: speed)
             if let startMeters { activeSession?.skip(toMeters: startMeters) }
+            isStartingDemo = false
         }
     }
 

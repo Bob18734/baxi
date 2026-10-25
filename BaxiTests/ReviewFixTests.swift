@@ -151,3 +151,47 @@ private final class QuietSpeech: SpeechOutput {
     func say(_ text: String) {}
     func stop() {}
 }
+
+/// Oct 24 audit: searched routes start from the phone's location, not always Carmel City Center.
+struct OriginTests {
+    @Test func originFallsBackToCarmel() {
+        let o = RouteService.origin(fix: nil)
+        #expect(abs(o.lat - 39.9765) < 1e-9 && abs(o.lon - -86.1281) < 1e-9)
+    }
+
+    @Test func originUsesFix() {
+        let fortWayne = Coordinate(lat: 41.0793, lon: -85.1394)
+        #expect(RouteService.origin(fix: fortWayne) == fortWayne)
+    }
+}
+
+/// Oct 24 audit: a slow Overpass server must not hold a searched route for over a minute.
+struct DeadlineTests {
+    @Test func fastWorkReturnsItsValue() async {
+        let v = await Deadline.run(seconds: 2) { 7 }
+        #expect(v == 7)
+    }
+
+    @Test func slowWorkGivesNilAtTheDeadline() async {
+        let start = Date()
+        let v: Int? = await Deadline.run(seconds: 0.2) { try await Task.sleep(for: .seconds(30)); return 7 }
+        #expect(v == nil)
+        #expect(Date().timeIntervalSince(start) < 10)   // well short of the work's 30 s, even on a busy test run
+    }
+
+    /// A location request or a callback API does not stop when cancelled; the deadline must still hold.
+    @Test func workThatIgnoresCancellationStillTimesOut() async {
+        let start = Date()
+        let v: Int? = await Deadline.run(seconds: 0.2) {
+            await withCheckedContinuation { c in DispatchQueue.global().asyncAfter(deadline: .now() + 30) { c.resume(returning: 7) } }
+        }
+        #expect(v == nil)
+        #expect(Date().timeIntervalSince(start) < 10)
+    }
+
+    @Test func throwingWorkGivesNil() async {
+        struct Boom: Error {}
+        let v: Int? = await Deadline.run(seconds: 2) { throw Boom() }
+        #expect(v == nil)
+    }
+}

@@ -297,7 +297,7 @@ private struct AddDriveView: View {
     @State private var note = ""
 
     private var split: (day: Int, night: Int) {
-        Daylight.split(start: start, end: end, at: store.home ?? AppStore.carmelDemoHome)
+        Daylight.split(start: start, end: end, at: store.origin)
     }
 
     var body: some View {

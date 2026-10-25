@@ -27,7 +27,7 @@ struct HomeView: View {
                         }
                     }
                     HoursLine(totals: totals) { store.tab = .log }
-                    DemoRow { store.startDemoDrive() }
+                    DemoRow(starting: store.isStartingDemo) { store.startDemoDrive() }
                 }
                 .padding(.horizontal, BaxiSpace.page)
                 .padding(.bottom, BaxiSpace.xxl)
@@ -147,11 +147,17 @@ private struct HoursLine: View {
 
 /// For a first look (and for judges): the highway loop replayed at 4x, never logged.
 private struct DemoRow: View {
+    let starting: Bool
     var start: () -> Void
     var body: some View {
         Button(action: start) {
             HStack(spacing: BaxiSpace.md) {
-                Image(systemName: "play.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
+                ZStack {
+                    Image(systemName: "play.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
+                        .opacity(starting ? 0 : 1)
+                    if starting { ProgressView() }
+                }
+                .animation(.snappy, value: starting)
                 VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
                     Text("Watch a 3-minute demo drive").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
                     Text("A merge, two exits and two-lane roundabouts. Not logged.").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
@@ -161,6 +167,8 @@ private struct DemoRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
+        .disabled(starting)
+        .accessibilityHint(starting ? "Starting the demo" : "Plays a demo drive. It is not logged.")
     }
 }
 

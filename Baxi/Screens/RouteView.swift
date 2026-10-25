@@ -10,6 +10,8 @@ struct RouteView: View {
     @FocusState private var searchFocused: Bool
     @State private var results: [MKMapItem] = []
     @State private var routing = false
+    /// Why the search shows no places: nothing matched, or no connection. nil while results show.
+    @State private var searchNote: String?
     @State private var showPreview = false
     @State private var startAfterPreview = false
 
@@ -24,9 +26,15 @@ struct RouteView: View {
                 .searchFocused($searchFocused)
                 .onSubmit(of: .search) { Task { await search() } }
                 .searchSuggestions { suggestions }
+                // Places appear while typing, once the typing pauses.
+                .task(id: query) {
+                    do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+                    await search()
+                }
         }
         .onAppear {
             store.loadCarmelDemo(); store.refreshPrep()
+            Task { await store.refreshOrigin() }
             if let r = store.route { camera = Self.overview(r) }
             else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
         }
@@ -73,8 +81,14 @@ struct RouteView: View {
                             .overlay(Circle().stroke(.white, lineWidth: 2))
                     }
                 }
-            } else if let home = store.home {
-                Annotation("Carmel", coordinate: home.clLocation) {
+            } else if store.originIsHere {
+                Annotation("You", coordinate: store.origin.clLocation) {
+                    Circle().fill(BaxiColor.route).frame(width: 16, height: 16)
+                        .overlay(Circle().stroke(.white, lineWidth: 3))
+                        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                }
+            } else {
+                Annotation("Carmel", coordinate: AppStore.carmelDemoHome.clLocation) {
                     Image(systemName: "mappin.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
                 }
             }
@@ -111,7 +125,12 @@ struct RouteView: View {
                 .onChange(of: store.route?.id) { _, id in if let id { withAnimation { reader.scrollTo(id, anchor: .center) } } }
             }
             if routing {
-                RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
+                VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                    RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
+                    Text(store.routeStep ?? "Finding a route…")
+                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                        .contentTransition(.opacity).animation(.snappy, value: store.routeStep)
+                }
             } else if let err = store.routeError {
                 Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText)
             } else if let r = store.route {
@@ -165,18 +184,28 @@ struct RouteView: View {
         }
         .buttonStyle(.baxiPrimary)
         .disabled(store.isPreparing)
+        if store.isPreparing {
+            HStack(spacing: BaxiSpace.sm) {
+                ProgressView().controlSize(.small)
+                Text("Getting the route ready…").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+            }
+            .transition(.opacity)
+        }
         Label("Mount the phone first. The driver never touches it.", systemImage: "hand.raised.fill")
             .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
     }
 
     @ViewBuilder private var suggestions: some View {
+        if let searchNote {
+            Label(searchNote, systemImage: "magnifyingglass").foregroundStyle(BaxiColor.inkSoft)
+        }
         ForEach(results, id: \.self) { item in
             Button {
                 Task {
                     routing = true
                     await store.routeTo(Coordinate(item.placemark.coordinate), name: item.name ?? "Destination")
                     routing = false
-                    query = ""; results = []
+                    query = ""; results = []; searchNote = nil
                 }
             } label: {
                 VStack(alignment: .leading) {
@@ -195,11 +224,24 @@ struct RouteView: View {
     private var spots: [HardSpot] { store.hardSpots() }
 
     private func search() async {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { results = []; searchNote = nil; return }
         let req = MKLocalSearch.Request()
-        req.naturalLanguageQuery = query
-        req.region = MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation,
-                                        latitudinalMeters: 25_000, longitudinalMeters: 25_000)
-        results = (try? await MKLocalSearch(request: req).start().mapItems) ?? []
+        req.naturalLanguageQuery = q
+        req.region = MKCoordinateRegion(center: store.origin.clLocation, latitudinalMeters: 25_000, longitudinalMeters: 25_000)
+        do {
+            let items = try await MKLocalSearch(request: req).start().mapItems
+            guard q == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }   // typing moved on
+            results = items
+            searchNote = items.isEmpty ? "No places found for \u{201C}\(q)\u{201D}" : nil
+        } catch {
+            guard q == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+            results = []
+            // MapKit reports "nothing matched" as an error too.
+            searchNote = (error as? MKError)?.code == .placemarkNotFound
+                ? "No places found for \u{201C}\(q)\u{201D}"
+                : "No connection. Check the internet and try again."
+        }
     }
 
     /// Fits the route line and its pins in the part of the map the panel leaves visible.

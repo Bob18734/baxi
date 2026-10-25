@@ -221,7 +221,9 @@ struct DriveView: View {
     /// The camera, set with no animation: it moves every frame, with the marker.
     private func follow(now: Date) {
         guard following, let p = car else { return }
-        let heading = shownHeading ?? session.heading
+        // Before the first fix on the route (the car still at the start), face the way the route begins rather
+        // than north: the road ahead must be ahead from the first frame.
+        let heading = shownHeading ?? (session.progress == nil ? (session.route.polyline.bearing(atMeters: 0) ?? session.heading) : session.heading)
         // Closer while changing lanes, so the amber stretch and its end are easy to read. The camera centres a
         // way ahead of the car, so the car sits low on the screen and the road ahead fills it.
         let close = session.activeLaneZone != nil

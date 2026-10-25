@@ -139,6 +139,9 @@ final class DriveSession {
     private var replayDeparted = false
     /// Real seconds the replay has been held to real speed by one stretch of talking.
     private var replayTalkSeconds = 0.0
+    private var replayMultiplierNow = 1.0
+    static let replayRampDown = 0.4
+    static let replayRampUp = 1.2
     /// Longer than any line Baxi says (with a line queued behind it); past this the voice is not waited on.
     static let replayTalkLimitSeconds = 25.0
     private var replayMeters = 0.0
@@ -314,7 +317,13 @@ final class DriveSession {
             guard !waitForVoice else { clock += tick; return }
             replayDeparted = true
         }
-        let multiplier = waitForVoice ? 1 : requested
+        // Speed changes ease in rather than switch: dropping to real speed for a line takes `replayRampDown`
+        // seconds, getting back up to the demo's speed `replayRampUp`, so the car never lurches on screen.
+        let target = waitForVoice ? 1 : requested
+        let rampSeconds = target < replayMultiplierNow ? Self.replayRampDown : Self.replayRampUp
+        let step = abs(requested - 1) * tick / max(tick, rampSeconds)
+        replayMultiplierNow = target < replayMultiplierNow ? max(target, replayMultiplierNow - step) : min(target, replayMultiplierNow + step)
+        let multiplier = replayMultiplierNow
         var left = tick * multiplier
         let length = route.polyline.lengthMeters
         while left > 0, replayMeters < length {

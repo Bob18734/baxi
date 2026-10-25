@@ -11,6 +11,9 @@ struct DriveView: View {
     var onClose: () -> Void
     @Environment(\.modelContext) private var context
     @State private var camera: MapCameraPosition = .automatic
+    /// Where the car is drawn: it glides from fix to fix (the session's `position` jumps).
+    @State private var car: Coordinate?
+    @State private var lastFollow: Date?
     @State private var saved: DriveRecord?
     @State private var didSave = false
     @State private var isNight = false
@@ -110,7 +113,7 @@ struct DriveView: View {
                         .background(Palette.go, in: Circle())
                 }
             }
-            if let p = session.position {
+            if let p = car ?? session.position {
                 Annotation("", coordinate: p.clLocation) {
                     Mark(glyph: .locate, size: MarkSize.car).foregroundStyle(Palette.onDark)
                         .frame(width: DriveSize.car, height: DriveSize.car)
@@ -149,7 +152,12 @@ struct DriveView: View {
         guard let p = session.position else { return }
         // Closer while changing lanes, so the amber stretch and its end are easy to read.
         let distance: Double = session.activeLaneZone == nil ? 700 : 420
-        withAnimation(Motion.follow) {
+        // Glide for as long as fixes have been arriving apart, so the car reaches this fix as the next one lands.
+        let now = Date()
+        let seconds = lastFollow.map { now.timeIntervalSince($0) } ?? Motion.followMin
+        lastFollow = now
+        withAnimation(Motion.follow(seconds: seconds)) {
+            car = p
             camera = .camera(MapCamera(centerCoordinate: p.clLocation, distance: distance, heading: session.heading, pitch: 50))
         }
     }

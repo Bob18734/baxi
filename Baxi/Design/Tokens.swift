@@ -254,6 +254,11 @@ enum Motion {
     static let sheet = Animation.spring(response: 0.35, dampingFraction: 0.86)
     /// The Drive map following the car, and the bar that empties toward a turn: steady, no easing.
     static let follow = Animation.linear(duration: 0.25)
+    /// The car and the camera gliding to a new fix: the move lasts until the next fix is due (a phone's GPS reports
+    /// about once a second; a replay ten times), so the car never stops and jumps, as in Maps.
+    static func follow(seconds: Double) -> Animation { .linear(duration: min(followMax, max(followMin, seconds))) }
+    static let followMin = 0.1
+    static let followMax = 1.5
     /// The chevrons sweeping toward the lane to be in.
     static let sweep = Animation.easeInOut(duration: 0.9).repeatForever(autoreverses: false)
 }

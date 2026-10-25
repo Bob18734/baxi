@@ -289,7 +289,8 @@ final class DriveSession {
     /// Replays the route at a believable speed: the posted limit where known, else 30 mph,
     /// slowed to 15 mph near roundabouts and turns. `multiplier` speeds the clock for testing.
     private func startReplay(multiplier: Double) {
-        let tick = 0.25
+        // Ten updates a second: the car glides on screen instead of stepping.
+        let tick = 0.1
         replayTimer = Timer.scheduledTimer(withTimeInterval: tick, repeats: true) { [weak self] _ in
             self?.advanceReplay(tick: tick, multiplier: multiplier)
         }

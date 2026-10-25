@@ -60,7 +60,8 @@ struct OSRMParserTests {
             let r = try RouteService.preset(p.id)
             let cues = CueListBuilder.build(route: r, cache: cache, features: features)
             #expect(cues.contains { $0.kind == .roundabout }, "\(p.id) has no roundabout cue")
-            #expect(cues.contains { $0.kind == .laneChange }, "\(p.id) has no lane cue")
+            // First drive stays on two-lane streets on purpose: no lane changes to make.
+            if p.id != "preset_firstdrive" { #expect(cues.contains { $0.kind == .laneChange }, "\(p.id) has no lane cue") }
             #expect(cues.last?.kind == .arrive)
         }
     }

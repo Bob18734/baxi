@@ -12,6 +12,11 @@ PRESETS = {
     "preset_roundabouts": ("Roundabout loop", [HOME, (39.956641, -86.090012), (39.966417, -86.051605), (39.978462, -86.074603), HOME]),
     "preset_parkway": ("Parkway loop", [HOME, (39.945074, -86.072892), (39.9270, -86.0990), HOME]),
     "preset_highway": ("Highway ramp loop", [HOME, (39.9479, -86.1579), HOME]),
+    # Oct 24: a gentle first drive through the downtown grid (all-way stops, 20-25 mph, past Carmel Elementary).
+    # A traffic-signal loop was tried and dropped: inside the bundled area every version was mostly roundabouts
+    # or needed U-turns.
+    # Picked from loops through the downtown all-way stops: the one that never doubles back or U-turns.
+    "preset_firstdrive": ("First drive", [HOME, (39.976007, -86.137389), (39.979283, -86.125798), (39.982631, -86.125663), HOME]),
 }
 
 def route(points):

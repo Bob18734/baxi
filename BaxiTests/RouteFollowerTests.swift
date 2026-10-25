@@ -124,3 +124,34 @@ struct LoopStartTests {
         #expect(try #require(f.update(location: car, at: 0)).alongMeters < 50)          // the follower picks the start
     }
 }
+
+/// Oct 24: a route back along a parallel street 70 m away (First drive downtown). One bad fix that lands on
+/// the other street must not move the car 1,000 m along; two fixes that agree may (a real shortcut).
+struct ParallelStreetTests {
+    /// East 1,000 m, north 70 m, back west 1,000 m.
+    static var hairpin: Polyline {
+        Polyline((0...10).map { TestRoute.point(metersEast: Double($0) * 100) }
+                 + [TestRoute.point(metersEast: 1000, metersNorth: 70)]
+                 + (0...10).reversed().map { TestRoute.point(metersEast: Double($0) * 100, metersNorth: 70) })
+    }
+
+    @Test func oneOutlierOnTheParallelStreetIsIgnored() throws {
+        let f = RouteFollower(polyline: Self.hairpin)
+        var t = 0.0
+        for m in stride(from: 0.0, through: 300, by: 10) { _ = f.update(location: TestRoute.point(metersEast: m), at: t); t += 1 }
+        _ = f.update(location: TestRoute.point(metersEast: 310, metersNorth: 72), at: t); t += 1   // the bad fix
+        let p = try #require(f.update(location: TestRoute.point(metersEast: 320), at: t))
+        #expect(p.alongMeters < 400, "jumped to \(Int(p.alongMeters)) m")
+        #expect(!p.isOffRoute)
+    }
+
+    @Test func twoAgreeingFixesOnTheFarPartAreFollowed() throws {
+        let f = RouteFollower(polyline: Self.hairpin)
+        var t = 0.0
+        for m in stride(from: 0.0, through: 300, by: 10) { _ = f.update(location: TestRoute.point(metersEast: m), at: t); t += 1 }
+        // The car really is on the return street now (it cut across).
+        _ = f.update(location: TestRoute.point(metersEast: 300, metersNorth: 70), at: t); t += 1
+        let p = try #require(f.update(location: TestRoute.point(metersEast: 290, metersNorth: 70), at: t))
+        #expect(p.alongMeters > 1700)
+    }
+}

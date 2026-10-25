@@ -91,20 +91,21 @@ struct NoisyGPSTests {
                      mode: mode, speaker: Quiet())
     }
 
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway"], [UInt64(1), 2, 3])
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive"], [UInt64(1), 2, 3])
     func realisticGPSSaysTheSameThingsInTheSameOrder(_ id: String, seed: UInt64) throws {
         try check(id, GPSSimulator(seed: seed))
     }
 
     /// Bad GPS: twice the drift, 30 s dropouts, and a 40 m jump on one fix in fifty.
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway"], [UInt64(11), 12, 13])
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive"], [UInt64(11), 12, 13])
     func badGPSStillSaysTheSameThings(_ id: String, seed: UInt64) throws {
         try check(id, GPSSimulator(errorMeters: 15, dropoutSeconds: 30, outlierChance: 0.02, seed: seed))
     }
 
     func check(_ id: String, _ gps: GPSSimulator) throws {
         let route = try RouteService.preset(id)
-        let clean = session(route, mode: .replay(speedMultiplier: 1)).simulateWholeRoute().map(\.text)
+        let cleanLog = session(route, mode: .replay(speedMultiplier: 1)).simulateWholeRoute()
+        let clean = cleanLog.map(\.text)
 
         let s = session(route, mode: .live)
         let lights = CueListBuilder.signalAlongs(line: route.polyline, cache: Self.cache)
@@ -121,7 +122,11 @@ struct NoisyGPSTests {
         // comes due with a maneuver, which goes first depends on the second each fix lands.
         // Light countdowns and the "destination is just ahead" heads-up depend on timing and are left out:
         // a car stopped at a light has time for a countdown a car rolling through does not.
-        func optional(_ s: String) -> Bool { s.hasSuffix("more lights") || s == "One more light" || s.hasPrefix("That's the last light") || s.hasPrefix("Your destination") }
+        // A turn inside the arrival radius (within 30 m of the end) may be overtaken by "You've arrived": which
+        // comes first depends on where the last fixes land.
+        let finalTurns = Set(cleanLog.filter { $0.text != "You've arrived" && route.polyline.lengthMeters - $0.meters < 2 * DriveSession.arrivalMeters }
+            .map(\.text))
+        func optional(_ s: String) -> Bool { s.hasSuffix("more lights") || s == "One more light" || s.hasPrefix("That's the last light") || s.hasPrefix("Your destination") || finalTurns.contains(s) }
         func isAdvisory(_ s: String) -> Bool { s.hasPrefix("Speed limit") || s.hasPrefix("School zone") || s.hasPrefix("Stop sign") || s.hasPrefix("Crash-heavy") }
         // "In a quarter mile" versus "In 1,000 feet" depends on exactly where a fix lands, so the distance
         // phrase is set aside; the instruction itself must match word for word.

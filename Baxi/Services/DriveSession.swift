@@ -96,7 +96,9 @@ final class DriveSession {
     /// False on a live drive until the first location fix arrives.
     private(set) var hasFix = false
     /// Where reroutes come from; a test swaps in one that fails.
-    var router: @Sendable (Coordinate, Coordinate, String) async throws -> PlannedRoute = RouteService.route
+    @ObservationIgnored var router: @Sendable (Coordinate, Coordinate, String) async throws -> PlannedRoute = {
+        try await RouteService.route(from: $0, to: $1, name: $2)
+    }
     private var saidRerouteFailed = false
     private(set) var isRerouting = false
     private(set) var rerouteCount = 0
@@ -338,7 +340,8 @@ final class DriveSession {
         guard !isFinished else { return }
         hasFix = true
         lastSpeedMps = speedMps
-        guard let p = follower.update(location: location, at: time) else { return }
+        // A held fix (a far jump waiting for confirmation) changes nothing, not even the time of the last fix.
+        guard let p = follower.update(location: location, at: time), !p.isHeld else { return }
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
             // Still heading to the route: no progress, no cues, until the car is on it.

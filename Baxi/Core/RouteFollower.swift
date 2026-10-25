@@ -10,6 +10,9 @@ struct RouteProgress: Equatable {
     let snapped: Coordinate
     let remainingMeters: Double
     let isOffRoute: Bool
+    /// The fix matched far ahead and is waiting for the next one to confirm it; progress did not move.
+    /// The drive treats it as if it never came.
+    var isHeld = false
 }
 
 final class RouteFollower {
@@ -21,6 +24,14 @@ final class RouteFollower {
     private(set) var lastSegment: Int?
     private var offRouteSince: TimeInterval?
     private(set) var isOffRoute = false
+    /// The last fix that moved the car along the line.
+    private var lastOnLineTime: TimeInterval?
+    /// A far-ahead match seen once, waiting for the next fix to confirm it.
+    private var pendingJump: (along: Double, time: TimeInterval)?
+    /// Further along than this in one step needs a second fix to agree.
+    static let confirmJumpMeters = 250.0
+    /// How far a confirming fix may have moved on from the first (about 100 mph per second, plus GPS error).
+    static let maxPlausibleMps = 45.0
 
     init(polyline: Polyline) { self.polyline = polyline }
 
@@ -51,7 +62,26 @@ final class RouteFollower {
             }
         }
 
+        // Far further along in one step (a bad fix on a parallel street, a GPS jump): hold where the car was
+        // until the next fix confirms it.
+        if lastOnLineTime != nil, p.alongMeters - alongMeters > Self.confirmJumpMeters,
+           let here = polyline.project(location, expectedAlong: alongMeters, tolerance: Self.confirmJumpMeters),
+           here.crossTrackMeters <= Self.offRouteMeters {
+            // Still within GPS error of the street the car is on: stay on it, even if a later stretch of the
+            // route (a parallel street) happens to be closer to this fix.
+            p = here
+        }
+        if lastOnLineTime != nil, !confirmsJump(to: p.alongMeters, at: time) {
+            let here = polyline.project(location, expectedAlong: alongMeters, tolerance: 250)
+            return RouteProgress(alongMeters: alongMeters, crossTrackMeters: here?.crossTrackMeters ?? p.crossTrackMeters,
+                                 segmentIndex: lastSegment ?? p.segmentIndex, snapped: here?.point ?? p.point,
+                                 remainingMeters: max(0, polyline.lengthMeters - alongMeters), isOffRoute: isOffRoute,
+                                 isHeld: true)
+        }
+
         // Back on the line.
+        lastOnLineTime = time
+        pendingJump = nil
         offRouteSince = nil
         isOffRoute = false
         // Returning behind the previous fix must not rewind distance or re-count maneuvers.
@@ -61,5 +91,23 @@ final class RouteFollower {
         return RouteProgress(alongMeters: alongMeters, crossTrackMeters: p.crossTrackMeters,
                              segmentIndex: p.segmentIndex, snapped: p.point,
                              remainingMeters: max(0, polyline.lengthMeters - alongMeters), isOffRoute: false)
+    }
+
+    /// A match more than `confirmJumpMeters` further along between fixes a second apart is believed only when the
+    /// next fix agrees: one bad fix on a parallel street must not skip the turns in between. A real jump is
+    /// followed one fix later.
+    private func confirmsJump(to along: Double, at time: TimeInterval) -> Bool {
+        let jump = along - alongMeters
+        if jump <= Self.confirmJumpMeters { return true }
+        // After a real dropout (a few seconds with no fix on the line), any distance the car could have driven
+        // in that time is believed at once.
+        let gap = time - (lastOnLineTime ?? time)
+        if gap >= 3, jump <= Self.maxPlausibleMps * gap + Self.offRouteMeters { return true }
+        if let pending = pendingJump, along >= pending.along - Self.offRouteMeters,
+           along - pending.along <= Self.maxPlausibleMps * max(1, time - pending.time) + Self.offRouteMeters {
+            return true
+        }
+        pendingJump = (along, time)
+        return false
     }
 }

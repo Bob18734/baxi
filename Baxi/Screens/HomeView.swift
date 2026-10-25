@@ -9,7 +9,7 @@ struct HomeView: View {
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var showSettings = false
 
-    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
+    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row), prior: store.priorHours) }
     private var done: SkillCounts { Practice.total(drives.map(\.skills)) }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct HomeView: View {
                     store.choosePreset(preset.id)
                     withAnimation(Motion.standard) { store.tab = .route }
                 }
-                HoursSummary(totals: totals, hasDrives: !drives.isEmpty) { store.tab = .log }
+                HoursSummary(totals: totals, hasDrives: !drives.isEmpty || !store.priorHours.isEmpty) { store.tab = .log }
                 SkillsSummary(done: done) { store.tab = .log }
                 demo
             }

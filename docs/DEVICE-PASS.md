@@ -7,11 +7,17 @@ English > Ava (Premium) downloaded, and the phone not on silent for the voice.
 
 ## 1. First run, 3 min
 Delete Baxi and install the newest build (ask Claude), then open it.
-- [ ] Welcome: the signal lights red, amber, green once; the example drive card; three pages; the last says "Your drives stay on your phone."
-- [ ] The location prompt says Baxi "starts a searched route where you are". Allow it.
+- [ ] Welcome: the signal on the sign lights green once and the distance counts down. Then three short tutorial pages
+  (Plan the drive, Mount it. Hands off., See how it went), the privacy page, and "Set up your driving."
+- [ ] Skip (top right) jumps straight to setup. On setup: pick a level, spin "Hours driven so far" to e.g. 12 h and
+  "Of those, at night" to 2 h. The night wheel can't go past the total.
+- [ ] "Save and start": the location prompt says Baxi "starts a searched route where you are". Allow it. Home shows
+  12 h and 2 h of 10 at night.
+- [ ] Log: a "Before Baxi" row with Edit. Change it, Save: Home and the Log agree. (Reinstall and try "Set up later"
+  once too: the Log then shows "Add hours you drove before Baxi".)
 
 ## 2. Home and the demo, 5 min
-- [ ] Home: "Where are you driving?", the search field, four practice routes (First drive first), the hours, six skill rings, the demo button. The bottom bar: Home, Routes in the middle, Log; a green mark under the open tab.
+- [ ] Home: "Where are you driving?", the search field, "Your next drive" as one big green sign, the hours, six skill rings, the demo button. Routes lists five practice routes, First drive then Downtown and the Palladium. The bottom bar: Home, Routes in the middle, Log; a green mark under the open tab.
 - [ ] Tap "Watch a 3-minute demo drive": three small lights cycle red, amber, green in the button right away; a second tap does nothing.
 - [ ] During the demo: the recorded voice speaks with a soft tone first; the big distance, the instruction, the green bar
   emptying toward the turn, the amber lane panel, the roundabout diagram, the speed-limit sign and your speed beside it
@@ -28,6 +34,9 @@ Delete Baxi and install the newest build (ask Claude), then open it.
 - [ ] Preview: Look Around photos load on cellular; spots without imagery show the map.
 
 ## 4. Short real drive, 10 to 15 min, with a supervising adult
+The video route is "Downtown and the Palladium" (2.9 mi, about 10 minutes from Carmel City Center): eight
+roundabouts, five of them back to back on City Center Drive and Range Line Road. Each roundabout's exit is said
+before you reach it.
 Mount the phone before moving. The passenger handles the phone; the driver never touches it.
 - [ ] "Waiting for GPS…" at most a few seconds, then the sign.
 - [ ] Your speed shows beside the limit sign; it turns amber only when more than 5 over the limit.

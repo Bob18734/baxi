@@ -98,4 +98,9 @@ enum HabitsSize {
     static let barCorner: CGFloat = 4
 }
 
+enum PriorWheel {
+    static let maxHours = 100
+    static let height: CGFloat = 120
+}
+
 enum DriveRowSize { static let date: CGFloat = 44 }

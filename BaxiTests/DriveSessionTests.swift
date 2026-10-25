@@ -34,7 +34,7 @@ struct DriveSessionTests {
         #expect(Set(s.passedManeuvers.map(\.id)).count == s.passedManeuvers.count, "a maneuver counted twice")
     }
 
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive"], ExperienceLevel.allCases)
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown"], ExperienceLevel.allCases)
     func presetDrivesEndToEnd(_ id: String, level: ExperienceLevel) throws {
         let (s, said) = try drive(id, level: level)
         #expect(s.isFinished)

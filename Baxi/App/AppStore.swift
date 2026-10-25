@@ -20,6 +20,10 @@ final class AppStore {
         didSet { UserDefaults.standard.set(level.rawValue, forKey: Self.levelKey) }
     }
     nonisolated static let levelKey = "experienceLevel"
+    /// Supervised hours driven before Baxi; they count toward the totals everywhere. Saved on the phone.
+    var priorHours = PriorHours.load() {
+        didSet { priorHours.save() }
+    }
     nonisolated static let log = Logger(subsystem: "com.vardaangoel.Baxi", category: "routes")
     /// Where a searched route starts: the phone's last known position, else Carmel City Center.
     private(set) var origin: Coordinate = RouteService.carmelCityCenter

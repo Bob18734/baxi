@@ -14,6 +14,9 @@ enum RouteService {
     static let presets: [Preset] = [
         Preset(id: "preset_firstdrive", name: "First drive", summary: "Quiet downtown streets: all-way stops, low speeds, one small roundabout",
                short: "Quiet streets and all-way stops"),
+        Preset(id: "preset_downtown", name: "Downtown and the Palladium",
+               summary: "City Center Drive past the Palladium: eight roundabouts, five of them back to back, in Carmel's busiest blocks",
+               short: "Back-to-back roundabouts downtown"),
         Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "Single and two-lane roundabouts on 116th Street, River Road and 126th Street",
                short: "Single and two-lane roundabouts"),
         Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp",

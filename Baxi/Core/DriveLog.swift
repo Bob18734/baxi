@@ -44,7 +44,7 @@ enum DriveLog {
     /// "1:05" for 65 minutes, the way the paper log writes hours and minutes.
     static func hm(_ minutes: Int) -> String { "\(minutes / 60):" + String(format: "%02d", minutes % 60) }
 
-    static func csv(_ rows: [LogRow], timeZone: TimeZone = .current) -> String {
+    static func csv(_ rows: [LogRow], prior: PriorHours = PriorHours(), timeZone: TimeZone = .current) -> String {
         let date = DateFormatter(), time = DateFormatter()
         date.timeZone = timeZone; time.timeZone = timeZone
         date.locale = Locale(identifier: "en_US_POSIX"); time.locale = date.locale
@@ -63,6 +63,12 @@ enum DriveLog {
         }
         let t = totals(rows)
         lines.append("Total,,,\(hm(t.minutes)),\(hm(t.dayMinutes)),\(hm(t.nightMinutes)),,,")
+        // Hours driven before Baxi: on their own line, since they have no date and stay on the paper log.
+        if !prior.isEmpty {
+            lines.append("Before Baxi (paper log),,,\(hm(prior.totalMinutes)),\(hm(prior.dayMinutes)),\(hm(prior.nightMinutes)),,,")
+            let all = totals(rows, prior: prior)
+            lines.append("Total with hours before Baxi,,,\(hm(all.minutes)),\(hm(all.dayMinutes)),\(hm(all.nightMinutes)),,,")
+        }
         return lines.joined(separator: "\n") + "\n"
     }
 }

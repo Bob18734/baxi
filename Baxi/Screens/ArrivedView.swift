@@ -124,7 +124,7 @@ struct ArrivedView: View {
         var parts: [String] = []
         if session.habits != nil { parts.append("Baxi's coaching, from the phone's GPS. Not a test result.") }
         if record != nil {
-            let totals = DriveLog.totals(drives.map(\.row))
+            let totals = DriveLog.totals(drives.map(\.row), prior: store.priorHours)
             parts.append("Saved to your log: \(DriveLog.hm(totals.minutes)) of 50 hours so far.")
         } else {
             parts.append(session.mode == .live ? "Drives under a minute or 200 m aren't logged." : "Replays are demos and never count toward the 50 hours.")

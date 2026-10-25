@@ -17,12 +17,22 @@ PRESETS = {
     # or needed U-turns.
     # Picked from loops through the downtown all-way stops: the one that never doubles back or U-turns.
     "preset_firstdrive": ("First drive", [HOME, (39.976007, -86.137389), (39.979283, -86.125798), (39.982631, -86.125663), HOME]),
+    # Oct 25: the busy heart of Carmel, past the Palladium on City Center Drive: back-to-back roundabouts with short
+    # gaps, the kind of spot where a turn comes up fast. Waypoints sit on the roundabouts themselves, in driving
+    # order; mid-street waypoints made OSRM U-turn.
+    "preset_downtown": ("Downtown and the Palladium", [HOME, (39.97823, -86.14089), (39.96816, -86.14121), (39.97044, -86.13132), (39.97057, -86.12714), HOME]),
 }
 
-def route(points):
+# Routes whose middle points are pass-through (OSRM `waypoints=`): one leg, so a point placed on a roundabout
+# doesn't split it into an arrive, a depart and a bare "exit roundabout" that the app would have no cue for.
+VIA = {"preset_downtown"}
+
+def route(points, via=False):
     coords = ";".join(f"{lon},{lat}" for lat, lon in points)
     url = (f"https://router.project-osrm.org/route/v1/driving/{coords}"
            "?overview=full&geometries=geojson&steps=true&annotations=false&continue_straight=true")
+    if via:
+        url += f"&waypoints=0;{len(points) - 1}"
     out = subprocess.run(["curl", "-sS", "--max-time", "60", "-A", UA, url], capture_output=True, text=True, check=True)
     body = json.loads(out.stdout)
     if body.get("code") != "Ok":
@@ -43,7 +53,7 @@ if __name__ == "__main__":
     only = sys.argv[1:]
     for key, (title, pts) in PRESETS.items():
         if only and key not in only: continue
-        body = route(pts)
+        body = route(pts, via=key in VIA)
         body["baxi"] = {"id": key, "name": title, "waypoints": pts}
         (OUT / f"{key}.json").write_text(json.dumps(body, separators=(",", ":")))
         summary(title, body)

@@ -156,6 +156,10 @@ A design critic reviewed every screen against Apple Maps, Waze, Weather, Fitness
 - **Welcome has one hero and one moment**: inside the drive card, the signal lights red, amber, green, then the
   instruction appears and the distance counts down. It is the design idea in two seconds of video.
 - **Type changed after that review** (see Type): the system font for reading, Overpass for sign lettering only.
+- **First launch teaches with the real parts** (Oct 25): after the hero, three short pages ("1 of 3" to "3 of 3")
+  each show the actual components (the search field and route signs, the drive sign with the passenger's Mute and
+  End, the score ring and hours) rather than illustrations. Then privacy, then one setup page for the level and the
+  hours driven before Baxi. Skip goes straight to setup, and setup has "Set up later". Nothing there is required.
 
 ## Rules
 

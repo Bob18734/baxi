@@ -73,6 +73,8 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   on Oct 14 (see AI_DISCLOSURE.md). Each has its rules in its doc comment and a test suite in `BaxiTests/`.
 - `Baxi/Core/Practice.swift` — skills practiced per drive (single and two-lane roundabouts, merges, exit ramps,
   multi-lane turns, miles at 45 mph or more), totals on the Log, and which practice route fills the biggest gap.
+- `Baxi/Core/PriorHours.swift` — supervised hours driven before Baxi, entered at setup or from the Log. They count
+  toward the 50 and 10 hours but are not rows on the official State Form 54706 export (that form lists each drive).
   The goals (20, 10, 6, 6, 10, 25) are Baxi's own suggestion, not from the statute or the Driver's Manual.
   Each skill climbs four levels (Started, Steady, Confident, Test-ready) at a quarter, half, three quarters and all
   of its goal.

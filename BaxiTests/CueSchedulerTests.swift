@@ -77,6 +77,20 @@ struct CueSchedulerTests {
         #expect(t.fired.contains("old"))
     }
 
+    @Test func stopSignHeadsUpHeldTooLongIsDropped() {
+        // Two stop signs 90 m apart. The first heads-up was held behind a turn line until the car is 13 m from the
+        // sign: by then the driver can see it, and saying it would put two "Stop sign ahead" lines back to back.
+        var c = [cue("stop1", .stopSign, at: 190, mph: 25), cue("stop2", .stopSign, at: 280, mph: 25)]
+        c[0].fireAtMeters = 90; c[1].fireAtMeters = 180
+        var s = CueScheduler()
+        #expect(s.due(from: c, alongMeters: 177, now: 0) == nil)
+        #expect(s.fired.contains("stop1"))
+        #expect(s.due(from: c, alongMeters: 182, now: 1)?.id == "stop2")
+        // Said in time, it goes through.
+        var t = CueScheduler()
+        #expect(t.due(from: c, alongMeters: 95, now: 0)?.id == "stop1")
+    }
+
     @Test func maneuverIsNotAnnouncedBeforeThePreviousOneIsDone() {
         // A left turn at 2000 m, then a roundabout 190 m later. At level .new the roundabout's 600 m lead
         // would reach back before the turn; it waits until 15 m past it.

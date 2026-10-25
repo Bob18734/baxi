@@ -16,6 +16,7 @@ struct LogView: View {
     @State private var csvURL: URL?
     @State private var exportError: String?
     @State private var editingDriver = false
+    @State private var editingPrior = false
     /// Drives deleted since the last Undo offer, so Undo brings all of them back.
     @State private var pendingUndo: [DeletedDrive] = []
     /// The exports are made once the Log has been opened (the tab stays alive from launch).
@@ -27,12 +28,13 @@ struct LogView: View {
     private struct ExportInput: Equatable {
         let rows: [LogRow]
         let driver: OfficialLogPDF.Driver
+        let prior: PriorHours
     }
     private var exportInput: ExportInput {
-        ExportInput(rows: drives.map(\.row), driver: .init(name: driverName, licenseNumber: licenseNumber))
+        ExportInput(rows: drives.map(\.row), driver: .init(name: driverName, licenseNumber: licenseNumber), prior: store.priorHours)
     }
 
-    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
+    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row), prior: store.priorHours) }
     /// Habit reports of recorded drives, oldest first (the chart reads left to right).
     private var habitReports: [HabitReport] { drives.reversed().compactMap(\.habits).filter { !$0.isDemo } }
 
@@ -45,7 +47,8 @@ struct LogView: View {
         List {
             Group {
                 header
-                HoursPanel(totals: totals)
+                HoursPanel(totals: totals, hasDrives: !drives.isEmpty)
+                priorRow
                 if let exportError {
                     VStack(alignment: .leading, spacing: Space.s8) {
                         Text("The official log couldn't be made: \(exportError)").role(.body).foregroundStyle(Palette.stopText)
@@ -87,6 +90,7 @@ struct LogView: View {
         .sheet(isPresented: $adding) { DriveFormView(record: nil) }
         .sheet(item: $editing) { DriveFormView(record: $0) }
         .sheet(isPresented: $editingDriver) { DriverDetailsSheet { editingDriver = false } }
+        .sheet(isPresented: $editingPrior) { PriorHoursSheet() }
         .onChange(of: store.tab, initial: true) { _, tab in if tab == .log { opened = true } }
         .task(id: ExportTrigger(input: exportInput, opened: opened)) {
             guard opened else { return }
@@ -97,6 +101,27 @@ struct LogView: View {
             writeExports()
         }
         .onChange(of: editingDriver) { _, editing in if !editing && opened { writeExports() } }
+    }
+
+    /// Hours driven before Baxi: a quiet way to add them, or what was entered, to change.
+    @ViewBuilder private var priorRow: some View {
+        if store.priorHours.isEmpty {
+            Button { Haptic.tap(); editingPrior = true } label: {
+                HStack(spacing: Space.s12) {
+                    Mark(glyph: .plus, size: MarkSize.small)
+                    Text("Add hours you drove before Baxi").role(.bodyStrong)
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
+            }
+            .buttonStyle(Press())
+        } else {
+            Button { Haptic.tap(); editingPrior = true } label: {
+                Row(title: "Before Baxi", detail: "\(DriveLog.hm(store.priorHours.totalMinutes)), \(DriveLog.hm(store.priorHours.nightMinutes)) at night. Counted here; kept on your paper log.",
+                    showsDivider: false) { Text("Edit").role(.bodyStrong).foregroundStyle(Palette.ink) }
+            }
+            .buttonStyle(Press())
+        }
     }
 
     private var header: some View {
@@ -170,7 +195,7 @@ struct LogView: View {
                 try data.write(to: pdf, options: .atomic)
                 urls.append(pdf)
             }
-            try DriveLog.csv(rows).write(to: csv, atomically: true, encoding: .utf8)
+            try DriveLog.csv(rows, prior: input.prior).write(to: csv, atomically: true, encoding: .utf8)
             pdfURLs = urls; csvURL = csv
         } catch {
             pdfURLs = []; csvURL = nil
@@ -192,10 +217,15 @@ private extension View {
 /// Hours toward 50, and toward 10 at night, and what's left.
 private struct HoursPanel: View {
     let totals: DriveLog.Totals
+    /// Whether Baxi has drives to export (the hours may all be from before Baxi).
+    let hasDrives: Bool
     /// What's left, as one true sentence: when the night hours still needed are more than the total left, those
     /// night hours are what's left.
     private var toGo: String {
-        if totals.isComplete { return "Requirement met. Export the official log, check it, and sign it on paper." }
+        if totals.isComplete {
+            return hasDrives ? "Requirement met. Export the official log, check it, and sign it on paper."
+                             : "Requirement met. Check your paper log and sign it."
+        }
         let total = totals.minutesLeft, night = totals.nightMinutesLeft
         if night >= total { return "\(Self.words(night)) to go, all of it at night." }
         if night == 0 { return "\(Self.words(total)) to go. The 10 night hours are done." }

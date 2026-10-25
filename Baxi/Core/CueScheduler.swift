@@ -15,6 +15,9 @@ struct CueScheduler {
     static let urgentMeters = 120.0
     /// A cue whose target is more than this far behind the car is stale: mark it fired, never speak it.
     static let staleMeters = 50.0
+    /// A stop-sign heads-up held back (by another line) until the sign is closer than this is dropped: the driver
+    /// can see the sign by then, and it would land on top of the next stop's heads-up.
+    static let stopSignLateMeters = 40.0
     static let minimumWarningSeconds: [CueKind: Double] = [.turn: 14, .roundabout: 18, .ramp: 18, .crashCorridor: 18]
     /// Spoken words per second at the normal voice speed, for knowing when a line will have finished.
     static let wordsPerSecond = 2.6
@@ -128,6 +131,9 @@ struct CueScheduler {
         for c in cues {
             guard let at = c.fireAtMeters, alongMeters >= at, !fired.contains(c.id) else { continue }
             if alongMeters - c.targetMeters > Self.staleMeters { fired.insert(c.id); continue }
+            // 6. A stop-sign heads-up less than `stopSignLateMeters` before its sign is dropped the same way.
+            //    (Added by Claude beyond the original rules.)
+            if c.kind == .stopSign, c.targetMeters - alongMeters < Self.stopSignLateMeters { fired.insert(c.id); continue }
             if let w = winner, (w.kind.priority, w.targetMeters) <= (c.kind.priority, c.targetMeters) { continue }
             winner = c
         }

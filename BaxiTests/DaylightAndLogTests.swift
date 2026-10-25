@@ -98,3 +98,42 @@ struct OverlapTests {
         #expect(!DriveLog.overlaps(Self.at(10, 15), Self.at(11), with: [Self.row(Self.at(10), Self.at(11), id: id)], excluding: id))
     }
 }
+
+/// Oct 25: hours driven before Baxi count toward the totals (not onto the official form's rows).
+struct PriorHoursTests {
+    static let row = LogRow(start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 3600), dayMinutes: 50,
+                            nightMinutes: 10, routeTitle: "x", distanceMeters: 0, manual: true)
+
+    @Test func totalsIncludeHoursBeforeBaxi() {
+        let t = DriveLog.totals([Self.row], prior: PriorHours(dayMinutes: 600, nightMinutes: 120))
+        #expect(t.minutes == 60 + 720)
+        #expect(t.nightMinutes == 10 + 120)
+    }
+
+    @Test func spreadsheetListsHoursBeforeBaxiSeparately() {
+        let utc = TimeZone(identifier: "UTC")!
+        let csv = DriveLog.csv([Self.row], prior: PriorHours(dayMinutes: 600, nightMinutes: 120), timeZone: utc)
+        let lines = csv.split(separator: "\n").map(String.init)
+        #expect(lines.contains("Total,,,1:00,0:50,0:10,,,"))
+        #expect(lines.contains("Before Baxi (paper log),,,12:00,10:00,2:00,,,"))
+        #expect(lines.contains("Total with hours before Baxi,,,13:00,10:50,2:10,,,"))
+        #expect(!DriveLog.csv([Self.row], timeZone: utc).contains("Before Baxi"))
+    }
+
+    @Test func noPriorHoursChangesNothing() {
+        #expect(DriveLog.totals([Self.row], prior: PriorHours()) == DriveLog.totals([Self.row]))
+    }
+
+    @Test func storedAndReadBack() {
+        let d = UserDefaults(suiteName: "prior-hours-test")!
+        d.removePersistentDomain(forName: "prior-hours-test")
+        #expect(PriorHours.load(d) == PriorHours())
+        PriorHours(dayMinutes: 90, nightMinutes: 30).save(d)
+        #expect(PriorHours.load(d) == PriorHours(dayMinutes: 90, nightMinutes: 30))
+    }
+
+    @Test func negativeOrSillyValuesAreClamped() {
+        #expect(PriorHours(dayMinutes: -5, nightMinutes: -1).clamped == PriorHours())
+        #expect(PriorHours(dayMinutes: 99 * 60 * 10, nightMinutes: 0).clamped.dayMinutes == DriveLog.requiredMinutes * 2)
+    }
+}

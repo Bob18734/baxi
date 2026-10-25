@@ -24,6 +24,10 @@ struct DriveView: View {
                 else if session.mode == .live && !session.hasFix { WaitingForGPS() }
                 HStack(alignment: .top) {
                     if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
+                    // The car's own speed, next to the limit; orange when more than 5 over.
+                    if let speed = session.currentMph {
+                        SpeedPill(mph: speed, limit: session.speedLimitMph).transition(.opacity)
+                    }
                     Spacer()
                     if let alert = session.activeAlert {
                         Group {
@@ -38,6 +42,7 @@ struct DriveView: View {
                     }
                 }
                 .animation(.snappy, value: session.activeAlert?.id)
+                .animation(.snappy, value: session.currentMph == nil)
                 Spacer()
                 DriveBottomBar(session: session)
             }

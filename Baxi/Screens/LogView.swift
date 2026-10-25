@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 /// The supervised driving log: totals toward Indiana's 50 hours (10 at night), every drive grouped by
 /// month, drives added by hand, and exports (the official State Form 54706, and CSV).
@@ -28,6 +29,8 @@ struct LogView: View {
     }
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
+    /// Habit reports of recorded drives, oldest first (the chart reads left to right).
+    private var habitReports: [HabitReport] { drives.reversed().compactMap(\.habits).filter { !$0.isDemo } }
 
     private var months: [(title: String, drives: [DriveRecord])] {
         let groups = Dictionary(grouping: drives) { Calendar.current.dateInterval(of: .month, for: $0.start)?.start ?? $0.start }
@@ -47,6 +50,13 @@ struct LogView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                // Oldest first, so the chart reads left to right.
+                if !habitReports.isEmpty {
+                    Section { HabitsPanel(reports: habitReports) }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
                 if let exportError {
                     Section {
                         Text(exportError).font(BaxiFont.callout).foregroundStyle(BaxiColor.stopText)
@@ -226,9 +236,7 @@ private struct SkillsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
             Text("Skills").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
-            ForEach(Skill.allCases) { s in
-                ProgressRow(label: s.title, value: done[s] ?? 0, goal: s.goal, tint: BaxiColor.sign)
-            }
+            ForEach(Skill.allCases) { s in SkillRow(skill: s, count: done[s] ?? 0) }
             if let next = Practice.suggest(done: done, routes: routes),
                let name = RouteService.presets.first(where: { $0.id == next.presetId })?.name {
                 Label {
@@ -246,31 +254,64 @@ private struct SkillsPanel: View {
     }
 }
 
-/// A labeled bar toward a count goal.
-private struct ProgressRow: View {
-    let label: String
-    let value: Int
-    let goal: Int
-    let tint: Color
+/// One skill: its level title and four-step bar, and the count toward its goal.
+private struct SkillRow: View {
+    let skill: Skill
+    let count: Int
 
     var body: some View {
+        let lv = Practice.level(skill, count: count)
         VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            HStack {
-                Text(label).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
+            HStack(alignment: .firstTextBaseline) {
+                Text(skill.title).font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.ink)
                 Spacer()
-                Text("\(min(value, goal)) / \(goal)").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkSoft)
+                Text(lv.title).font(BaxiFont.footnote.weight(.semibold))
+                    .foregroundStyle(lv.level == 4 ? BaxiColor.accent : BaxiColor.inkSoft)
+                Text("\(min(count, skill.goal))/\(skill.goal)").font(BaxiFont.footnote.monospacedDigit()).foregroundStyle(BaxiColor.inkFaint)
             }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(BaxiColor.sunken)
-                    Capsule().fill(tint).frame(width: max(8, geo.size.width * min(1, Double(value) / Double(goal))))
-                        .opacity(value == 0 ? 0 : 1)
-                }
-            }
-            .frame(height: 8)
+            LevelBar(level: lv.level)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(value) of \(goal)")
+        .accessibilityLabel("\(skill.title): \(lv.title), \(count) of \(skill.goal)"
+                            + (lv.toNext.map { ". \($0) more to the next level" } ?? ""))
+    }
+}
+
+/// How recent drives went: the last scores as bars, and full stops and speed lately.
+private struct HabitsPanel: View {
+    let reports: [HabitReport]
+
+    var body: some View {
+        let t = DriveHabits.trend(reports)
+        VStack(alignment: .leading, spacing: BaxiSpace.md) {
+            Text("Habits").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
+            Chart(Array(t.lastScores.enumerated()), id: \.offset) { i, score in
+                BarMark(x: .value("Drive", i + 1), y: .value("Score", score), width: .ratio(0.6))
+                    .foregroundStyle(score >= 80 ? BaxiColor.sign : BaxiColor.caution)
+                    .clipShape(Capsule())
+            }
+            .chartYScale(domain: 0...100)
+            .chartXAxis(.hidden)
+            .chartYAxis { AxisMarks(values: [0, 50, 100]) }
+            .frame(height: 96)
+            .accessibilityLabel("Scores of the last \(t.lastScores.count) drives: " + t.lastScores.map(String.init).joined(separator: ", "))
+            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+                if let rate = t.fullStopRate {
+                    Label("Full stops at all-way stops: \(Int((rate * 100).rounded()))% lately", systemImage: "hand.raised.fill")
+                }
+                if let share = t.overLimitShare {
+                    Label(share < 0.01 ? "Stayed within 5 mph of the limit lately"
+                                       : "Over the limit \(Int((share * 100).rounded()))% of the time lately",
+                          systemImage: "gauge.with.dots.needle.67percent")
+                }
+            }
+            .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+            Text("From the last \(t.lastScores.count) recorded \(t.lastScores.count == 1 ? "drive" : "drives"). Baxi's coaching, not a state rule.")
+                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+        }
+        .padding(.horizontal, BaxiSpace.xs)
+        .padding(.vertical, BaxiSpace.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

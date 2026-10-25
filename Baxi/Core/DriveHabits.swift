@@ -106,27 +106,47 @@ enum DriveHabits {
                            mergesUpToSpeed: upToSpeed, score: max(0, Int(score.rounded())), isDemo: isDemo)
     }
 
+    /// One line of coaching after a drive, with what it is about (for its icon).
+    struct Tip: Equatable {
+        enum Kind { case clean, speed, stops, braking, merge, school }
+        let kind: Kind
+        let text: String
+    }
+
     /// Up to three things to work on, most important first: speed, stop signs, braking, merges, then a school
     /// zone reminder. With nothing to work on, "Clean drive", plus the school reminder when it applies.
-    static func tips(_ r: HabitReport) -> [String] {
-        var out: [String] = []
+    static func tipItems(_ r: HabitReport) -> [Tip] {
+        var out: [Tip] = []
         if let share = r.overLimitShare, share >= 0.01, let top = r.topOverMph {
-            out.append("Over the limit for \(max(1, Int((share * 100).rounded())))% of the drive, by up to \(top) mph. Ease off a little.")
+            out.append(Tip(kind: .speed, text: "Over the limit for \(max(1, Int((share * 100).rounded())))% of the drive, by up to \(top) mph. Ease off a little."))
         }
         if r.rollingStops > 0 {
-            out.append("\(r.rollingStops) of \(r.stopSigns) stop signs \(r.rollingStops == 1 ? "was a rolling stop" : "were rolling stops"). "
-                       + "Come to a full stop and count to two.")
+            out.append(Tip(kind: .stops, text: "\(r.rollingStops) of \(r.stopSigns) stop signs \(r.rollingStops == 1 ? "was a rolling stop" : "were rolling stops"). "
+                           + "Come to a full stop and count to two."))
         }
         if r.hardBrakes > 0 {
-            out.append(r.hardBrakes == 1 ? "One hard stop. Look further ahead and brake earlier."
-                                         : "\(r.hardBrakes) hard stops. Look further ahead and brake earlier.")
+            out.append(Tip(kind: .braking, text: r.hardBrakes == 1 ? "One hard stop. Look further ahead and brake earlier."
+                                                 : "\(r.hardBrakes) hard stops. Look further ahead and brake earlier."))
         }
-        if r.slowMerges > 0 { out.append("Merge at highway speed: speed up on the ramp before you join.") }
+        if r.slowMerges > 0 { out.append(Tip(kind: .merge, text: "Merge at highway speed: speed up on the ramp before you join.")) }
         // Not marked down: Baxi cannot see whether the zone's lights were flashing (school hours).
         let school = r.schoolZoneTopMph.flatMap { $0 > schoolZoneMph
-            ? "Top speed near a school was \($0) mph. When a school zone's lights flash, the limit is \(schoolZoneMph)." : nil }
-        if out.isEmpty { return ["Clean drive. Keep it up."] + [school].compactMap { $0 } }
+            ? Tip(kind: .school, text: "Top speed near a school was \($0) mph. When a school zone's lights flash, the limit is \(schoolZoneMph).") : nil }
+        if out.isEmpty { return [Tip(kind: .clean, text: "Clean drive. Keep it up.")] + [school].compactMap { $0 } }
         return Array((out + [school].compactMap { $0 }).prefix(3))
+    }
+
+    static func tips(_ r: HabitReport) -> [String] { tipItems(r).map(\.text) }
+
+    /// How recent real drives went (oldest first in, demos skipped): the last ten scores, the share of judged
+    /// stops that were full stops, and the time-weighted share over the limit.
+    static func trend(_ reports: [HabitReport]) -> (lastScores: [Int], fullStopRate: Double?, overLimitShare: Double?) {
+        let recent = reports.filter { !$0.isDemo }.suffix(10)
+        let stops = recent.map(\.stopSigns).reduce(0, +), full = recent.map(\.fullStops).reduce(0, +)
+        let withLimits = recent.filter { $0.overLimitShare != nil }
+        let minutes = withLimits.map(\.trackedMinutes).reduce(0, +)
+        let over = withLimits.map { ($0.overLimitShare ?? 0) * $0.trackedMinutes }.reduce(0, +)
+        return (recent.map(\.score), stops > 0 ? Double(full) / Double(stops) : nil, minutes > 0 ? over / minutes : nil)
     }
 
     // Stored on DriveRecord as JSON text, so records saved before Oct 24 (empty) still load.

@@ -240,3 +240,75 @@ struct GlareChip: View {
             .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
     }
 }
+
+/// The car's speed beside the speed-limit sign, like a speedometer readout. Orange when more than 5 over.
+struct SpeedPill: View {
+    let mph: Int
+    let limit: Int?
+    var scale: CGFloat = 1
+    private var over: Bool { limit.map { Double(mph) > Double($0) + DriveHabits.overMph } ?? false }
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("\(mph)").font(BaxiFont.signFace(30 * scale)).monospacedDigit()
+                .contentTransition(.numericText(value: Double(mph)))
+            Text("MPH").font(BaxiFont.signFace(10.5 * scale))
+        }
+        .foregroundStyle(over ? BaxiColor.signInk : BaxiColor.ink)
+        .frame(width: 60 * scale, height: 74 * scale)
+        .background(over ? AnyShapeStyle(BaxiColor.caution) : AnyShapeStyle(.regularMaterial),
+                    in: RoundedRectangle(cornerRadius: BaxiRadius.md * scale, style: .continuous))
+        .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+        .animation(.snappy, value: mph)
+        .animation(.smooth, value: over)
+        .accessibilityElement()
+        .accessibilityLabel(limit.map { "Speed \(mph), limit \($0)" } ?? "Speed \(mph)")
+    }
+}
+
+/// A drive's 0 to 100 habit score in a ring.
+struct ScoreRing: View {
+    let score: Int
+    var size: CGFloat = 84
+    @State private var shown = 0.0
+    var body: some View {
+        ZStack {
+            Circle().stroke(BaxiColor.sunken, lineWidth: size * 0.1)
+            Circle().trim(from: 0, to: shown).stroke(BaxiColor.accent, style: StrokeStyle(lineWidth: size * 0.1, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(score)").font(BaxiFont.number).foregroundStyle(BaxiColor.ink).monospacedDigit()
+        }
+        .frame(width: size, height: size)
+        .onAppear { withAnimation(.smooth(duration: 0.9).delay(0.2)) { shown = Double(score) / 100 } }
+        .accessibilityElement()
+        .accessibilityLabel("Score \(score) out of 100")
+    }
+}
+
+/// A skill's level as four segments, filled up to `level`.
+struct LevelBar: View {
+    let level: Int
+    var tint: Color = BaxiColor.sign
+    var body: some View {
+        HStack(spacing: BaxiSpace.xs) {
+            ForEach(1...4, id: \.self) { i in
+                Capsule().fill(i <= level ? tint : BaxiColor.sunken).frame(height: 8)
+            }
+        }
+        .animation(.snappy, value: level)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A small ring for one skill's progress toward its goal.
+struct SkillRing: View {
+    let fraction: Double
+    var size: CGFloat = 34
+    var body: some View {
+        ZStack {
+            Circle().stroke(BaxiColor.sunken, lineWidth: 4)
+            Circle().trim(from: 0, to: min(1, fraction)).stroke(BaxiColor.sign, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: size, height: size)
+    }
+}

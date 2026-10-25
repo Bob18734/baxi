@@ -210,3 +210,28 @@ private final class QuietSpeech: SpeechOutput {
     func say(_ text: String, chime: Bool) {}
     func stop() {}
 }
+
+struct HabitTrendTests {
+    static func r(_ score: Int, stops: Int = 0, full: Int = 0, share: Double? = 0, demo: Bool = false) -> HabitReport {
+        HabitReport(trackedMinutes: 10, overLimitShare: share, topOverMph: nil, schoolZoneTopMph: nil, stopSigns: stops,
+                    fullStops: full, hardBrakes: 0, merges: 0, mergesUpToSpeed: 0, score: score, isDemo: demo)
+    }
+
+    @Test func trendSkipsDemosAndKeepsTheLastTen() {
+        let reports = (0..<12).map { Self.r(80 + $0) } + [Self.r(10, demo: true)]
+        let t = DriveHabits.trend(reports)
+        #expect(t.lastScores == Array(82...91))
+    }
+
+    @Test func trendRates() {
+        let t = DriveHabits.trend([Self.r(90, stops: 4, full: 3, share: 0.1), Self.r(95, stops: 6, full: 6, share: 0.0)])
+        #expect(t.fullStopRate == 0.9)
+        #expect(abs((t.overLimitShare ?? 0) - 0.05) < 1e-9)
+    }
+
+    @Test func oldRecordsDecodeEmpty() {
+        #expect(DriveHabits.trend([]).lastScores.isEmpty)
+        #expect(DriveHabits.trend([]).fullStopRate == nil)
+        #expect(DriveHabits.decode("") == nil)
+    }
+}

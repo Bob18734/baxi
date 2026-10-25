@@ -103,6 +103,26 @@ enum Practice {
         return Suggestion(presetId: best.id, covers: useful(best.skills).sorted { $0.count > $1.count })
     }
 
+    // MARK: Levels
+
+    static let levelTitles = ["Not yet", "Started", "Steady", "Confident", "Test-ready"]
+
+    /// A skill's level, 0 to 4, at a quarter, half, three quarters and all of its goal (rounded up), and how
+    /// many more reps reach the next level (nil at the top).
+    static func level(_ skill: Skill, count: Int) -> (level: Int, title: String, toNext: Int?) {
+        let marks = (1...4).map { Int((Double(skill.goal) * Double($0) / 4).rounded(.up)) }
+        let level = marks.filter { count >= $0 }.count
+        return (level, levelTitles[level], level < 4 ? marks[level] - count : nil)
+    }
+
+    /// The skills whose level went up between two totals, with the new level.
+    static func levelUps(before: SkillCounts, after: SkillCounts) -> [(skill: Skill, level: Int)] {
+        Skill.allCases.compactMap { s in
+            let now = level(s, count: after[s] ?? 0).level
+            return now > level(s, count: before[s] ?? 0).level ? (s, now) : nil
+        }
+    }
+
     // Stored on DriveRecord as JSON text, so old records (empty) still load.
     static func encode(_ c: SkillCounts) -> String {
         let plain = Dictionary(uniqueKeysWithValues: c.map { ($0.key.rawValue, $0.value) })

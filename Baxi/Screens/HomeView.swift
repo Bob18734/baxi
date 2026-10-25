@@ -27,6 +27,7 @@ struct HomeView: View {
                         }
                     }
                     HoursLine(totals: totals) { store.tab = .log }
+                    SkillsLine(done: Practice.total(drives.map(\.skills))) { store.tab = .log }
                     DemoRow(starting: store.isStartingDemo) { store.startDemoDrive() }
                 }
                 .padding(.horizontal, BaxiSpace.page)
@@ -142,6 +143,57 @@ private struct HoursLine: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(DriveLog.hm(totals.minutes)) of 50 supervised hours, \(DriveLog.hm(totals.nightMinutes)) of 10 at night")
         .accessibilityHint("Opens the log")
+    }
+}
+
+/// The six skills as small rings with their levels, in one row. Opens the Log.
+private struct SkillsLine: View {
+    let done: SkillCounts
+    var open: () -> Void
+
+    private var levelsReached: Int { Skill.allCases.map { Practice.level($0, count: done[$0] ?? 0).level }.reduce(0, +) }
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Skills").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                    Spacer()
+                    Text("\(levelsReached) of \(Skill.allCases.count * 4) levels").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    Image(systemName: "chevron.right").font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.inkFaint)
+                }
+                HStack(spacing: 0) {
+                    ForEach(Skill.allCases) { s in
+                        VStack(spacing: BaxiSpace.xs) {
+                            ZStack {
+                                SkillRing(fraction: Double(done[s] ?? 0) / Double(s.goal))
+                                Image(systemName: Self.symbol(s)).font(BaxiFont.caption).foregroundStyle(BaxiColor.ink)
+                            }
+                            Text(Practice.level(s, count: done[s] ?? 0).title).font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Skills: \(levelsReached) of \(Skill.allCases.count * 4) levels. "
+            + Skill.allCases.map { "\($0.title), \(Practice.level($0, count: done[$0] ?? 0).title)" }.joined(separator: ". "))
+        .accessibilityHint("Opens the log")
+    }
+
+    static func symbol(_ s: Skill) -> String {
+        switch s {
+        case .singleLaneRoundabout: "arrow.triangle.turn.up.right.circle"
+        case .multiLaneRoundabout: "arrow.triangle.2.circlepath"
+        case .highwayMerge: "arrow.merge"
+        case .exitRamp: "arrow.up.right"
+        case .laneTurn: "arrow.turn.up.left"
+        case .fastRoadMiles: "gauge.with.dots.needle.67percent"
+        }
     }
 }
 

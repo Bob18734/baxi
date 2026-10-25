@@ -5,7 +5,7 @@ import Foundation
 /// screen and, when roads may be affected, one spoken line as the drive starts. The location sent is
 /// rounded to two decimals (about 1 km).
 struct RoadWeather: Equatable {
-    enum Condition: Int, Comparable {
+    enum Condition: Int, Comparable, CaseIterable {
         case clear, wind, rain, fog, storm, snowOrIce
         static func < (a: Condition, b: Condition) -> Bool { a.rawValue < b.rawValue }
     }

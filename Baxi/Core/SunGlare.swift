@@ -67,10 +67,12 @@ enum SunGlare {
         return out
     }
 
+    static let spokenLine = "Low sun ahead. Traffic lights and brake lights may be hard to see"
+
     static func cues(_ stretches: [Stretch], speeds: [(along: Double, mph: Int)]) -> [Cue] {
         stretches.map { s in
             Cue(id: "glare-\(Int(s.startMeters))", kind: .glare, targetMeters: s.startMeters,
-                spokenTemplate: "Low sun ahead. Traffic lights and brake lights may be hard to see",
+                spokenTemplate: spokenLine,
                 cardTemplate: "Low sun ahead", laneStrip: nil,
                 roadSpeedMph: CueListBuilder.speed(at: s.startMeters, in: speeds), maneuverId: nil)
         }

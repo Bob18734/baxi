@@ -236,7 +236,7 @@ final class DriveSession {
                                       level: level, maneuverTargets: RoutePrep.boundaries(route))
         cues += Self.filtered(glare)
         for c in glare where (c.fireAtMeters ?? 0) < from { scheduler.markFired(c.id) }
-        speaker.say("Here we go. I'll tell you about each turn early.")
+        speaker.say(Line.start)
         if let weatherLine { speaker.say(weatherLine); spokenLog.append((0, weatherLine)) }
         switch mode {
         case .replay(let mult): startReplay(multiplier: mult)
@@ -371,7 +371,7 @@ final class DriveSession {
         }, onDenied: { [weak self] in
             guard let self, self.lastCueText != Self.locationOffText else { return }
             self.lastCueText = Self.locationOffText
-            self.speaker.say("Location is off for Baxi. Pull over, then turn it on in Settings.")
+            self.speaker.say(Line.locationOff)
         })
         locationDelegate = d
         d.manager.requestWhenInUseAuthorization()
@@ -392,7 +392,7 @@ final class DriveSession {
             // Still heading to the route: no progress, no cues, until the car is on it.
             position = location
             if lastCueText != Self.rerouteFailedText { lastCueText = "Getting you to the start" }
-            if !saidGetToStart { saidGetToStart = true; speaker.say("First, let's get you to the start of the route.") }
+            if !saidGetToStart { saidGetToStart = true; speaker.say(Line.getToStart) }
             if !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
         }
@@ -427,7 +427,7 @@ final class DriveSession {
             // After a failed reroute its message stays up until the car is back or a new route comes.
             if lastCueText != "Off the route", lastCueText != Self.rerouteFailedText {
                 lastCueText = "Off the route"
-                speaker.say("You're off the route. Keep driving, I'm finding a new way.")
+                speaker.say(Line.offRoute)
             }
             if mode == .live, !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
@@ -455,7 +455,7 @@ final class DriveSession {
             if cue.spokenTemplate.contains("{reminder}"), !saidRoundaboutReminder {
                 // Once per drive, at the first two-lane roundabout.
                 saidRoundaboutReminder = true
-                spoken += ". No lane changes inside the roundabout"
+                spoken += Line.roundaboutReminder
             }
             lastCue = cue
             lastCueText = cue.card(lights: lights)
@@ -477,14 +477,27 @@ final class DriveSession {
             arrivalCreditMeters = max(0, destination - p.alongMeters)
             passedAlong = destination
             lastCueText = "Arrived"
-            spokenLog.append((p.alongMeters, "You've arrived"))
-            speaker.say("You've arrived", chime: true)
+            spokenLog.append((p.alongMeters, Line.arrived))
+            speaker.say(Line.arrived, chime: true)
             end(stopSpeech: false)
         }
         previousAlong = p.alongMeters
     }
 
     static let arrivalMeters = 30.0
+
+    /// The lines Baxi says outside the cue list, in one place so the recorded voice covers them all.
+    enum Line {
+        static let start = "Here we go. I'll tell you about each turn early."
+        static let locationOff = "Location is off for Baxi. Pull over, then turn it on in Settings."
+        static let getToStart = "First, let's get you to the start of the route."
+        static let offRoute = "You're off the route. Keep driving, I'm finding a new way."
+        static let arrived = "You've arrived"
+        static let rerouteFailed = "I can't get a new route right now. Head back to the blue line when it's safe."
+        static let newRoute = "New route"
+        static let roundaboutReminder = ". No lane changes inside the roundabout"
+        static let all = [start, locationOff, getToStart, offRoute, arrived, rerouteFailed, newRoute]
+    }
     private var lastLaneCue: Cue?
     private var saidRoundaboutReminder = false
     private var previousAlong = 0.0
@@ -511,7 +524,7 @@ final class DriveSession {
                 self.lastCueText = Self.rerouteFailedText
                 if !self.saidRerouteFailed {
                     self.saidRerouteFailed = true
-                    self.speaker.say("I can't get a new route right now. Head back to the blue line when it's safe.")
+                    self.speaker.say(Line.rerouteFailed)
                 }
                 return
             }
@@ -525,7 +538,7 @@ final class DriveSession {
             self.isRerouting = false
             self.install(new, prep: prep)
             // The next instruction comes from the cues at its usual distance, not all at once here.
-            self.speaker.say("New route")
+            self.speaker.say(Line.newRoute)
         }
     }
 

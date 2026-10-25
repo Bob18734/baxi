@@ -28,7 +28,8 @@ struct SettingsView: View {
                         Text("Everything").tag("everything")
                         Text("Just directions").tag("directions")
                     }
-                    LabeledContent("Voice", value: Speaker.voiceDescription.name)
+                    LabeledContent("Practice routes", value: "Baxi's recorded voice")
+                    LabeledContent("Other routes", value: Speaker.voiceDescription.name)
                     VStack(alignment: .leading, spacing: BaxiSpace.sm) {
                         HStack {
                             Text("Speaking speed")
@@ -49,7 +50,7 @@ struct SettingsView: View {
                     Text("Voice")
                 } footer: {
                     Text(Speaker.voiceDescription.isBasic
-                         ? "This is the basic voice. For a far more natural one, download Ava (Premium) in the iPhone's Settings > Accessibility > Spoken Content > Voices > English, then reopen Baxi."
+                         ? "Searched routes use the iPhone's voice, and this is the basic one. For a far more natural one, download Ava (Premium) in the iPhone's Settings > Accessibility > Spoken Content > Voices > English, then reopen Baxi."
                          : "\"Just directions\" leaves out speed, school, stop-sign, crash and low-sun lines; the screen still shows them.")
                 }
 

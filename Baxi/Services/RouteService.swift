@@ -7,13 +7,19 @@ enum RouteService {
         let id: String
         let name: String
         let summary: String
+        /// A few words for the Routes tiles.
+        var short: String = ""
     }
 
     static let presets: [Preset] = [
-        Preset(id: "preset_firstdrive", name: "First drive", summary: "Quiet downtown streets: all-way stops, low speeds, a few small roundabouts"),
-        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "16 roundabouts, single and two-lane, on 116th Street, River Road and 126th Street"),
-        Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp"),
-        Preset(id: "preset_highway", name: "Highway ramp loop", summary: "Merge onto US 31, exit through a roundabout interchange, merge again"),
+        Preset(id: "preset_firstdrive", name: "First drive", summary: "Quiet downtown streets: all-way stops, low speeds, one small roundabout",
+               short: "All-way stops, 20 to 25 mph"),
+        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "16 roundabouts, single and two-lane, on 116th Street, River Road and 126th Street",
+               short: "16 roundabouts"),
+        Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp",
+               short: "50 mph, a merge and an exit"),
+        Preset(id: "preset_highway", name: "Highway ramp loop", summary: "Merge onto US 31, exit through a roundabout interchange, merge again",
+               short: "US 31 merges and exits"),
     ]
 
     static func preset(_ id: String) throws -> PlannedRoute {

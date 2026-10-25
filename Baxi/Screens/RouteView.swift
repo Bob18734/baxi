@@ -1,8 +1,9 @@
 import SwiftUI
 import MapKit
 
-/// Pick a preset Carmel practice route or search a destination, see the route with its hard spots
-/// numbered the way the Preview shows them, then start the drive (live, or a replay for the demo).
+/// Pick a preset Carmel practice route or search a destination, see the route on the map, then start the drive
+/// (live, or a replay for the demo). Laid out like Apple Maps: the map fills the screen and one panel along the
+/// bottom holds the search field and either the practice routes, the search results, or the chosen route.
 struct RouteView: View {
     @Environment(AppStore.self) private var store
     @State private var camera: MapCameraPosition = .automatic
@@ -15,53 +16,53 @@ struct RouteView: View {
     @State private var showPreview = false
     @State private var startAfterPreview = false
 
+    /// The panel shows search results while the field is in use.
+    private var searching: Bool { searchFocused || !query.isEmpty }
+
     var body: some View {
-        NavigationStack {
-            routeMap
-                .safeAreaInset(edge: .bottom, spacing: 0) { panel }
-                .navigationTitle("Routes")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(.visible, for: .navigationBar)
-                .searchable(text: $query, prompt: "Search a destination")
-                .searchFocused($searchFocused)
-                .onSubmit(of: .search) { Task { await search() } }
-                .searchSuggestions { suggestions }
-                // Places appear while typing, once the typing pauses.
-                .task(id: query) {
-                    do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
-                    await search()
+        routeMap
+            .safeAreaInset(edge: .bottom, spacing: 0) { panel }
+            // Places appear while typing, once the typing pauses.
+            .task(id: query) {
+                do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+                await search()
+            }
+            .onAppear {
+                store.loadCarmelDemo(); store.refreshPrep()
+                Task { await store.refreshOrigin() }
+                if let r = store.route { camera = Self.overview(r) } else { camera = .region(homeRegion) }
+            }
+            // Once the phone's location arrives, show it (until a route is picked).
+            .onChange(of: store.originIsHere) { _, here in
+                guard here, store.route == nil else { return }
+                withAnimation(.smooth) { camera = .region(homeRegion) }
+            }
+            .onChange(of: store.wantsSearch, initial: true) { _, want in
+                if want { searchFocused = true; store.wantsSearch = false }
+            }
+            .animation(.snappy, value: searching)
+            .animation(.snappy, value: store.route?.id)
+            .sheet(isPresented: $showPreview, onDismiss: {
+                // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
+                if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
+            }) {
+                if let r = store.route {
+                    PreviewView(routeName: r.name, spots: spots, route: r) { startAfterPreview = true }
                 }
-        }
-        .onAppear {
-            store.loadCarmelDemo(); store.refreshPrep()
-            Task { await store.refreshOrigin() }
-            if let r = store.route { camera = Self.overview(r) }
-            else { camera = .region(MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
-        }
-        // Once the phone's location arrives, show it (until a route is picked).
-        .onChange(of: store.originIsHere) { _, here in
-            guard here, store.route == nil else { return }
-            withAnimation(.smooth) {
-                camera = .region(MKCoordinateRegion(center: store.origin.clLocation, latitudinalMeters: 6_000, longitudinalMeters: 6_000))
             }
-        }
-        .onChange(of: store.wantsSearch, initial: true) { _, want in
-            if want { searchFocused = true; store.wantsSearch = false }
-        }
-        .sheet(isPresented: $showPreview, onDismiss: {
-            // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
-            if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
-        }) {
-            if let r = store.route {
-                PreviewView(routeName: r.name, spots: spots, route: r) { startAfterPreview = true }
-            }
-        }
+    }
+
+    /// Where the map rests with no route: around the phone when its location is known, else Carmel.
+    private var homeRegion: MKCoordinateRegion {
+        MKCoordinateRegion(center: (store.originIsHere ? store.origin : AppStore.carmelDemoHome).clLocation,
+                           latitudinalMeters: 7_000, longitudinalMeters: 7_000)
     }
 
     // MARK: Map
 
     private var routeMap: some View {
         Map(position: $camera) {
+            UserAnnotation()
             if let r = store.route {
                 MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
                     .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
@@ -88,22 +89,20 @@ struct RouteView: View {
                             .overlay(Circle().stroke(.white, lineWidth: 2))
                     }
                 }
-            } else if store.originIsHere {
-                Annotation("You", coordinate: store.origin.clLocation) {
-                    Circle().fill(BaxiColor.route).frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(.white, lineWidth: 3))
-                        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
-                }
-            } else {
+            } else if !store.originIsHere {
                 Annotation("Carmel", coordinate: AppStore.carmelDemoHome.clLocation) {
                     Image(systemName: "mappin.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
                 }
             }
         }
         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+        .mapControls {
+            MapUserLocationButton()
+            MapCompass()
+        }
         .onChange(of: store.route) { _, r in
+            guard let r else { withAnimation(.smooth) { camera = .region(homeRegion) }; return }
             // .automatic again is no change to SwiftUI, so step through the route's region first.
-            guard let r else { return }
             withAnimation(.smooth) { camera = .region(Self.region(r)) }
             Task { await Task.yield(); withAnimation(.smooth) { camera = Self.overview(r) } }
         }
@@ -111,27 +110,14 @@ struct RouteView: View {
 
     // MARK: Panel
 
+    /// One sheet along the bottom, reaching the bottom edge of the screen (the tab bar sits on it).
     private var panel: some View {
         VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            if store.route == nil { Eyebrow("Practice routes in Carmel") }
-            ScrollViewReader { reader in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: BaxiSpace.md) {
-                        ForEach(RouteService.presets) { p in
-                            PresetCard(preset: p, selected: store.route?.id == p.id) {
-                                withAnimation(.snappy) { store.choosePreset(p.id) }
-                            }
-                            .id(p.id)
-                        }
-                    }
-                    .padding(.horizontal, BaxiSpace.page)
-                }
-                .padding(.horizontal, -BaxiSpace.page)
-                .fixedSize(horizontal: false, vertical: true) // otherwise the row grows to fill the screen
-                .onAppear { if let id = store.route?.id { reader.scrollTo(id, anchor: .center) } }
-                .onChange(of: store.route?.id) { _, id in if let id { withAnimation { reader.scrollTo(id, anchor: .center) } } }
-            }
-            if routing {
+            Capsule().fill(BaxiColor.hairline).frame(width: 36, height: 5).frame(maxWidth: .infinity)
+            if !(store.route != nil && !searching) { searchField }
+            if searching {
+                searchResults
+            } else if routing {
                 VStack(alignment: .leading, spacing: BaxiSpace.sm) {
                     RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
                     Text(store.routeStep ?? "Finding a route…")
@@ -140,19 +126,126 @@ struct RouteView: View {
                 }
             } else if let err = store.routeError {
                 Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText)
+                Button("Back to practice routes") { store.clearRoute() }.font(BaxiFont.bodyBold).tint(BaxiColor.accent)
             } else if let r = store.route {
+                routeHeader(r)
                 selected(r)
             } else {
-                Text("Pick a practice route, or search a destination above.")
-                    .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+                practiceRoutes
             }
         }
         .padding(.horizontal, BaxiSpace.page)
-        .padding(.top, BaxiSpace.lg)
+        .padding(.top, BaxiSpace.sm)
         .padding(.bottom, BaxiSpace.md)
-        .background(BaxiColor.surface)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: BaxiRadius.xl, topTrailingRadius: BaxiRadius.xl, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 12, y: -2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: BaxiRadius.xl, topTrailingRadius: BaxiRadius.xl, style: .continuous)
+                .fill(BaxiColor.surface)
+                .shadow(color: .black.opacity(0.15), radius: 12, y: -2)
+                .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    /// The search field, at the top of the panel as in Apple Maps.
+    private var searchField: some View {
+        HStack(spacing: BaxiSpace.sm) {
+            HStack(spacing: BaxiSpace.sm) {
+                Image(systemName: "magnifyingglass").foregroundStyle(BaxiColor.inkSoft)
+                TextField("Search a destination", text: $query)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await search() } }
+                    .autocorrectionDisabled()
+                if !query.isEmpty {
+                    Button { query = ""; results = []; searchNote = nil } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(BaxiColor.inkFaint)
+                    }
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .font(BaxiFont.body)
+            .padding(.horizontal, BaxiSpace.md)
+            .frame(minHeight: 44)
+            .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+            if searching {
+                Button("Cancel") { query = ""; results = []; searchNote = nil; searchFocused = false }
+                    .font(BaxiFont.body).tint(BaxiColor.accent)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+    }
+
+    /// Places matching the search, in the panel.
+    private var searchResults: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if let searchNote {
+                    Label(searchNote, systemImage: "magnifyingglass").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+                        .padding(.vertical, BaxiSpace.md)
+                } else if results.isEmpty {
+                    Text(query.isEmpty ? "Type a place or an address." : "Searching…")
+                        .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft).padding(.vertical, BaxiSpace.md)
+                }
+                ForEach(results, id: \.self) { item in
+                    Button { go(to: item) } label: {
+                        HStack(spacing: BaxiSpace.md) {
+                            Image(systemName: "mappin.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.route)
+                            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                                Text(item.name ?? "Place").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                                Text(item.placemark.title ?? "").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, BaxiSpace.sm)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableStyle())
+                    Divider()
+                }
+            }
+        }
+        .frame(maxHeight: 320)
+        .scrollDismissesKeyboard(.immediately)
+    }
+
+    private func go(to item: MKMapItem) {
+        guard !routing else { return }
+        searchFocused = false
+        let name = item.name ?? "Destination"
+        Task {
+            routing = true
+            query = ""; results = []; searchNote = nil
+            await store.routeTo(Coordinate(item.placemark.coordinate), name: name)
+            routing = false
+        }
+    }
+
+    /// The practice routes as tiles, two by two, so all four are in view.
+    private var practiceRoutes: some View {
+        VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+            Eyebrow("Practice routes in Carmel")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: BaxiSpace.sm), GridItem(.flexible(), spacing: BaxiSpace.sm)],
+                      spacing: BaxiSpace.sm) {
+                ForEach(RouteService.presets) { p in
+                    PresetTile(preset: p, miles: store.presetMeters[p.id].map { $0 / 1609.34 }) {
+                        store.choosePreset(p.id)
+                    }
+                }
+            }
+        }
+    }
+
+    /// The chosen route's name, with a button back to the list.
+    private func routeHeader(_ r: PlannedRoute) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(r.name).font(BaxiFont.title).foregroundStyle(BaxiColor.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Spacer()
+            Button { store.clearRoute() } label: {
+                Image(systemName: "xmark").font(BaxiFont.headline).foregroundStyle(BaxiColor.inkSoft)
+                    .frame(width: 32, height: 32).background(BaxiColor.sunken, in: Circle())
+            }
+            .accessibilityLabel("Close this route")
+        }
     }
 
     @ViewBuilder private func selected(_ r: PlannedRoute) -> some View {
@@ -202,29 +295,6 @@ struct RouteView: View {
             .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
     }
 
-    @ViewBuilder private var suggestions: some View {
-        if let searchNote {
-            Label(searchNote, systemImage: "magnifyingglass").foregroundStyle(BaxiColor.inkSoft)
-        }
-        ForEach(results, id: \.self) { item in
-            Button {
-                guard !routing else { return }
-                searchFocused = false   // close the suggestions so the loading steps show
-                Task {
-                    routing = true
-                    await store.routeTo(Coordinate(item.placemark.coordinate), name: item.name ?? "Destination")
-                    routing = false
-                    query = ""; results = []; searchNote = nil
-                }
-            } label: {
-                VStack(alignment: .leading) {
-                    Text(item.name ?? "Place").foregroundStyle(BaxiColor.ink)
-                    Text(item.placemark.title ?? "").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-                }
-            }
-        }
-    }
-
     private func switchTo(_ id: String) {
         Task { routing = true; await store.chooseOption(id); routing = false }
     }
@@ -264,38 +334,27 @@ struct RouteView: View {
     }
 }
 
-/// A preset route as a small guide sign when chosen, a plain card otherwise.
-private struct PresetCard: View {
+/// A practice route as a small green guide sign: its name, miles and what it practices.
+private struct PresetTile: View {
     let preset: RouteService.Preset
-    let selected: Bool
+    let miles: Double?
     var choose: () -> Void
 
     var body: some View {
         Button(action: choose) {
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                Text(preset.name).font(BaxiFont.headline)
-                // Two lines reserved so every card is the same height.
-                Text(preset.summary).font(BaxiFont.caption).lineLimit(2, reservesSpace: true).opacity(selected ? 0.9 : 1)
-                    .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
+            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                Text(preset.name).font(BaxiFont.signFace(17)).lineLimit(1).minimumScaleFactor(0.8)
+                Text([miles.map { String(format: "%.0f mi", max(1, $0)) }, preset.short].compactMap { $0 }.joined(separator: " · "))
+                    .font(BaxiFont.caption).opacity(0.9).lineLimit(2, reservesSpace: true)
             }
-            .frame(width: 220, alignment: .topLeading)
-            .padding(.vertical, BaxiSpace.md)
-            .padding(.horizontal, BaxiSpace.lg)
-            .modifier(PresetBackground(selected: selected))
+            .foregroundStyle(BaxiColor.onSign)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(BaxiSpace.md)
+            .signPanel(radius: BaxiRadius.md)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-private struct PresetBackground: ViewModifier {
-    let selected: Bool
-    func body(content: Content) -> some View {
-        if selected { content.signPanel(radius: BaxiRadius.md) }
-        else {
-            content.foregroundStyle(BaxiColor.ink)
-                .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
-        }
+        .accessibilityLabel("\(preset.name). \(preset.summary)")
+        .accessibilityHint("Shows the route on the map")
     }
 }
 

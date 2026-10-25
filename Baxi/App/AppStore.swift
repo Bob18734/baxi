@@ -125,6 +125,12 @@ final class AppStore {
         }
     }
 
+    /// Back to no route: the Routes panel shows search and the practice routes again.
+    func clearRoute() {
+        route = nil; routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil
+        prepTask?.cancel(); prep = nil
+    }
+
     func choosePreset(_ id: String) {
         do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
         catch { routeError = "That practice route did not load."; Self.log.error("Preset \(id, privacy: .public) failed: \(error)") }

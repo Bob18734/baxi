@@ -72,6 +72,23 @@ final class DriveSession {
     private(set) var laneStrip: LaneStrip?
     private(set) var spokenLog: [(meters: Double, text: String)] = []
     private(set) var isFinished = false
+    /// One speed sample per fix on the route, for the habit report. Along positions on a later route
+    /// (after a reroute) are shifted by `alongOffset`, so places on different routes never mix.
+    @ObservationIgnored private var samples: [SpeedSample] = []
+    @ObservationIgnored private var habitStops: [Double] = []
+    @ObservationIgnored private var schoolZones: [ClosedRange<Double>] = []
+    @ObservationIgnored private var mergeAlongs: [Double] = []
+    @ObservationIgnored private var alongOffset = 0.0
+    private static let routeOffsetMeters = 10_000_000.0
+    /// The latest GPS speed, m/s; negative or nil when unknown.
+    private var lastSpeedMps: Double?
+    /// How the drive went, worked out when it ends. nil while driving, or when it was too short to judge.
+    private(set) var habits: HabitReport?
+    /// The car's speed for the speed pill, nil when the GPS does not know it.
+    var currentMph: Int? { lastSpeedMps.flatMap { $0 >= 0 ? Int(($0 * DriveHabits.mphPerMps).rounded()) : nil } }
+    /// The replay's speed every `replayStepMeters`: posted limit with smooth slowing for turns and stops.
+    @ObservationIgnored private var replayProfile: [Double] = []
+    static let replayStepMeters = 5.0
     private(set) var startedAt = Date()
     private(set) var endedAt: Date?
     static let locationOffText = "Location is off. Turn it on in Settings."
@@ -130,6 +147,16 @@ final class DriveSession {
         follower = RouteFollower(polyline: route.polyline)
         rebuildLaneZones()
         position = route.polyline.points.first
+        addHabitPlaces(p)
+    }
+
+    /// The stops, school zones and merges of the route now driven, shifted to this route's offset.
+    private func addHabitPlaces(_ p: RoutePrep) {
+        habitStops += p.habitStops.map { $0 + alongOffset }
+        schoolZones += p.schoolZones.map { ($0.lowerBound + alongOffset)...($0.upperBound + alongOffset) }
+        mergeAlongs += route.maneuvers.filter { $0.kind == .merge }.map { $0.alongMeters + alongOffset }
+        let stopsHere = p.habitStops + cues.filter { $0.kind == .stopSign }.map(\.targetMeters)
+        if case .replay = mode { replayProfile = Self.replayProfile(route: route, speeds: speeds, stops: stopsHere) }
     }
 
     /// Total meters driven this drive, across reroutes.
@@ -213,6 +240,8 @@ final class DriveSession {
         if stopSpeech { speaker.stop() }
         endedAt = Date()
         isFinished = true
+        habits = DriveHabits.report(samples: samples, stopSignAlongs: habitStops, schoolZones: schoolZones,
+                                    mergeAlongs: mergeAlongs, isDemo: mode != .live)
     }
 
     /// Replays the route at a believable speed: the posted limit where known, else 30 mph,
@@ -224,7 +253,7 @@ final class DriveSession {
             let mps = self.replaySpeed(at: self.replayMeters)
             self.replayMeters = min(self.route.polyline.lengthMeters, self.replayMeters + mps * tick * multiplier)
             self.clock += tick * multiplier
-            if let c = self.route.polyline.coordinate(atMeters: self.replayMeters) { self.feed(c, at: self.clock) }
+            if let c = self.route.polyline.coordinate(atMeters: self.replayMeters) { self.feed(c, at: self.clock, speedMps: mps) }
             if self.replayMeters >= self.route.polyline.lengthMeters { self.replayTimer?.invalidate() }
         }
     }
@@ -253,25 +282,45 @@ final class DriveSession {
         var meters = replayMeters, t = 0.0
         while !isFinished && meters < route.polyline.lengthMeters {
             meters = min(route.polyline.lengthMeters, meters + step)
-            t += step / replaySpeed(at: meters)
-            if let c = route.polyline.coordinate(atMeters: meters) { feed(c, at: t) }
+            let v = replaySpeed(at: meters)
+            t += step / v
+            if let c = route.polyline.coordinate(atMeters: meters) { feed(c, at: t, speedMps: v) }
         }
         if !isFinished { end() }
         return spokenLog
     }
 
     private func replaySpeed(at meters: Double) -> Double {
-        let nearManeuver = route.maneuvers.contains { $0.needsLaneChoice && abs($0.alongMeters - meters) < 60 }
-        if nearManeuver { return 6.7 }   // 15 mph
-        let mph = cues.last { $0.targetMeters <= meters && $0.roadSpeedMph != nil }?.roadSpeedMph ?? 30
-        return Double(mph) * 0.447 * 0.9
+        guard !replayProfile.isEmpty else { return 6.7 }
+        let i = min(replayProfile.count - 1, max(0, Int((meters / Self.replayStepMeters).rounded())))
+        return replayProfile[i]
+    }
+
+    /// A careful driver's speed along the route, for replays: 90% of the posted limit (30 mph where unknown),
+    /// 15 mph through turns and roundabouts, a full stop at stop signs, and never braking or speeding up
+    /// harder than an easy, comfortable rate, so a replay's habit report is clean.
+    static func replayProfile(route: PlannedRoute, speeds: [(along: Double, mph: Int)], stops: [Double]) -> [Double] {
+        let step = replayStepMeters, decel = 2.0, accel = 2.5
+        let n = Int(route.polyline.lengthMeters / step) + 2
+        let turns = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters)
+        var v = (0..<n).map { i -> Double in
+            let m = Double(i) * step
+            if stops.contains(where: { abs($0 - m) <= 3 }) { return 0.4 }
+            if turns.contains(where: { abs($0 - m) < 60 }) { return 6.7 }   // 15 mph
+            let mph = CueListBuilder.speed(at: m, in: speeds) ?? 30
+            return Double(mph) * 0.44704 * 0.9
+        }
+        v[0] = min(v[0], 2)
+        for i in stride(from: n - 2, through: 0, by: -1) { v[i] = min(v[i], (v[i + 1] * v[i + 1] + 2 * decel * step).squareRoot()) }
+        for i in 1..<n { v[i] = min(v[i], (v[i - 1] * v[i - 1] + 2 * accel * step).squareRoot()) }
+        return v
     }
 
     private func startLive() {
         let d = LocationDelegate(onFix: { [weak self] loc in
             guard let self else { return }
             self.clock = loc.timestamp.timeIntervalSince(self.startedAt)
-            self.feed(Coordinate(loc.coordinate), at: self.clock)
+            self.feed(Coordinate(loc.coordinate), at: self.clock, speedMps: loc.speed)
         }, onDenied: { [weak self] in
             guard let self, self.lastCueText != Self.locationOffText else { return }
             self.lastCueText = Self.locationOffText
@@ -284,9 +333,11 @@ final class DriveSession {
 
     // MARK: Each location fix
 
-    func feed(_ location: Coordinate, at time: TimeInterval) {
+    /// `speedMps`: the GPS speed (negative when unknown), or the replay's speed; nil when not known at all.
+    func feed(_ location: Coordinate, at time: TimeInterval, speedMps: Double? = nil) {
         guard !isFinished else { return }
         hasFix = true
+        lastSpeedMps = speedMps
         guard let p = follower.update(location: location, at: time) else { return }
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
@@ -340,6 +391,10 @@ final class DriveSession {
 
         if lastCueText == "Off the route" || lastCueText == Self.rerouteFailedText { lastCueText = "" }
         saidRerouteFailed = false
+        if let v = speedMps {
+            samples.append(SpeedSample(t: time, along: p.alongMeters + alongOffset, mps: v,
+                                       limitMph: CueListBuilder.speed(at: p.alongMeters, in: speeds)))
+        }
 
         // A lane strip stays up from its cue until the maneuver is passed.
         if let c = lastLaneCue, p.alongMeters > c.targetMeters + 10 {
@@ -439,6 +494,8 @@ final class DriveSession {
             ?? RoutePrep.make(route: new, cache: cache, features: features, highInjury: highInjury)
         (cues, signals, speeds) = (Self.filtered(p.planned(for: level, route: new)), p.signals, p.speeds)
         rebuildLaneZones()
+        alongOffset += Self.routeOffsetMeters
+        addHabitPlaces(p)
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()
         progress = nil

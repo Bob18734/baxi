@@ -433,11 +433,12 @@ private struct DriveFormView: View {
 /// A deleted drive's values, kept for a few seconds so Undo can put it back.
 private struct DeletedDrive {
     let start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: String, routeTitle: String
-    let distanceMeters: Double, cuesSpoken: Int, manual: Bool, skillsJSON: String
+    let distanceMeters: Double, cuesSpoken: Int, manual: Bool, skillsJSON: String, habitsJSON: String
 
     init(_ r: DriveRecord) {
         (start, end, dayMinutes, nightMinutes, level) = (r.start, r.end, r.dayMinutes, r.nightMinutes, r.level)
         (routeTitle, distanceMeters, cuesSpoken, manual, skillsJSON) = (r.routeTitle, r.distanceMeters, r.cuesSpoken, r.manual, r.skillsJSON)
+        habitsJSON = r.habitsJSON
     }
 
     func restore() -> DriveRecord {
@@ -445,6 +446,7 @@ private struct DeletedDrive {
                             level: ExperienceLevel(rawValue: level) ?? .gettingComfortable, routeTitle: routeTitle,
                             distanceMeters: distanceMeters, cuesSpoken: cuesSpoken, manual: manual)
         r.skillsJSON = skillsJSON
+        r.habitsJSON = habitsJSON
         return r
     }
 }

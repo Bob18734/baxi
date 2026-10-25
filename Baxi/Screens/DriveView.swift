@@ -164,7 +164,7 @@ struct DriveView: View {
         let record = DriveRecord(start: session.startedAt, end: end, dayMinutes: split.day, nightMinutes: split.night,
                                  level: session.level, routeTitle: session.route.name,
                                  distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count,
-                                 skills: session.practiced)
+                                 skills: session.practiced, habits: session.habits)
         context.insert(record)
         // Save now rather than waiting for autosave: the app may be closed right after arriving.
         try? context.save()

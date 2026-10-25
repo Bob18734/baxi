@@ -101,18 +101,15 @@ enum DriveHabits {
         let share: Double? = knownLimit > 0 ? over / knownLimit : nil
         var score = 100.0 - min(30, (share ?? 0) * 100)
         score -= Double(8 * (stopSigns - fullStops) + 6 * hardBrakes + 5 * (merges - upToSpeed))
-        if let schoolTop, schoolTop > schoolZoneMph { score -= 10 }
         return HabitReport(trackedMinutes: tracked / 60, overLimitShare: share, topOverMph: topOver, schoolZoneTopMph: schoolTop,
                            stopSigns: stopSigns, fullStops: fullStops, hardBrakes: hardBrakes, merges: merges,
                            mergesUpToSpeed: upToSpeed, score: max(0, Int(score.rounded())), isDemo: isDemo)
     }
 
-    /// Up to three things to work on, most important first: school zones, speed, stop signs, braking, merges.
+    /// Up to three things to work on, most important first: speed, stop signs, braking, merges, then a school
+    /// zone reminder. With nothing to work on, "Clean drive", plus the school reminder when it applies.
     static func tips(_ r: HabitReport) -> [String] {
         var out: [String] = []
-        if let top = r.schoolZoneTopMph, top > schoolZoneMph {
-            out.append("Top speed in a school zone was \(top) mph. School zones are \(schoolZoneMph) when the lights flash.")
-        }
         if let share = r.overLimitShare, share >= 0.01, let top = r.topOverMph {
             out.append("Over the limit for \(max(1, Int((share * 100).rounded())))% of the drive, by up to \(top) mph. Ease off a little.")
         }
@@ -125,7 +122,11 @@ enum DriveHabits {
                                          : "\(r.hardBrakes) hard stops. Look further ahead and brake earlier.")
         }
         if r.slowMerges > 0 { out.append("Merge at highway speed: speed up on the ramp before you join.") }
-        return out.isEmpty ? ["Clean drive. Keep it up."] : Array(out.prefix(3))
+        // Not marked down: Baxi cannot see whether the zone's lights were flashing (school hours).
+        let school = r.schoolZoneTopMph.flatMap { $0 > schoolZoneMph
+            ? "Top speed near a school was \($0) mph. When a school zone's lights flash, the limit is \(schoolZoneMph)." : nil }
+        if out.isEmpty { return ["Clean drive. Keep it up."] + [school].compactMap { $0 } }
+        return Array((out + [school].compactMap { $0 }).prefix(3))
     }
 
     // Stored on DriveRecord as JSON text, so records saved before Oct 24 (empty) still load.

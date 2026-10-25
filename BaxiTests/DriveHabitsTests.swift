@@ -21,6 +21,7 @@ struct DriveHabitsTests {
         #expect(r.overLimitShare == 0)
         #expect(r.topOverMph == nil)
         #expect(abs(r.trackedMinutes - 5) < 0.1)
+        #expect(DriveHabits.tips(r) == ["Clean drive. Keep it up."])
         #expect(DriveHabits.tips(r).first == "Clean drive. Keep it up.")
     }
 
@@ -94,8 +95,9 @@ struct DriveHabitsTests {
     @Test func schoolZoneTop() throws {
         let r = try #require(Self.report(Self.steady(mph: 28, limit: 30, seconds: 200), schools: [800...1200]))
         #expect(r.schoolZoneTopMph == 28)
-        #expect(r.score == 90)
-        #expect(DriveHabits.tips(r).first?.contains("school zone") == true)
+        // Baxi cannot tell whether the school zone's lights were flashing, so it reminds rather than marks down.
+        #expect(r.score == 100)
+        #expect(DriveHabits.tips(r) == ["Clean drive. Keep it up.", "Top speed near a school was 28 mph. When a school zone's lights flash, the limit is 20."])
     }
 
     @Test func invalidSpeedsIgnored() throws {
@@ -136,4 +138,75 @@ struct DriveHabitsTests {
         #expect(DriveHabits.decode("") == nil)
         #expect(DriveHabits.encode(nil) == "")
     }
+}
+
+/// What a route gives the habit report: all-way stops, school-zone stretches, merges.
+struct HabitPlacesTests {
+    @Test func onlyAllWayStopsAreJudged() throws {
+        let r = try RouteService.preset("preset_roundabouts")
+        let p = RoutePrep.make(route: r, cache: DriveSessionTests.cache, features: DriveSessionTests.features, highInjury: nil)
+        #expect(p.habitStops.contains { abs($0 - 8779) < 5 })        // stop=all at River Road / 122nd
+        #expect(!p.habitStops.contains { abs($0 - 10104) < 5 })      // stop=minor: the sign may face the cross street
+    }
+
+    @Test func schoolZoneIsAStretchAroundTheSchool() {
+        let school = RoadFeature(id: "s", kind: .schoolZone, coordinate: TestRoute.point(metersEast: 1000, metersNorth: 100),
+                                 name: "Test", lanes: nil, legs: nil, maxspeedMph: nil, osmIds: [])
+        let zones = RoutePrep.schoolZones(line: TestRoute.line, features: [school])
+        #expect(zones.count == 1)
+        // Within 150 m of a school 100 m off the road: about 890 m to 1110 m along.
+        #expect(abs((zones.first?.lowerBound ?? 0) - 890) < 30)
+        #expect(abs((zones.first?.upperBound ?? 0) - 1110) < 30)
+    }
+}
+
+/// The habit report a drive produces.
+struct SessionHabitsTests {
+    @Test func replayReportIsClean() throws {
+        let route = try RouteService.preset("preset_roundabouts")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: DriveSessionTests.features, highInjury: nil,
+                             level: .new, mode: .replay(speedMultiplier: 1), speaker: QuietSpeech())
+        s.simulateWholeRoute()
+        let h = try #require(s.habits)
+        #expect(h.isDemo)
+        #expect(h.score >= 95, "\(h)")
+        #expect(h.stopSigns > 0 && h.fullStops == h.stopSigns)
+        #expect(h.overLimitShare == 0)
+        #expect(h.hardBrakes == 0)
+    }
+
+    @Test func rerouteKeepsSamples() throws {
+        let route = try RouteService.preset("preset_highway")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: DriveSessionTests.features, highInjury: nil,
+                             level: .gettingComfortable, mode: .replay(speedMultiplier: 1), speaker: QuietSpeech())
+        var t = 0.0
+        for m in stride(from: 0.0, through: 3000, by: 10) {
+            s.feed(route.polyline.coordinate(atMeters: m)!, at: t, speedMps: 10); t += 1
+        }
+        s.install(route)   // a reroute onto the same line
+        for m in stride(from: 0.0, through: 3000, by: 10) {
+            s.feed(route.polyline.coordinate(atMeters: m)!, at: t, speedMps: 10); t += 1
+        }
+        s.end()
+        let h = try #require(s.habits)
+        #expect(abs(h.trackedMinutes - 10) < 0.3)   // both halves, 600 s
+    }
+
+    @Test func liveSpeedShowsAsCurrentMph() throws {
+        let route = try RouteService.preset("preset_highway")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: [], highInjury: nil,
+                             level: .new, mode: .live, speaker: QuietSpeech())
+        #expect(s.currentMph == nil)
+        s.feed(route.polyline.coordinate(atMeters: 10)!, at: 0, speedMps: 13.4)
+        #expect(s.currentMph == 30)
+        s.feed(route.polyline.coordinate(atMeters: 20)!, at: 1, speedMps: -1)   // unknown: hidden, not 0
+        #expect(s.currentMph == nil)
+    }
+}
+
+private final class QuietSpeech: SpeechOutput {
+    var isMuted = false
+    func say(_ text: String) {}
+    func say(_ text: String, chime: Bool) {}
+    func stop() {}
 }

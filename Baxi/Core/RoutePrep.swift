@@ -9,13 +9,39 @@ struct RoutePrep {
     let signals: [Double]
     let speeds: [(along: Double, mph: Int)]
     let spots: [HardSpot]
+    /// All-way stops on the route, where the drive's habit report checks for a full stop. Only all-way stops:
+    /// at a two-way stop the map data cannot say reliably which road the sign faces.
+    var habitStops: [Double] = []
+    /// Stretches of the route within 150 m of a school, for the habit report's school-zone speed.
+    var schoolZones: [ClosedRange<Double>] = []
 
     static func make(route: PlannedRoute, cache: OSMCache, features: [RoadFeature], highInjury: HighInjuryNetwork?) -> RoutePrep {
         let cues = CueListBuilder.build(route: route, cache: cache, features: features, highInjury: highInjury)
+        let allWay = cache.nodes.filter { $0.tags["highway"] == "stop" && $0.tags["stop"] == "all" }.map(\.coordinate)
         return RoutePrep(routeId: route.id, cues: cues,
                          signals: CueListBuilder.signalAlongs(line: route.polyline, cache: cache),
                          speeds: CueListBuilder.speedProfile(line: route.polyline, cache: cache),
-                         spots: HardSpots.find(route: route, cues: cues, features: features, cache: cache))
+                         spots: HardSpots.find(route: route, cues: cues, features: features, cache: cache),
+                         habitStops: CueListBuilder.dedupe(CueListBuilder.onRoute(allWay, line: route.polyline,
+                                                                                  within: CueListBuilder.stopMatchMeters).sorted(),
+                                                           within: CueListBuilder.stopPairMeters),
+                         schoolZones: schoolZones(line: route.polyline, features: features))
+    }
+
+    /// Each stretch of the line that runs within 150 m of a school.
+    static func schoolZones(line: Polyline, features: [RoadFeature]) -> [ClosedRange<Double>] {
+        let schools = features.filter { $0.kind == .schoolZone }.map(\.coordinate)
+        guard !schools.isEmpty else { return [] }
+        let step = 10.0
+        var zones: [ClosedRange<Double>] = [], runStart: Double?, last = 0.0
+        for s in line.samples(everyMeters: step) {
+            let near = schools.contains { Geo.distanceMeters($0, s.point) <= CueListBuilder.schoolMatchMeters }
+            if near, runStart == nil { runStart = s.alongMeters }
+            if !near, let a = runStart { zones.append(a...last); runStart = nil }
+            last = s.alongMeters
+        }
+        if let a = runStart { zones.append(a...last) }
+        return zones
     }
 
     /// The cues timed for an experience level.

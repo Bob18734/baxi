@@ -35,6 +35,6 @@ final class DriveRecord {
 
     var row: LogRow {
         LogRow(start: start, end: end, dayMinutes: dayMinutes, nightMinutes: nightMinutes, routeTitle: routeTitle,
-               distanceMeters: distanceMeters, manual: manual)
+               distanceMeters: distanceMeters, manual: manual, id: id)
     }
 }

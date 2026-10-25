@@ -10,6 +10,8 @@ struct LogRow: Equatable {
     let routeTitle: String
     let distanceMeters: Double
     let manual: Bool
+    /// The stored drive this row came from, so an edit is not compared with itself.
+    var id: UUID? = nil
 
     var minutes: Int { dayMinutes + nightMinutes }
 }
@@ -31,6 +33,12 @@ enum DriveLog {
 
     static func totals(_ rows: [LogRow]) -> Totals {
         Totals(minutes: rows.map(\.minutes).reduce(0, +), nightMinutes: rows.map(\.nightMinutes).reduce(0, +))
+    }
+
+    /// Whether start...end shares any time with a drive already in the log (other than `excluding`, the one
+    /// being edited). Drives that only touch end to start do not overlap.
+    static func overlaps(_ start: Date, _ end: Date, with rows: [LogRow], excluding: UUID?) -> Bool {
+        rows.contains { r in (excluding == nil || r.id != excluding) && r.start < end && start < r.end }
     }
 
     /// "1:05" for 65 minutes, the way the paper log writes hours and minutes.

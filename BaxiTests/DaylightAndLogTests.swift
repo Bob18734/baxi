@@ -75,3 +75,26 @@ struct DriveLogTests {
         #expect(lines[3] == "Total,,,0:50,0:30,0:20,,,")
     }
 }
+
+/// Oct 24: a drive typed in by hand that overlaps one already logged gets a warning.
+struct OverlapTests {
+    static func at(_ h: Int, _ m: Int = 0) -> Date {
+        Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 20, hour: h, minute: m))!
+    }
+    static func row(_ s: Date, _ e: Date, id: UUID? = nil) -> LogRow {
+        LogRow(start: s, end: e, dayMinutes: 60, nightMinutes: 0, routeTitle: "x", distanceMeters: 0, manual: true, id: id)
+    }
+
+    @Test func overlapDetected() {
+        #expect(DriveLog.overlaps(Self.at(10, 30), Self.at(11, 30), with: [Self.row(Self.at(10), Self.at(11))], excluding: nil))
+    }
+
+    @Test func touchingIsNotOverlap() {
+        #expect(!DriveLog.overlaps(Self.at(11), Self.at(12), with: [Self.row(Self.at(10), Self.at(11))], excluding: nil))
+    }
+
+    @Test func editingADriveDoesNotOverlapItself() {
+        let id = UUID()
+        #expect(!DriveLog.overlaps(Self.at(10, 15), Self.at(11), with: [Self.row(Self.at(10), Self.at(11), id: id)], excluding: id))
+    }
+}

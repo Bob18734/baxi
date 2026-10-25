@@ -61,7 +61,17 @@ struct SettingsView: View {
                     NavigationLink("The 50 supervised hours") { AboutPage(title: "The 50 supervised hours", paragraphs: Self.hours) }
                     NavigationLink("Where Baxi's information comes from") { AboutPage(title: "Sources", paragraphs: Self.sources) }
                     NavigationLink("Privacy") { AboutPage(title: "Privacy", paragraphs: Self.privacy) }
-                    LabeledContent("Road data", value: store.cache == nil ? "Loading" : "Carmel, IN")
+                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                        Text("Road data")
+                        Group {
+                            if store.cache == nil && store.isLoading { Text("Loading…") }
+                            else { Text(store.dataStatus) }
+                            // A searched route brings its own lanes, roundabouts and lights from OpenStreetMap.
+                            if !store.routeOptions.isEmpty && store.roadDataNote == nil { Text("Plus the roads along your searched route.") }
+                        }
+                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
             .scrollContentBackground(.hidden)

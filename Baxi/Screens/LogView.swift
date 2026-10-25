@@ -8,6 +8,8 @@ struct LogView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var adding = false
+    @State private var editing: DriveRecord?
+    @State private var deleted: [DeletedDrive] = []
     @State private var pdfURLs: [URL] = []
     @State private var csvURL: URL?
     @State private var exportError: String?
@@ -56,11 +58,12 @@ struct LogView: View {
                 }
                 ForEach(months, id: \.title) { month in
                     Section {
-                        ForEach(month.drives) { DriveRow(drive: $0) }
-                            .onDelete { idx in
-                                idx.map { month.drives[$0] }.forEach(context.delete)
-                                try? context.save()
-                            }
+                        ForEach(month.drives) { d in
+                            Button { editing = d } label: { DriveRow(drive: d) }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Edit this drive")
+                        }
+                            .onDelete { idx in delete(idx.map { month.drives[$0] }) }
                             .listRowBackground(BaxiColor.surface)
                     } header: {
                         Eyebrow(month.title)
@@ -77,7 +80,12 @@ struct LogView: View {
                     Button { adding = true } label: { Label("Add a drive", systemImage: "plus") }
                 }
             }
-            .sheet(isPresented: $adding) { AddDriveView() }
+            .sheet(isPresented: $adding) { DriveFormView(record: nil) }
+            .sheet(item: $editing) { DriveFormView(record: $0) }
+            .safeAreaInset(edge: .bottom) {
+                if !deleted.isEmpty { undoBar.transition(.move(edge: .bottom).combined(with: .opacity)) }
+            }
+            .animation(.snappy, value: deleted.isEmpty)
             .sheet(isPresented: $editingDriver) {
                 NavigationStack {
                     DriverDetailsView()
@@ -97,6 +105,37 @@ struct LogView: View {
                 if !editing { writeExports() }
             }
         }
+    }
+
+    private func delete(_ records: [DriveRecord]) {
+        let kept = records.map(DeletedDrive.init)
+        records.forEach(context.delete)
+        try? context.save()
+        deleted = kept
+        Haptics.tap()
+        // The Undo bar stays for 5 seconds after the last delete.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            if deleted.first?.start == kept.first?.start { deleted = [] }
+        }
+    }
+
+    private var undoBar: some View {
+        HStack {
+            Text(deleted.count == 1 ? "Drive deleted. It came off your hours." : "\(deleted.count) drives deleted.")
+                .font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+            Spacer()
+            Button("Undo") {
+                deleted.forEach { context.insert($0.restore()) }
+                try? context.save()
+                deleted = []
+                Haptics.success()
+            }
+            .font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.accent)
+        }
+        .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
+        .padding(.horizontal, BaxiSpace.page).padding(.bottom, BaxiSpace.sm)
     }
 
     private var summary: some View {
@@ -120,6 +159,10 @@ struct LogView: View {
     private var exportMenu: some View {
         Menu {
             Button("Driver details") { editingDriver = true }
+            if pdfURLs.isEmpty && exportError == nil {
+                // The files are rewritten a moment after any change to the log.
+                Text("Preparing the official log…")
+            }
             if !pdfURLs.isEmpty {
                 ShareLink(items: pdfURLs) {
                     Text(pdfURLs.count == 1 ? "Official State Form 54706 (PDF)" : "Official logs (\(pdfURLs.count) PDFs)")
@@ -287,51 +330,109 @@ private struct DriveRow: View {
     }
 }
 
-/// For practice drives done without Baxi running. Night minutes are split from the times entered.
-private struct AddDriveView: View {
+/// Adds a practice drive done without Baxi running, or edits one already in the log. Drives typed in by hand
+/// can change their times; drives Baxi recorded keep their times (they came from the GPS) and only their
+/// name can change. Night minutes are split from the times at sunset and sunrise.
+private struct DriveFormView: View {
+    /// nil to add a new drive.
+    let record: DriveRecord?
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStore.self) private var store
+    @Query private var drives: [DriveRecord]
     @State private var start = Date().addingTimeInterval(-3600)
     @State private var end = Date()
     @State private var note = ""
 
-    private var split: (day: Int, night: Int) {
-        Daylight.split(start: start, end: end, at: store.origin)
+    private var timesEditable: Bool { record?.manual ?? true }
+    private var split: (day: Int, night: Int) { Daylight.split(start: start, end: end, at: store.origin) }
+    private var overlaps: Bool {
+        timesEditable && DriveLog.overlaps(start, end, with: drives.map(\.row), excluding: record?.id)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
-                    DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
-                    DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
+                    if timesEditable {
+                        // Bounded: the last 60 days, drives up to 6 hours (the split walks every minute).
+                        DatePicker("Started", selection: $start, in: Date().addingTimeInterval(-60 * 86_400)...Date())
+                        DatePicker("Ended", selection: $end, in: start...min(Date(), start.addingTimeInterval(6 * 3600)))
+                    } else {
+                        LabeledContent("Started", value: start.formatted(date: .abbreviated, time: .shortened))
+                        LabeledContent("Ended", value: end.formatted(date: .omitted, time: .shortened))
+                    }
                     TextField("Where (optional)", text: $note)
+                } footer: {
+                    if !timesEditable { Text("Times come from the drive Baxi recorded, so they can't be changed.") }
+                    else if overlaps {
+                        Label("This overlaps a drive already in your log.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(BaxiColor.stopText)
+                    }
                 }
                 Section {
                     LabeledContent("Day", value: DriveLog.hm(split.day))
                     LabeledContent { Text(DriveLog.hm(split.night)) } label: { Label("Night", systemImage: "moon.fill") }
-                } footer: { Text("Night is counted from sunset to sunrise in Carmel.") }
+                } footer: {
+                    Text(split.day + split.night == 0 ? "Set an end time after the start." : "Night is counted from sunset to sunrise.")
+                }
             }
-            .navigationTitle("Add a drive")
+            .onChange(of: start) { old, new in
+                // Moving the start keeps the drive's length, so the end never sits before the start.
+                guard timesEditable else { return }
+                end = min(Date(), max(new, end.addingTimeInterval(new.timeIntervalSince(old))))
+            }
+            .navigationTitle(record == nil ? "Add a drive" : "Edit drive")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let s = split
-                        context.insert(DriveRecord(start: start, end: end, dayMinutes: s.day, nightMinutes: s.night,
-                                                   level: store.level, routeTitle: note.isEmpty ? "Practice drive" : note,
-                                                   distanceMeters: 0, cuesSpoken: 0, manual: true))
-                        try? context.save()
-                        Haptics.success()
-                        dismiss()
-                    }
-                    .fontWeight(.bold)
-                    .disabled(split.day + split.night == 0)
+                    Button("Save", action: save).fontWeight(.bold).disabled(split.day + split.night == 0)
                 }
             }
+            .onAppear {
+                guard let record else { return }
+                start = record.start; end = record.end
+                note = record.routeTitle == "Practice drive" ? "" : record.routeTitle
+            }
         }
+    }
+
+    private func save() {
+        let title = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = split
+        if let record {
+            record.routeTitle = title.isEmpty ? (record.manual ? "Practice drive" : record.routeTitle) : title
+            if timesEditable {
+                record.start = start; record.end = end
+                record.dayMinutes = s.day; record.nightMinutes = s.night
+            }
+        } else {
+            context.insert(DriveRecord(start: start, end: end, dayMinutes: s.day, nightMinutes: s.night,
+                                       level: store.level, routeTitle: title.isEmpty ? "Practice drive" : title,
+                                       distanceMeters: 0, cuesSpoken: 0, manual: true))
+        }
+        try? context.save()
+        Haptics.success()
+        dismiss()
+    }
+}
+
+/// A deleted drive's values, kept for a few seconds so Undo can put it back.
+private struct DeletedDrive {
+    let start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: String, routeTitle: String
+    let distanceMeters: Double, cuesSpoken: Int, manual: Bool, skillsJSON: String
+
+    init(_ r: DriveRecord) {
+        (start, end, dayMinutes, nightMinutes, level) = (r.start, r.end, r.dayMinutes, r.nightMinutes, r.level)
+        (routeTitle, distanceMeters, cuesSpoken, manual, skillsJSON) = (r.routeTitle, r.distanceMeters, r.cuesSpoken, r.manual, r.skillsJSON)
+    }
+
+    func restore() -> DriveRecord {
+        let r = DriveRecord(start: start, end: end, dayMinutes: dayMinutes, nightMinutes: nightMinutes,
+                            level: ExperienceLevel(rawValue: level) ?? .gettingComfortable, routeTitle: routeTitle,
+                            distanceMeters: distanceMeters, cuesSpoken: cuesSpoken, manual: manual)
+        r.skillsJSON = skillsJSON
+        return r
     }
 }

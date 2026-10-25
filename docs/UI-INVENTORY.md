@@ -20,7 +20,7 @@ the app has today. Each one must exist and work after the rebuild. Tick when the
 
 ## Home
 - [ ] Where-to search entry (opens Routes with search focused: `store.wantsSearch`).
-- [ ] The five practice routes (First drive, Downtown and the Palladium, Roundabout loop, Parkway loop, Highway ramp loop) with miles and what
+- [ ] The six practice routes (First drive, Downtown and the Palladium, Library and the high school, Roundabout loop, Parkway loop, Highway ramp loop) with miles and what
   they practice; tap → choose preset, go to Routes.
 - [ ] Hours toward 50 (10 at night), tap → Log.
 - [ ] Skills: six skills with levels (Not yet → Test-ready), levels reached of 24, tap → Log.

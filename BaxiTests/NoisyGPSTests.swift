@@ -91,13 +91,13 @@ struct NoisyGPSTests {
                      mode: mode, speaker: Quiet())
     }
 
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown"], [UInt64(1), 2, 3])
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown", "preset_library"], [UInt64(1), 2, 3])
     func realisticGPSSaysTheSameThingsInTheSameOrder(_ id: String, seed: UInt64) throws {
         try check(id, GPSSimulator(seed: seed))
     }
 
     /// Bad GPS: twice the drift, 30 s dropouts, and a 40 m jump on one fix in fifty.
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown"], [UInt64(11), 12, 13])
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown", "preset_library"], [UInt64(11), 12, 13])
     func badGPSStillSaysTheSameThings(_ id: String, seed: UInt64) throws {
         try check(id, GPSSimulator(errorMeters: 15, dropoutSeconds: 30, outlierChance: 0.02, seed: seed))
     }

@@ -6,6 +6,7 @@ import json, subprocess, sys, pathlib
 OUT = pathlib.Path(__file__).resolve().parent.parent / "Baxi" / "Resources" / "Routes"
 UA = "baxi-cac-2026/0.1"
 HOME = (39.9765, -86.1281)  # Carmel City Center
+LIBRARY = (39.9786, -86.1215)  # Carmel Clay Public Library, 425 E Main St
 
 PRESETS = {
     # Waypoints sit on the through road itself; one on a side street makes OSRM drive in and back out.
@@ -21,11 +22,15 @@ PRESETS = {
     # gaps, the kind of spot where a turn comes up fast. Waypoints sit on the roundabouts themselves, in driving
     # order; mid-street waypoints made OSRM U-turn.
     "preset_downtown": ("Downtown and the Palladium", [HOME, (39.97823, -86.14089), (39.96816, -86.14121), (39.97044, -86.13132), (39.97057, -86.12714), HOME]),
+    # Oct 25: from the Carmel Clay Public Library (425 E Main St), around the high school and its neighborhood, never
+    # into midtown: Main St east past the school, 1st Avenue NE's all-way stops, Smoky Row, Keystone's two
+    # interchange roundabouts, Main St back. Picked from 90 OSRM loops between Range Line and Keystone.
+    "preset_library": ("Library and the high school", [LIBRARY, (39.985676, -86.123638), (39.985683, -86.123157), LIBRARY]),
 }
 
 # Routes whose middle points are pass-through (OSRM `waypoints=`): one leg, so a point placed on a roundabout
 # doesn't split it into an arrive, a depart and a bare "exit roundabout" that the app would have no cue for.
-VIA = {"preset_downtown"}
+VIA = {"preset_downtown", "preset_library"}
 
 def route(points, via=False):
     coords = ";".join(f"{lon},{lat}" for lat, lon in points)

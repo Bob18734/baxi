@@ -36,7 +36,7 @@ Delete Baxi and install the newest build (ask Claude), then open it.
   once too: the Log then shows "Add hours you drove before Baxi".)
 
 ## 2. Home and the demo, 5 min
-- [ ] Home: "Where are you driving?", the search field, "Your next drive" as one big green sign, the hours, six skill rings, the demo button. Routes lists five practice routes, First drive then Downtown and the Palladium. The bottom bar: Home, Routes in the middle, Log; a green mark under the open tab.
+- [ ] Home: "Where are you driving?", the search field, "Your next drive" as one big green sign, the hours, six skill rings, the demo button. Routes lists six practice routes, First drive, Downtown and the Palladium, then Library and the high school. The bottom bar: Home, Routes in the middle, Log; a green mark under the open tab.
 - [ ] Tap "Watch a 3-minute demo drive": three small lights cycle red, amber, green in the button right away; a second tap does nothing. The demo is Downtown and the Palladium from City Center, the video route: eight roundabouts in about 3 minutes.
 - [ ] During the demo: the recorded voice speaks with a soft tone first; the big distance, the instruction, the green bar
   emptying toward the turn, the amber lane panel, the roundabout diagram, the speed-limit sign and your speed beside it
@@ -46,7 +46,7 @@ Delete Baxi and install the newest build (ask Claude), then open it.
   and never count toward the 50 hours". Nothing added to the Log.
 
 ## 3. Routes and Preview, 5 min (on cellular for at least one)
-- [ ] Routes: the map shows all five practice routes, each with a numbered green tab (1 to 5) matching the numbers on the
+- [ ] Routes: the map shows all six practice routes, each with a numbered green tab (1 to 6) matching the numbers on the
   signs in the list; your blue dot. Tap a number on the map: that route is chosen. Tap × on the route to go back.
 - [ ] The panel: drag it down to just the search field (the map is the whole screen), up to half, up again to nearly
   full. Flick it. With a route chosen, drag it down: the route's name and Start drive stay; drag it back up for

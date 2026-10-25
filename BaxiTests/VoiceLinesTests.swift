@@ -29,7 +29,7 @@ struct VoiceLinesTests {
 
 extension VoiceLinesTests {
     /// A live drive with real GPS noise says its lines at slightly different points; they must still be listed.
-    @Test(arguments: ["preset_firstdrive", "preset_roundabouts", "preset_parkway", "preset_highway", "preset_downtown"])
+    @Test(arguments: ["preset_firstdrive", "preset_roundabouts", "preset_parkway", "preset_highway", "preset_downtown", "preset_library"])
     func noisyLiveDriveLinesAreListed(_ id: String) throws {
         let cache = DriveSessionTests.cache, features = DriveSessionTests.features
         let route = try RouteService.preset(id)

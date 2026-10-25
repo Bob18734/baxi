@@ -24,6 +24,8 @@ struct RouteView: View {
     /// Routes has been opened at least once. The map lives from launch (the tab stays alive), and its location dot
     /// would ask for permission over Home; it waits until the tab is seen.
     @State private var opened = false
+    /// The map has framed the routes once; after that, coming back to the tab keeps where the driver left the map.
+    @State private var framed = false
 
     // The panel.
     @State private var detent: PanelDetent = .half
@@ -42,7 +44,7 @@ struct RouteView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
-                routeMap(height: geo.size.height)
+                routeMap(height: geo.size.height, topInset: geo.safeAreaInsets.top)
                 panel(available: geo.size.height)
             }
         }
@@ -100,7 +102,7 @@ struct RouteView: View {
 
     // MARK: Map
 
-    private func routeMap(height: CGFloat) -> some View {
+    private func routeMap(height: CGFloat, topInset: CGFloat) -> some View {
         MapReader { proxy in
             Map(position: $camera) {
                 if MapPrivacy.showsYou && opened { UserAnnotation() }
@@ -114,8 +116,11 @@ struct RouteView: View {
             .mapControls {
                 if MapPrivacy.showsYou && opened { MapUserLocationButton() }
                 MapCompass()
+                MapScaleView()
             }
-            // Map chrome (the compass, the Apple logo) keeps clear of the panel's lowest height.
+            // Map chrome (the location button, the compass, the Apple logo) keeps clear of the status bar at the
+            // top and of the panel's lowest height at the bottom.
+            .safeAreaPadding(.top, topInset + Space.s8)
             .safeAreaPadding(.bottom, headerHeight)
             .onTapGesture { point in
                 guard store.route == nil, !searching, let tapped = proxy.convert(point, from: .local),
@@ -128,7 +133,7 @@ struct RouteView: View {
             .onChange(of: store.route?.id, initial: true) { _, _ in frame(mapHeight: height) }
             .onChange(of: store.home) { _, _ in frame(mapHeight: height) }
             .onChange(of: presetLines.isEmpty) { _, _ in frame(mapHeight: height) }
-            .onChange(of: store.tab) { _, tab in if tab == .route { frame(mapHeight: height) } }
+            .onChange(of: store.tab) { _, tab in if tab == .route, !framed { frame(mapHeight: height) } }
         }
     }
 
@@ -167,8 +172,8 @@ struct RouteView: View {
                     .stroke(Palette.field, style: StrokeStyle(lineWidth: MapLine.edge, lineCap: .round, lineJoin: .round))
                 MapPolyline(coordinates: line.points.map(\.clLocation))
                     .stroke(Palette.mapRouteOther, style: StrokeStyle(lineWidth: MapLine.other, lineCap: .round, lineJoin: .round))
-                // The loops all start downtown, so each number sits at its route's far end.
-                if let at = line.coordinate(atMeters: line.lengthMeters / 2) {
+                // The loops all start downtown, so each number sits out along its route, where no other number is.
+                if let at = numberPlaces[p.id] {
                     Annotation(p.name, coordinate: at.clLocation) {
                         Button { Haptic.tap(); store.choosePreset(p.id) } label: { NumberTab(number: i + 1) }
                             .buttonStyle(Press())
@@ -190,6 +195,28 @@ struct RouteView: View {
                     .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
             }
         }
+    }
+
+    /// Where each route's number goes: a point along the route, chosen so the numbers keep clear of each other
+    /// and of the other routes' lines. Worked out once the lines are read.
+    private var numberPlaces: [String: Coordinate] {
+        var placed: [Coordinate] = []
+        var out: [String: Coordinate] = [:]
+        for p in RouteService.presets {
+            guard let line = presetLines[p.id] else { continue }
+            let others = presetLines.filter { $0.key != p.id }.map(\.value)
+            let choices = MapFrame.numberSpots.compactMap { line.coordinate(atMeters: line.lengthMeters * $0) }
+            // Score: distance to the nearest placed number and to the nearest other route, the larger the better.
+            let best = choices.max { a, b in clearance(a, placed, others) < clearance(b, placed, others) } ?? choices.first
+            if let best { placed.append(best); out[p.id] = best }
+        }
+        return out
+    }
+
+    private func clearance(_ c: Coordinate, _ placed: [Coordinate], _ others: [Polyline]) -> Double {
+        let toNumbers = placed.map { Geo.distanceMeters(c, $0) }.min() ?? .infinity
+        let toLines = others.map { Geo.distanceMeters(from: c, toPolyline: $0.points) }.min() ?? .infinity
+        return min(toNumbers, toLines * MapFrame.lineWeight)
     }
 
     /// The practice route whose line passes within `meters` of a tapped point.
@@ -224,6 +251,7 @@ struct RouteView: View {
             region = homeRegion
         }
         withAnimation(Motion.standard) { camera = .region(region) }
+        if !presetLines.isEmpty || store.route != nil { framed = true }
     }
 
     static func rect(_ line: Polyline) -> MKMapRect {
@@ -492,6 +520,10 @@ enum PanelDetent: CaseIterable {
 enum MapFrame {
     static let margin = 0.16
     static let giveBeyond: CGFloat = 0.18
+    /// Where along a route its number may sit (shares of its length), tried in this order.
+    static let numberSpots: [Double] = [0.5, 0.38, 0.62, 0.28, 0.72, 0.2, 0.8]
+    /// How much a number clearing another route's line counts, against clearing another number.
+    static let lineWeight = 2.0
 }
 
 /// Reports a view's height to its parent, for the panel's measured heights.

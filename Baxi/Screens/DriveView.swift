@@ -26,7 +26,7 @@ struct DriveView: View {
                     if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
                     // The car's own speed, next to the limit; orange when more than 5 over.
                     if let speed = session.currentMph {
-                        SpeedPill(mph: speed, limit: session.speedLimitMph).transition(.opacity)
+                        SpeedPill(mph: speed, limit: session.isOnRoute ? session.speedLimitMph : nil).transition(.opacity)
                     }
                     Spacer()
                     if let alert = session.activeAlert {

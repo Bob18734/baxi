@@ -235,3 +235,48 @@ struct HabitTrendTests {
         #expect(DriveHabits.decode("") == nil)
     }
 }
+
+/// Review fixes for the habit report (Oct 24).
+struct HabitReviewFixTests {
+    /// The judge demo runs the replay timer at 4x: its report must be as clean as the step-by-step one.
+    @Test func fourTimesReplayReportsNoHardStops() throws {
+        for id in ["preset_highway", "preset_firstdrive"] {
+            let route = try RouteService.preset(id)
+            let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: DriveSessionTests.features, highInjury: nil,
+                                 level: .gettingComfortable, mode: .replay(speedMultiplier: 4), speaker: QuietSpeech())
+            var ticks = 0
+            while !s.isFinished && ticks < 200_000 { s.advanceReplay(tick: 0.25, multiplier: 4); ticks += 1 }
+            let h = try #require(s.habits, "\(id) gave no report")
+            #expect(h.hardBrakes == 0, "\(id): \(h)")
+            #expect(h.fullStops == h.stopSigns, "\(id): \(h)")
+        }
+    }
+
+    /// Passing a school on a 55 mph road is not a school-zone moment.
+    @Test func schoolReminderOnlyOnSlowRoads() throws {
+        let fast = Self.steady(mph: 55, limit: 55, seconds: 200)
+        let r = try #require(DriveHabits.report(samples: fast, stopSignAlongs: [], schoolZones: [800...1200], mergeAlongs: [], isDemo: false))
+        #expect(r.schoolZoneTopMph == nil)
+    }
+
+    /// A maxspeed of 0 in the map data must not stop the replay.
+    @Test func zeroLimitDoesNotStallTheReplay() throws {
+        let route = PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
+                                 durationSeconds: 200, source: "test")
+        let profile = DriveSession.replayProfile(route: route, speeds: [(0, 0), (1000, 0)], stops: [])
+        #expect(profile.allSatisfy { $0 >= 0.4 })
+        #expect(profile[200] > 5)
+    }
+
+    /// A merge followed within 300 m by an exit is a weave: the driver is already slowing for the exit.
+    @Test func mergeRightBeforeAnExitIsNotJudged() throws {
+        let r = try RouteService.preset("preset_highway")
+        let judged = DriveHabits.judgedMerges(r.maneuvers)
+        #expect(!judged.contains { abs($0 - 4972) < 5 })   // exit 221 m later
+        #expect(judged.contains { abs($0 - 6706) < 5 })
+    }
+
+    static func steady(mph: Double, limit: Int?, seconds: Int) -> [SpeedSample] {
+        (0..<seconds).map { i in SpeedSample(t: Double(i), along: Double(i) * mph * 0.44704, mps: mph * 0.44704, limitMph: limit) }
+    }
+}

@@ -129,7 +129,7 @@ struct ArrivedView: View {
 
     /// What the score is built from, so it never looks like a number from nowhere.
     static func measured(_ h: HabitReport) -> String {
-        var parts = ["\(Int(h.trackedMinutes.rounded())) min of speed checked against the limit"]
+        var parts = ["\(Int(h.trackedMinutes.rounded())) min of driving on the route, speed checked where the limit is known"]
         if h.stopSigns > 0 { parts.append("\(h.stopSigns) all-way \(h.stopSigns == 1 ? "stop" : "stops")") }
         if h.merges > 0 { parts.append("\(h.merges) \(h.merges == 1 ? "merge" : "merges")") }
         return parts.joined(separator: ", ") + "."

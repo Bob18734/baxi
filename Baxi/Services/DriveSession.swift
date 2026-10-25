@@ -84,10 +84,17 @@ final class DriveSession {
     private var lastSpeedMps: Double?
     /// How the drive went, worked out when it ends. nil while driving, or when it was too short to judge.
     private(set) var habits: HabitReport?
+    /// True while the car is following the route (not still heading to its start, not off it), so the speed
+    /// pill compares against a limit on the road the car is actually on.
+    var isOnRoute: Bool { (mode != .live || hasReachedRoute) && progress?.isOffRoute == false && (progress?.crossTrackMeters ?? .infinity) <= RouteFollower.offRouteMeters }
     /// The car's speed for the speed pill, nil when the GPS does not know it.
     var currentMph: Int? { lastSpeedMps.flatMap { $0 >= 0 ? Int(($0 * DriveHabits.mphPerMps).rounded()) : nil } }
     /// The replay's speed every `replayStepMeters`: posted limit with smooth slowing for turns and stops.
     @ObservationIgnored private var replayProfile: [Double] = []
+    /// Where the replay comes to a stop on the current route, and how long it still waits at the one it is at.
+    @ObservationIgnored private var replayStops: [Double] = []
+    @ObservationIgnored private var replayWait = 0.0
+    static let replayStopSeconds = 2.0
     static let replayStepMeters = 5.0
     private(set) var startedAt = Date()
     private(set) var endedAt: Date?
@@ -156,9 +163,12 @@ final class DriveSession {
     private func addHabitPlaces(_ p: RoutePrep) {
         habitStops += p.habitStops.map { $0 + alongOffset }
         schoolZones += p.schoolZones.map { ($0.lowerBound + alongOffset)...($0.upperBound + alongOffset) }
-        mergeAlongs += route.maneuvers.filter { $0.kind == .merge }.map { $0.alongMeters + alongOffset }
+        mergeAlongs += DriveHabits.judgedMerges(route.maneuvers).map { $0 + alongOffset }
         let stopsHere = p.habitStops + cues.filter { $0.kind == .stopSign }.map(\.targetMeters)
-        if case .replay = mode { replayProfile = Self.replayProfile(route: route, speeds: speeds, stops: stopsHere) }
+        if case .replay = mode {
+            replayProfile = Self.replayProfile(route: route, speeds: speeds, stops: stopsHere)
+            replayStops = Array(Set(stopsHere.map { ($0 * 10).rounded() / 10 })).sorted()
+        }
     }
 
     /// Total meters driven this drive, across reroutes.
@@ -251,13 +261,37 @@ final class DriveSession {
     private func startReplay(multiplier: Double) {
         let tick = 0.25
         replayTimer = Timer.scheduledTimer(withTimeInterval: tick, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let mps = self.replaySpeed(at: self.replayMeters)
-            self.replayMeters = min(self.route.polyline.lengthMeters, self.replayMeters + mps * tick * multiplier)
-            self.clock += tick * multiplier
-            if let c = self.route.polyline.coordinate(atMeters: self.replayMeters) { self.feed(c, at: self.clock, speedMps: mps) }
-            if self.replayMeters >= self.route.polyline.lengthMeters { self.replayTimer?.invalidate() }
+            self?.advanceReplay(tick: tick, multiplier: multiplier)
         }
+    }
+
+    /// One replay timer tick (internal so tests can run a 4x replay without a timer).
+    /// The car moves in steps no longer than the profile's cells, so at 4x it still slows into a stop sign the
+    /// way the profile says, and the speed reported is the speed where it ends up.
+    func advanceReplay(tick: Double, multiplier: Double) {
+        var left = tick * multiplier
+        let length = route.polyline.lengthMeters
+        while left > 0, replayMeters < length {
+            if replayWait > 0 {
+                // Stopped at a stop sign, counting to two.
+                let w = min(left, replayWait); replayWait -= w; left -= w; continue
+            }
+            let v = replaySpeed(at: replayMeters)
+            let dt = min(left, Self.replayStepMeters / v)
+            let next = min(length, replayMeters + v * dt)
+            if let stop = replayStops.first(where: { $0 > replayMeters && $0 <= next }) {
+                left -= (stop - replayMeters) / v
+                replayMeters = stop
+                replayWait = Self.replayStopSeconds
+            } else {
+                replayMeters = next
+                left -= dt
+            }
+        }
+        clock += tick * multiplier
+        let speed = replayWait > 0 ? 0 : replaySpeed(at: replayMeters)
+        if let c = route.polyline.coordinate(atMeters: replayMeters) { feed(c, at: clock, speedMps: speed) }
+        if replayMeters >= route.polyline.lengthMeters { replayTimer?.invalidate(); if !isFinished { end() } }
     }
 
     /// Replay only: start partway along the route. Cues before that point are marked as passed.
@@ -292,10 +326,15 @@ final class DriveSession {
         return spokenLog
     }
 
+    /// The profile's speed at `meters`, read between its cells so it changes smoothly. Speed squared is what
+    /// changes evenly with distance under steady braking, so that is what is blended.
     private func replaySpeed(at meters: Double) -> Double {
         guard !replayProfile.isEmpty else { return 6.7 }
-        let i = min(replayProfile.count - 1, max(0, Int((meters / Self.replayStepMeters).rounded())))
-        return replayProfile[i]
+        let x = max(0, meters / Self.replayStepMeters)
+        let i = min(replayProfile.count - 1, Int(x)), j = min(replayProfile.count - 1, i + 1)
+        let f = x - Double(Int(x))
+        let a = replayProfile[i], b = replayProfile[j]
+        return max(0.4, (a * a * (1 - f) + b * b * f).squareRoot())
     }
 
     /// A careful driver's speed along the route, for replays: 90% of the posted limit (30 mph where unknown),
@@ -307,9 +346,10 @@ final class DriveSession {
         let turns = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters)
         var v = (0..<n).map { i -> Double in
             let m = Double(i) * step
-            if stops.contains(where: { abs($0 - m) <= 3 }) { return 0.4 }
+            if stops.contains(where: { abs($0 - m) <= step }) { return 0.4 }   // crawl the last few meters
             if turns.contains(where: { abs($0 - m) < 60 }) { return 6.7 }   // 15 mph
-            let mph = CueListBuilder.speed(at: m, in: speeds) ?? 30
+            // A limit of 0 (a mapping slip) or none: 30 mph.
+            let mph = CueListBuilder.speed(at: m, in: speeds).flatMap { $0 > 0 ? $0 : nil } ?? 30
             return Double(mph) * 0.44704 * 0.9
         }
         v[0] = min(v[0], 2)

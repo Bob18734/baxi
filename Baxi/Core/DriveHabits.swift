@@ -53,9 +53,18 @@ enum DriveHabits {
     /// Shorter drives get no report.
     static let minTrackedMinutes = 2.0
     static let schoolZoneMph = 20
+    static let schoolRoadMaxMph = 40
 
     /// Whole miles per hour, as a speedometer shows them (so 40.0000001 is not "over 40").
     static func mph(_ x: SpeedSample) -> Double { (x.mps * mphPerMps).rounded() }
+
+    /// The merges whose speed is judged: not one followed within 300 m by a turn, roundabout or exit, where the
+    /// driver is already slowing for what comes next.
+    static func judgedMerges(_ maneuvers: [Maneuver]) -> [Double] {
+        maneuvers.filter { $0.kind == .merge }.map(\.alongMeters).filter { m in
+            !maneuvers.contains { $0.needsLaneChoice && $0.alongMeters > m && $0.alongMeters - m <= 300 }
+        }
+    }
 
     static func report(samples raw: [SpeedSample], stopSignAlongs: [Double], schoolZones: [ClosedRange<Double>],
                        mergeAlongs: [Double], isDemo: Bool) -> HabitReport? {
@@ -79,7 +88,9 @@ enum DriveHabits {
 
         let topOver = s.compactMap { x in x.limitMph.map { mph(x) - Double($0) } }.max()
             .flatMap { $0 > overMph ? Int($0.rounded()) : nil }
-        let schoolTop = s.filter { x in schoolZones.contains { $0.contains(x.along) } }.map(mph).max().map { Int($0) }
+        // Only on roads posted 40 or under: a school next to a 55 mph road has no school-zone limit on it.
+        let schoolTop = s.filter { x in (x.limitMph ?? 0) <= schoolRoadMaxMph && schoolZones.contains { $0.contains(x.along) } }
+            .map(mph).max().map { Int($0) }
 
         var stopSigns = 0, fullStops = 0
         for sign in stopSignAlongs {

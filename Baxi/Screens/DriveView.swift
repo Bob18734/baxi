@@ -14,6 +14,10 @@ struct DriveView: View {
     /// Where the car is drawn: it glides from fix to fix (the session's `position` jumps).
     @State private var car: Coordinate?
     @State private var lastFollow: Date?
+    /// The camera follows the car until the driver (the passenger, really) pans or zooms; it resumes on its own
+    /// after a moment, or on Re-center.
+    @State private var following = true
+    @State private var resumeTask: Task<Void, Never>?
     @State private var saved: DriveRecord?
     @State private var didSave = false
     @State private var isNight = false
@@ -38,6 +42,23 @@ struct DriveView: View {
                 .animation(Motion.standard, value: session.currentMph == nil)
                 .animation(Motion.standard, value: session.speedLimitMph)
                 Spacer()
+                if !following {
+                    HStack {
+                        Button { Haptic.tap(); resumeFollowing() } label: {
+                            HStack(spacing: Space.s8) {
+                                Mark(glyph: .locate, size: MarkSize.small)
+                                Text("Re-center").role(.bodyStrong)
+                            }
+                            .foregroundStyle(Palette.ink)
+                            .padding(.horizontal, Space.s16)
+                            .frame(minHeight: Size.tap)
+                            .background(Palette.field, in: Capsule())
+                        }
+                        .buttonStyle(Press())
+                        Spacer()
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 ControlBar(session: session, look: look)
             }
             .padding(.horizontal, Space.s12)
@@ -89,7 +110,7 @@ struct DriveView: View {
     // MARK: Map
 
     private var map: some View {
-        Map(position: $camera, interactionModes: []) {
+        Map(position: $camera, interactionModes: [.pan, .zoom]) {
             MapPolyline(coordinates: session.routeCoordinates)
                 .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
             MapPolyline(coordinates: session.routeCoordinates)
@@ -124,6 +145,9 @@ struct DriveView: View {
         }
         // Flat: 3D freeways would cover the route and the lane stretches.
         .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+        // A finger on the map takes over from the camera; it comes back after a moment.
+        .simultaneousGesture(DragGesture(minimumDistance: Space.s8).onChanged { _ in userMovedMap() })
+        .simultaneousGesture(MagnifyGesture().onChanged { _ in userMovedMap() })
         .environment(\.colorScheme, isNight ? .dark : .light)
         .ignoresSafeArea()
     }
@@ -150,16 +174,36 @@ struct DriveView: View {
 
     private func follow() {
         guard let p = session.position else { return }
-        // Closer while changing lanes, so the amber stretch and its end are easy to read.
-        let distance: Double = session.activeLaneZone == nil ? 700 : 420
         // Glide for as long as fixes have been arriving apart, so the car reaches this fix as the next one lands.
         let now = Date()
         let seconds = lastFollow.map { now.timeIntervalSince($0) } ?? Motion.followMin
         lastFollow = now
         withAnimation(Motion.follow(seconds: seconds)) {
             car = p
-            camera = .camera(MapCamera(centerCoordinate: p.clLocation, distance: distance, heading: session.heading, pitch: 50))
+            guard following else { return }
+            // Closer while changing lanes, so the amber stretch and its end are easy to read. The camera centres a
+            // way ahead of the car, so the car sits low on the screen and the road ahead fills it.
+            let close = session.activeLaneZone != nil
+            let ahead = Geo.offset(p, bearingDegrees: session.heading, meters: close ? DriveFollow.lookAheadClose : DriveFollow.lookAhead)
+            camera = .camera(MapCamera(centerCoordinate: ahead.clLocation, distance: close ? 420 : 700, heading: session.heading, pitch: 50))
         }
+    }
+
+    private func userMovedMap() {
+        if following { withAnimation(Motion.quick) { following = false } }
+        resumeTask?.cancel()
+        resumeTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(DriveFollow.resumeSeconds))
+            guard !Task.isCancelled else { return }
+            resumeFollowing()
+        }
+    }
+
+    private func resumeFollowing() {
+        resumeTask?.cancel()
+        withAnimation(Motion.quick) { following = true }
+        lastFollow = nil
+        follow()
     }
 
     // MARK: Save

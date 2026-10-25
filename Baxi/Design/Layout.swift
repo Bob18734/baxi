@@ -45,6 +45,14 @@ enum DriveSize {
     static let laneTall: CGFloat = 58
 }
 
+/// How the Drive map follows the car: it looks this far ahead, so the car sits low on the screen and the road ahead
+/// fills it (as in Maps), and it resumes following this long after the driver pans or zooms.
+enum DriveFollow {
+    static let lookAhead: Double = 150
+    static let lookAheadClose: Double = 90
+    static let resumeSeconds: Double = 10
+}
+
 enum MapLine {
     static let route: CGFloat = 5
     static let edge: CGFloat = 9

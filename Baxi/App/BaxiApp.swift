@@ -91,6 +91,12 @@ struct RootView: View {
                 store.tab = .route
             }
             if args.contains("--skip-welcome") { didFinishWelcome = true }
+            #if DEBUG
+            if let state = value("--demo-state").flatMap(DemoState.init(rawValue:)) {
+                DemoStates.apply(state, store: store, context: context, replacingAll: true)
+                if state == .firstLaunch { didFinishWelcome = false }
+            }
+            #endif
             if args.contains("--reset-welcome") { didFinishWelcome = false }
             if let preset = value("--route") { store.choosePreset(preset); store.tab = .route }
             switch value("--tab") { case "route": store.tab = .route; case "log": store.tab = .log; default: break }

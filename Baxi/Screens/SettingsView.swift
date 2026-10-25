@@ -5,6 +5,9 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Environment(ToastCenter.self) private var toasts
+    @AppStorage("didFinishWelcome") private var didFinishWelcome = false
     @AppStorage(Speaker.rateKey) private var rate = 1.0
     @AppStorage(DriveSession.detailKey) private var detail = "everything"
     @State private var speaker: Speaker?
@@ -25,6 +28,7 @@ struct SettingsView: View {
                             .buttonStyle(Press())
                         }
                         about
+                        demoStates
                     }
                     .padding(.horizontal, Space.margin)
                     .padding(.bottom, Space.s32)
@@ -100,6 +104,49 @@ struct SettingsView: View {
         .buttonStyle(Press())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// For showing Baxi off: the states a driver goes through, one tap each, with made-up drives that can be removed.
+    private var demoStates: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("Show the app's states").padding(.bottom, Space.s4)
+            Text("For demos. Each one sets the level and swaps in sample drives; the drives you logged yourself stay, and the samples can be removed below.")
+                .role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true).padding(.bottom, Space.s8)
+            ForEach(DemoState.allCases) { state in
+                Button { show(state) } label: {
+                    Row(title: state.title, detail: state.detail) { RowArrow() }
+                }
+                .buttonStyle(Press())
+            }
+            Button { Haptic.tap(); withAnimation(Motion.quick) { store.demoNight.toggle() } } label: {
+                Row(title: "Drive screen at night", detail: "The next drives use the night look whatever the clock says") {
+                    Mark(glyph: .check, size: MarkSize.inline, weight: MarkWeight.emphasis).foregroundStyle(Palette.goText)
+                        .opacity(store.demoNight ? 1 : 0)
+                }
+            }
+            .buttonStyle(Press())
+            .accessibilityAddTraits(store.demoNight ? [.isButton, .isSelected] : .isButton)
+            Button {
+                Haptic.tap()
+                DemoStates.removeSamples(context)
+                toasts.show("Sample drives removed. Your own drives are still here.")
+            } label: {
+                Row(title: "Remove sample drives", detail: "Keeps the drives you logged yourself", showsDivider: false) { EmptyView() }
+            }
+            .buttonStyle(Press())
+        }
+    }
+
+    /// Settings closes first, so Home (or the welcome pages) appear with the new state.
+    private func show(_ state: DemoState) {
+        Haptic.success()
+        dismiss()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            DemoStates.apply(state, store: store, context: context)
+            store.tab = .home
+            if state == .firstLaunch { didFinishWelcome = false } else { toasts.show("Showing: \(state.title.lowercased())") }
+        }
     }
 
     private var about: some View {

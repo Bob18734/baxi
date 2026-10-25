@@ -14,6 +14,8 @@ final class AppStore {
     var tab: AppTab = .home
     /// Set by Home's "Where to?" field: Routes opens with its search field active.
     var wantsSearch = false
+    /// Settings > "Drive screen at night": the next drives use the night look whatever the clock says (this session).
+    var demoNight = false
     /// Where the remembered settings live (a test passes its own).
     @ObservationIgnored private let preferences: UserDefaults
     /// Remembered between launches (Settings > Experience).

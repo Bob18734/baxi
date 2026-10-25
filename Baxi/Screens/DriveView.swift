@@ -6,6 +6,7 @@ import SwiftData
 /// thing on it, the lane to be in is the brightest, and nothing else competes. After sunset it is the app's one
 /// dark screen, for glare. Only Mute and End can be tapped, for the passenger.
 struct DriveView: View {
+    @Environment(AppStore.self) private var store
     let session: DriveSession
     var onClose: () -> Void
     @Environment(\.modelContext) private var context
@@ -76,6 +77,7 @@ struct DriveView: View {
         // Screenshots: --drive-time day|night shows either look whatever the clock says.
         if let forced = ScreenCheck.value("--drive-time") { return forced == "night" }
         #endif
+        if store.demoNight { return true }
         let at = session.position ?? session.startCoordinate ?? AppStore.carmelDemoHome
         guard let s = Daylight.sunriseSunset(on: Date(), at: at) else { return false }
         return Date() < s.sunrise || Date() >= s.sunset

@@ -17,6 +17,10 @@ has only Mute and End, for the passenger. Cues are spoken once, one short line e
 our own plain-language phrasing, and the timing of cues (how early a lane cue fires) is our own design;
 neither is from the manual.
 
+To show Baxi in each state a driver goes through (first launch, no hours, weeks in, nearly licensed, requirement
+met, hours from before Baxi), use Settings > "Show the app's states"; the sample drives it adds are marked and can
+be removed from the same place.
+
 A searched route starts where the phone is. The **From** line under the search field (Home and Routes) opens
 a starting-point picker: a precise fix of your location, a place you search for, or Carmel City Center. A chosen
 start lasts for this session; the experience level is remembered. Practice routes always start in Carmel.

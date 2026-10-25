@@ -5,6 +5,25 @@ Tick each box and write anything odd next to it; Claude fixes what you find and 
 [FINAL-QA.md](FINAL-QA.md). Before you start: Settings > Accessibility > Spoken Content > Voices >
 English > Ava (Premium) downloaded, and the phone not on silent for the voice.
 
+## 0. For the video: every state, one tap each
+Settings (the slider mark on Home) > "Show the app's states". Each row sets the level and swaps in sample drives;
+your own drives stay, and "Remove sample drives" takes the samples out again. What each one shows:
+- **First launch**: the six welcome pages (the signal hero, three tutorial pages, privacy, setup with the level and
+  hours before Baxi, "Set up later"). Baxi closes Settings and shows them right away.
+- **Brand new, no hours**: level New; Home says "Start here" with First drive; hours 0:00; six empty skill rings;
+  the Log's empty state.
+- **Three weeks in**: Getting comfortable; 9 drives over 20 days, about 11 h; Home suggests the route that fills the
+  biggest gap; the Log has months, the habits chart and skills "Started" and "Steady".
+- **Nearly licensed**: 34 drives over four months, about 46 h and 9 h at night; most skills "Test-ready"; the Log says
+  what is left ("3 h 35 m to go, …").
+- **Requirement met**: 50 h and 10 at night done; the Log says "Requirement met. Export the official log…"; Home says
+  every skill goal is met.
+- **Came with hours from before Baxi**: 18 h on paper plus 4 drives; the Log shows the "Before Baxi" row and the
+  export puts those hours on their own line.
+- **Drive screen at night**: a switch; the next drives use the night look in daylight (the demo drive too).
+- The demo drive (Home > Watch a 3-minute demo drive) and the Palladium route look the same in every state; the level
+  changes how early the cues come.
+
 ## 1. First run, 3 min
 Delete Baxi and install the newest build (ask Claude), then open it.
 - [ ] Welcome: the signal on the sign lights green once and the distance counts down. Then three short tutorial pages

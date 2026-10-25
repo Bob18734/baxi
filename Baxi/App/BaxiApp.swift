@@ -39,6 +39,8 @@ struct RootView: View {
     }
 
     @State private var toasts = ToastCenter()
+    /// The bar steps aside while the keyboard is up (typing a search), as a system tab bar does.
+    @State private var keyboardUp = false
 
     /// The three tabs stay alive while hidden (the Routes map keeps its place); the bar sits under them,
     /// and content ends where the bar begins.
@@ -57,8 +59,11 @@ struct RootView: View {
                 tab(.log) { LogView() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            BottomBar(selection: Bindable(store).tab)
+            if !keyboardUp { BottomBar(selection: Bindable(store).tab).transition(.opacity) }
         }
+        .animation(Motion.quick, value: keyboardUp)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardUp = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardUp = false }
         .overlay(alignment: .bottom) {
             if let t = toasts.current {
                 ToastView(toast: t) { toasts.runAction() }

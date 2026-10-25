@@ -73,6 +73,10 @@ struct DriveView: View {
     }
 
     private func nightNow() -> Bool {
+        #if DEBUG
+        // Screenshots: --drive-time day|night shows either look whatever the clock says.
+        if let forced = ScreenCheck.value("--drive-time") { return forced == "night" }
+        #endif
         let at = session.position ?? session.startCoordinate ?? AppStore.carmelDemoHome
         guard let s = Daylight.sunriseSunset(on: Date(), at: at) else { return false }
         return Date() < s.sunrise || Date() >= s.sunset

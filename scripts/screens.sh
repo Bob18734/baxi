@@ -33,4 +33,6 @@ shoot preview --skip-welcome --screen preview --snap-delay 7
 shoot arrived --skip-welcome --screen arrived --snap-delay 8
 shoot settings --skip-welcome --screen settings
 shoot home-big --skip-welcome --big-text
-shoot drive --demo-drive preset_highway --replay-speed 4 --replay-start 4400 --snap-delay 8
+shoot drive --demo-drive preset_highway --replay-speed 4 --replay-start 4400 --snap-delay 8 --drive-time day
+shoot drive-night --demo-drive preset_highway --replay-speed 4 --replay-start 4400 --snap-delay 8 --drive-time night
+shoot drive-roundabout --demo-drive preset_roundabouts --replay-speed 4 --replay-start 1400 --snap-delay 9 --drive-time day

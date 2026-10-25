@@ -36,8 +36,8 @@ To run on your own iPhone: select your phone as the destination, set your person
 Signing & Capabilities, and press Run. No paid developer account is needed.
 
 Screens without the Simulator: `scripts/screens.sh` builds a Debug Mac (Catalyst) copy of the app
-and saves screenshots to `build/screens/` (see [docs/DESIGN.md](docs/DESIGN.md)). `scripts/design-lint.sh`
-checks that every screen uses the design tokens.
+and saves screenshots to `build/screens/` (the Mac copy never asks for location). `scripts/design-lint.sh`
+checks that every screen uses the design tokens: no raw colours, sizes, system fonts or system symbols.
 
 Tests: `swift test` in the repo root runs every logic test on the Mac, no Simulator needed
 (`Package.swift` builds only the Core, Models and data services). Product > Test in Xcode runs the same
@@ -84,9 +84,14 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   to three tips. Every threshold is Baxi's own coaching choice, not Indiana law.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `OfficialLogPDF` (fills the bundled official State Form 54706).
-- `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn
-  road-sign marks. Explained in [docs/DESIGN.md](docs/DESIGN.md).
-- `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes, Preview, Drive, Arrived, Log.
+- `Baxi/Design` — the design system, built on one idea (Baxi reads like a traffic signal: one thing to look at,
+  and colour only for go, get ready and stop). `Tokens.swift` (colours with their meanings and measured contrast,
+  type roles in Atkinson Hyperlegible Next and the system font, spacing, corners, motion, haptics),
+  `Components.swift` (the one button press, the signal-dots working state, toast, shimmer, field, row, sheet
+  header, empty state), `Marks.swift` (every icon drawn in one stroke style), `BottomBar.swift` (Baxi's own tab
+  bar) and `Layout.swift`. Explained in [docs/DESIGN.md](docs/DESIGN.md).
+- `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes (map and plan), Preview, Drive (day and night),
+  Arrived, Log, Settings, Driver details.
 - `scripts/` — Python scripts that build the bundled data; `screens.sh` and `design-lint.sh`.
 - [docs/SHIP-CHECKLIST.md](docs/SHIP-CHECKLIST.md) — everything to check before submitting.
 

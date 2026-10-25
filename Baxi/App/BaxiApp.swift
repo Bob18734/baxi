@@ -74,7 +74,7 @@ struct RootView: View {
         .environment(store)
         .environment(toasts)
         .fullScreenCover(item: Bindable(store).activeSession) { s in
-            DriveView(session: s) { store.activeSession = nil }.environment(toasts)
+            DriveView(session: s) { store.activeSession = nil }.environment(store).environment(toasts)
         }
         .sheet(isPresented: .constant(!didFinishWelcome && !Self.launchedForDemo)) {
             WelcomeView { didFinishWelcome = true }.environment(store).interactiveDismissDisabled()

@@ -363,8 +363,9 @@ struct ProgressRing: View {
     @State private var shown = 0.0
     var body: some View {
         ZStack {
-            Circle().stroke(Palette.track, lineWidth: line)
-            Circle().trim(from: 0, to: animated ? shown : min(1, fraction))
+            // Inset by half the line, so the ring stays inside its frame.
+            Circle().inset(by: line / 2).stroke(Palette.track, lineWidth: line)
+            Circle().inset(by: line / 2).trim(from: 0, to: animated ? shown : min(1, fraction))
                 .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }

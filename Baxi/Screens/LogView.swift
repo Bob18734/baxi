@@ -192,6 +192,11 @@ private extension View {
 /// Hours toward 50, and toward 10 at night, and what's left.
 private struct HoursPanel: View {
     let totals: DriveLog.Totals
+    /// "46 h 25 m": a duration in words, where a clock reading ("46:25") would look like a time of day.
+    static func words(_ minutes: Int) -> String {
+        let h = minutes / 60, m = minutes % 60
+        return h == 0 ? "\(m) m" : m == 0 ? "\(h) h" : "\(h) h \(m) m"
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: Space.s12) {
             HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
@@ -203,9 +208,9 @@ private struct HoursPanel: View {
                 Mark(glyph: .moon, size: MarkSize.tiny).foregroundStyle(Palette.meta)
                 Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").role(.meta).foregroundStyle(Palette.meta)
             }
-            ProgressLine(fraction: Double(totals.nightMinutes) / Double(DriveLog.requiredNightMinutes), tint: Palette.ink)
+            ProgressLine(fraction: Double(totals.nightMinutes) / Double(DriveLog.requiredNightMinutes), tint: Palette.meta)
             Text(totals.isComplete ? "Requirement met. Export the official log, check it, and sign it on paper."
-                 : "\(DriveLog.hm(totals.minutesLeft)) to go, \(DriveLog.hm(totals.nightMinutesLeft)) of it at night.")
+                 : "\(Self.words(totals.minutesLeft)) to go, \(Self.words(totals.nightMinutesLeft)) of it at night.")
                 .role(.body).foregroundStyle(totals.isComplete ? Palette.goText : Palette.read)
         }
         .accessibilityElement(children: .combine)
@@ -224,9 +229,13 @@ private struct SkillsPanel: View {
                 let count = done[s] ?? 0
                 let lv = Practice.level(s, count: count)
                 Row(title: s.title, detail: "\(lv.title), \(min(count, s.goal)) of \(s.goal)", showsDivider: i < Skill.allCases.count - 1) {
-                    Mark(glyph: .skill(s), size: MarkSize.standard).foregroundStyle(Palette.ink)
+                    // The same ring as Home's, so a skill looks the same everywhere.
+                    ZStack {
+                        ProgressRing(fraction: Double(count) / Double(s.goal), size: SkillRingSize.ring, line: SkillRingSize.line)
+                        Mark(glyph: .skill(s), size: SkillRingSize.mark).foregroundStyle(Palette.ink)
+                    }
                 } trailing: {
-                    LevelSegments(level: lv.level).frame(width: SkillPanelSize.segments)
+                    EmptyView()
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(s.title): \(lv.title), \(count) of \(s.goal)" + (lv.toNext.map { ". \($0) more to the next level" } ?? ""))
@@ -241,8 +250,6 @@ private struct SkillsPanel: View {
                 }
                 .padding(.top, Space.s16)
             }
-            Text("Goals and levels are Baxi's suggestion, not a state rule.").role(.meta).foregroundStyle(Palette.meta)
-                .padding(.top, Space.s12)
         }
     }
 }
@@ -256,9 +263,10 @@ private struct HabitsPanel: View {
         VStack(alignment: .leading, spacing: Space.s12) {
             GroupLabel("Habits")
             Chart(Array(t.lastScores.enumerated()), id: \.offset) { i, score in
-                BarMark(x: .value("Drive", i + 1), y: .value("Score", score), width: .ratio(0.55))
+                // Each drive is a category, so the bar width can be a share of its band.
+                BarMark(x: .value("Drive", "\(i + 1)"), y: .value("Score", score), width: .ratio(0.55))
                     .foregroundStyle(score >= 80 ? Palette.go : Palette.ready)
-                    .clipShape(Capsule())
+                    .cornerRadius(HabitsSize.barCorner)
             }
             .chartYScale(domain: 0...100)
             .chartXAxis(.hidden)

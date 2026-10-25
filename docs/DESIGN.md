@@ -130,6 +130,26 @@ Baxi's icons are drawn in code in one style: a 24 pt grid, 2.25 pt round-capped 
 signal's lights. They cover the tab icons, the maneuver arrows on the Drive screen, the signal mark, and the
 skill marks. System symbols appear only inside system controls (share sheets, pickers).
 
+## Decisions from the second review (Oct 25)
+
+A design critic reviewed every screen against Apple Maps, Waze, Weather, Fitness and Things. What changed:
+
+- **Home has one main action**: "Your next drive", the practice route that does the most for this driver now (First
+  drive before any drive is logged), with one green button. The full list of routes lives on Routes, so Home is
+  progress and a next step, not a menu.
+- **Numbers come from one source.** A route's roundabouts and ramps are counted from its own maneuvers everywhere,
+  so Home, Routes and the Log can never disagree.
+- **Amber means "change lanes here" on maps.** Hard spots are small ink dots; only crash records are red.
+- **Drive has one panel.** What Baxi just said is a quiet line inside the dark panel; the separate strip appears only
+  for a state that needs attention (off route, location off, waiting for GPS). The speed limit and the car's speed are
+  one unit. The tray says "Demo, not logged" in a replay instead of a debug-looking speed.
+- **Arrived leads with the score**: a large ring that fills once, then three small numbers, then the coaching, with
+  one line of fine print at the bottom. The school line is labelled "Reminder", because it never lowers the score.
+- **Welcome has one hero and one moment**: inside the drive card, the signal lights red, amber, green, then the
+  instruction appears and the distance counts down. It is the design idea in two seconds of video.
+- **The slashed zero stays.** Atkinson Hyperlegible Next draws 0 with a slash so it can never be read as O; that
+  is the reason the face was chosen, and it has no plain-zero variant.
+
 ## Rules
 
 1. One primary action per screen. Everything else is visibly secondary.

@@ -66,7 +66,7 @@ struct RouteView: View {
 
     private var routeMap: some View {
         Map(position: $camera) {
-            UserAnnotation()
+            if MapPrivacy.showsYou { UserAnnotation() }
             if let r = store.route {
                 // The planned road: ink with a white edge.
                 MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
@@ -101,7 +101,7 @@ struct RouteView: View {
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
         .mapControls {
-            MapUserLocationButton()
+            if MapPrivacy.showsYou { MapUserLocationButton() }
             MapCompass()
         }
         .ignoresSafeArea(edges: .top)
@@ -215,7 +215,8 @@ struct RouteView: View {
             GroupLabel("Practice routes in Carmel").padding(.bottom, Space.s4)
             ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
                 Button { Haptic.tap(); store.choosePreset(p.id) } label: {
-                    Row(title: p.name, detail: p.short, showsDivider: i < RouteService.presets.count - 1) { RowArrow() }
+                    Row(title: p.name, detail: [store.presetMeters[p.id].map { "\(Int(max(1, ($0 / 1609.34).rounded()))) mi" }, p.short]
+                            .compactMap { $0 }.joined(separator: ", "), showsDivider: i < RouteService.presets.count - 1) { RowArrow() }
                 }
                 .buttonStyle(Press())
                 .accessibilityHint("Shows the route on the map")
@@ -303,27 +304,6 @@ private struct RouteCard: View {
                 }
             }
             notes
-            HStack(spacing: Space.s8) {
-                BigButton(title: "Preview", kind: .secondary, action: showPreview)
-                    .disabled(store.isPreparing)
-                Menu {
-                    Section("Replay the route, not logged") {
-                        ForEach([1.0, 4, 8, 16], id: \.self) { x in
-                            Button("At \(Int(x))x speed") { store.activeSession = store.makeSession(replay: x) }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: Space.s8) {
-                        Mark(glyph: .play, size: MarkSize.small)
-                        Text("Replay").role(.button)
-                    }
-                    .foregroundStyle(Palette.ink)
-                    .frame(maxWidth: .infinity, minHeight: Size.button)
-                    .background(Capsule().strokeBorder(Palette.ink, lineWidth: Size.outline))
-                }
-                .buttonStyle(Press())
-                .disabled(store.isPreparing)
-            }
             BigButton(title: "Start drive", working: store.isPreparing) {
                 store.activeSession = store.makeSession(replay: nil)
             }
@@ -332,12 +312,36 @@ private struct RouteCard: View {
                 Text("Getting the route ready…").role(.meta).foregroundStyle(Palette.meta)
                     .frame(maxWidth: .infinity).transition(.opacity)
             }
+            // Secondary actions as quiet links: Start drive is the one main action.
+            HStack(spacing: Space.s32) {
+                Button { Haptic.tap(); showPreview() } label: {
+                    HStack(spacing: Space.s8) { Mark(glyph: .search, size: MarkSize.small); Text("Preview the hard spots").role(.bodyStrong) }
+                        .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
+                }
+                .buttonStyle(Press())
+                .disabled(store.isPreparing)
+                Menu {
+                    Section("Replay the route, not logged") {
+                        ForEach([1.0, 4, 8, 16], id: \.self) { x in
+                            Button("At \(Int(x))x speed") { store.activeSession = store.makeSession(replay: x) }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: Space.s8) { Mark(glyph: .play, size: MarkSize.small); Text("Replay").role(.bodyStrong) }
+                        .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
+                }
+                .buttonStyle(Press())
+                .disabled(store.isPreparing)
+                Spacer(minLength: 0)
+            }
         }
     }
 
+    /// Counted from the route's own maneuvers, the same way Home and the Log count skills, so numbers agree everywhere.
     private var facts: String {
-        let rb = spots.filter { $0.kind == .roundabout }.count
-        let ramps = spots.filter { $0.kind == .ramp }.count
+        let c = Practice.count(maneuvers: route.maneuvers, features: store.features, fastMeters: 0)
+        let rb = (c[.singleLaneRoundabout] ?? 0) + (c[.multiLaneRoundabout] ?? 0)
+        let ramps = (c[.highwayMerge] ?? 0) + (c[.exitRamp] ?? 0)
         let mins = Int((route.durationSeconds / 60).rounded())
         return [DriveView.distance(route.distanceMeters), "\(mins) min",
                 rb > 0 ? "\(rb) roundabout\(rb == 1 ? "" : "s")" : nil,
@@ -346,11 +350,12 @@ private struct RouteCard: View {
 
     @ViewBuilder private var notes: some View {
         VStack(alignment: .leading, spacing: Space.s8) {
-            if let w = store.weather {
+            // Weather only when it changes the drive.
+            if let w = store.weather, w.spoken != nil {
                 if let alert = w.alerts.first {
                     Text(alert).role(.metaStrong).foregroundStyle(Palette.readyText)
                 }
-                Text(w.summary).role(.meta).foregroundStyle(Palette.meta)
+                Text(w.summary).role(.meta).foregroundStyle(Palette.readyText)
             }
             if route.source == "apple" {
                 Text("No lane details on this route.").role(.meta).foregroundStyle(Palette.meta)
@@ -399,14 +404,12 @@ private struct RouteChoice: View {
     }
 }
 
-/// Hard spots on maps: crash records in `stop`, everything to get ready for in `ready`.
+/// Hard spots on maps: crash records in `stop`; everything else in ink, so amber means only "change lanes here".
 enum SpotColor {
-    static func of(_ kind: HardSpot.Kind) -> Color {
-        switch kind {
-        case .crashCorridor, .studyIntersection, .fatalCrash: Palette.stop
-        default: Palette.ready
-        }
-    }
+    static func isCrash(_ kind: HardSpot.Kind) -> Bool { [.crashCorridor, .studyIntersection, .fatalCrash].contains(kind) }
+    static func of(_ kind: HardSpot.Kind) -> Color { isCrash(kind) ? Palette.stop : Palette.ink }
+    /// Text on a spot's marker.
+    static func onMarker(_ kind: HardSpot.Kind) -> Color { isCrash(kind) ? Palette.onStop : Palette.onDark }
 }
 
 extension DriveSession: Identifiable {

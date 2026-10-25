@@ -55,23 +55,20 @@ struct SettingsView: View {
     }
 
     private var voice: some View {
-        VStack(alignment: .leading, spacing: Space.s12) {
-            GroupLabel("Voice")
-            Picker("Baxi says", selection: $detail) {
-                Text("Everything").tag("everything")
-                Text("Just directions").tag("directions")
-            }
-            .pickerStyle(.segmented)
-            Text(detail == "directions" ? "Only what to do at each turn, lane, roundabout, ramp and railroad. The screen still shows the rest."
-                                        : "Directions, plus speed limits, school zones, stop signs, crash-heavy spots and low sun.")
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("What Baxi says").padding(.bottom, Space.s4)
+            choice("Everything", "Directions, plus speed limits, school zones, stop signs, crash-heavy spots and low sun.",
+                   selected: detail != "directions") { detail = "everything" }
+            choice("Just directions", "Only what to do at each turn, lane, roundabout, ramp and railroad. The screen still shows the rest.",
+                   selected: detail == "directions", divider: false) { detail = "directions" }
+            Text("The practice routes use Baxi's recorded voice. Searched routes use the iPhone's voice, \(Speaker.voiceDescription.name).")
                 .role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: 0) {
-                Row(title: "Practice routes", detail: "Baxi's recorded voice") { EmptyView() }
-                Row(title: "Other routes", detail: Speaker.voiceDescription.name, showsDivider: false) { EmptyView() }
-            }
+                .padding(.top, Space.s12)
             if Speaker.voiceDescription.isBasic {
-                Text("For searched routes the iPhone's basic voice is in use. For a far more natural one, download Ava (Premium) in the iPhone's Settings, Accessibility, Spoken Content, Voices, English, then reopen Baxi.")
-                    .role(.meta).foregroundStyle(Palette.readyText).fixedSize(horizontal: false, vertical: true)
+                NavigationLink { AboutPage(title: "A more natural voice", paragraphs: Self.voiceHelp) } label: {
+                    Row(title: "Get a more natural voice", detail: "For searched routes", showsDivider: false) { RowArrow() }
+                }
+                .buttonStyle(Press())
             }
             VStack(alignment: .leading, spacing: Space.s8) {
                 HStack {
@@ -83,11 +80,26 @@ struct SettingsView: View {
                     .tint(Palette.go)
                     .accessibilityValue(rate < 0.95 ? "Slower" : rate > 1.05 ? "Faster" : "Normal")
             }
+            .padding(.top, Space.s16)
             BigButton(title: "Hear a cue", kind: .secondary, glyph: .speaker) {
                 if speaker == nil { speaker = Speaker() }
                 speaker?.say("In 500 feet, at the roundabout, take the second exit. Either lane works")
             }
+            .padding(.top, Space.s16)
         }
+    }
+
+    /// A choice row with a check, the same as the warning levels.
+    private func choice(_ title: String, _ detail: String, selected: Bool, divider: Bool = true, pick: @escaping () -> Void) -> some View {
+        Button { Haptic.tap(); withAnimation(Motion.quick) { pick() } } label: {
+            Row(title: title, detail: detail, showsDivider: divider) {
+                Mark(glyph: .check, size: MarkSize.inline, weight: MarkWeight.emphasis).foregroundStyle(Palette.goText)
+                    .opacity(selected ? 1 : 0)
+            }
+        }
+        .buttonStyle(Press())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     private var about: some View {
@@ -115,6 +127,10 @@ struct SettingsView: View {
         }
     }
 
+    static let voiceHelp = [
+        "Searched routes are spoken by the iPhone's own voice. The basic one sounds robotic; Ava (Premium) is far more natural, and free.",
+        "On the iPhone, open Settings, then Accessibility, Spoken Content, Voices, English, and download Ava (Premium). Then reopen Baxi.",
+    ]
     static let hours = [
         "Indiana requires 50 hours of supervised driving, 10 of them at night, before a new driver can get a license (IC 9-24-3-2.5).",
         "Every live drive in Baxi is logged with its start, end and miles. Replays of the practice routes are demos and never count.",

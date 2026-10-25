@@ -22,7 +22,8 @@ enum ScreenCheck {
         #if targetEnvironment(macCatalyst)
         if args.contains("--phone-window") {
             for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                let size = CGSize(width: 393, height: 852)
+                // --tall: a phone-wide window tall enough to photograph a whole scrolling page.
+                let size = CGSize(width: 393, height: args.contains("--tall") ? 1900 : 852)
                 scene.sizeRestrictions?.minimumSize = size
                 scene.sizeRestrictions?.maximumSize = size
             }
@@ -96,15 +97,21 @@ extension ScreenCheck {
     /// `--sample-drives`: a few made-up drives so the Log can be photographed with rows in it.
     /// Debug only, and only when the log is empty.
     @MainActor static func addSampleDrives(_ context: ModelContext) {
-        guard args.contains("--sample-drives"),
+        // --reset-sample-drives: replace whatever drives the Mac copy holds with the samples (screenshots only).
+        if args.contains("--reset-sample-drives") {
+            (try? context.fetch(FetchDescriptor<DriveRecord>()))?.forEach(context.delete)
+            try? context.save()
+        }
+        guard args.contains("--sample-drives") || args.contains("--reset-sample-drives"),
               (try? context.fetchCount(FetchDescriptor<DriveRecord>())) == 0 else { return }
         let day: TimeInterval = 86_400
-        let samples: [(daysAgo: Double, minutes: Int, night: Int, title: String, manual: Bool)] = [
-            (1, 42, 18, "Highway ramp loop", false), (2, 35, 0, "Roundabout loop", false),
-            (4, 60, 0, "Practice drive", true), (9, 28, 28, "Parkway loop", false), (33, 50, 0, "Carmel Clay Library", false),
+        let samples: [(daysAgo: Double, minutes: Int, night: Int, title: String, manual: Bool, hour: Int, minute: Int)] = [
+            (1, 42, 18, "Highway ramp loop", false, 18, 40), (2, 35, 0, "Roundabout loop", false, 16, 15),
+            (4, 60, 0, "Practice drive", true, 10, 20), (9, 28, 28, "Parkway loop", false, 19, 5), (33, 50, 0, "Carmel Clay Library", false, 15, 30),
         ]
         for s in samples {
-            let start = Date().addingTimeInterval(-s.daysAgo * day)
+            let dayStart = Calendar.current.startOfDay(for: Date().addingTimeInterval(-s.daysAgo * day))
+            let start = dayStart.addingTimeInterval(Double(s.hour * 3600 + s.minute * 60))
             context.insert(DriveRecord(start: start, end: start.addingTimeInterval(Double(s.minutes) * 60),
                                        dayMinutes: s.minutes - s.night, nightMinutes: s.night, level: .gettingComfortable,
                                        routeTitle: s.title, distanceMeters: s.manual ? 0 : Double(s.minutes) * 600,

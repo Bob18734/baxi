@@ -76,8 +76,9 @@ final class AppStore {
             }.value
             if let (c, f, hin) = loaded {
                 cache = c; features = f; highInjury = hin
-                let roundabouts = f.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
-                dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
+                let day = DateFormatter(); day.dateFormat = "yyyy-MM-dd"; day.locale = Locale(identifier: "en_US_POSIX")
+                let fetched = day.date(from: String(c.fetched.prefix(10))).map { $0.formatted(date: .long, time: .omitted) } ?? String(c.fetched.prefix(10))
+                dataStatus = "Carmel's roads, built in, from OpenStreetMap (\(fetched))."
             } else {
                 dataStatus = "The Carmel road data did not load. Reinstall Baxi; it ships inside the app."
             }

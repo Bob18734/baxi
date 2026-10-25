@@ -80,57 +80,83 @@ private struct WelcomePage<Art: View>: View {
     }
 }
 
-/// Page one: the signal lights red, amber, green, once (the app's one orchestrated moment); then a sample of
-/// what Baxi shows while driving.
+/// Page one, the app's signature moment: inside a miniature of the drive card, a signal lights red, amber, green;
+/// then the instruction and the lanes appear and the distance counts down, as Baxi does on the road.
 private struct WelcomeAlong: View {
     let isShown: Bool
     @State private var lit: Int? = 0
+    @State private var revealed = false
+    @State private var tenths = 5
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        WelcomePage(title: "Baxi rides along.",
-                    lines: ["Navigation for drivers with a learner's permit. It tells you early which lane to be in, how many lights until your turn, and which roundabout exit to take.",
-                            "Every drive counts toward Indiana's 50 supervised hours."]) {
+        ScrollView {
             VStack(alignment: .leading, spacing: Space.s24) {
-                SignalMark(size: SignalSize.welcome, lit: lit)
-                SampleCue()
+                SampleCue(lit: lit, revealed: revealed, tenths: tenths)
+                    .padding(.top, Space.s48)
+                Text("Baxi rides along.").role(.hero).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Early lane cues, light counts and roundabout exits, for drivers with a learner's permit. Every drive counts toward Indiana's 50 hours.")
+                    .role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.horizontal, Space.margin)
+            .padding(.bottom, Space.s24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .task(id: isShown) {
             guard isShown else { return }
-            if reduceMotion { lit = 2; return }
-            lit = 0
+            if reduceMotion { lit = 2; revealed = true; tenths = 3; return }
+            lit = 0; revealed = false; tenths = 5
             for step in [1, 2] {
-                try? await Task.sleep(for: .milliseconds(650))
+                try? await Task.sleep(for: .milliseconds(500))
                 withAnimation(Motion.standard) { lit = step }
             }
             Haptic.reveal()
+            try? await Task.sleep(for: .milliseconds(250))
+            withAnimation(Motion.reveal) { revealed = true }
+            for t in [4, 3] {
+                try? await Task.sleep(for: .milliseconds(700))
+                withAnimation(Motion.standard) { tenths = t }
+            }
         }
     }
 }
 
-/// A miniature of the Drive screen's instruction: the distance, the roundabout, the lane lit amber.
+/// A miniature of the Drive screen's instruction: the signal, then the distance, the roundabout and the lanes.
 private struct SampleCue: View {
+    let lit: Int?
+    let revealed: Bool
+    let tenths: Int
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.s12) {
-            HStack(alignment: .center, spacing: Space.s16) {
-                RoundaboutMark(shape: RoundaboutShape(exitNumber: 2, exitAngle: 0, passedAngles: [270]), size: MarkSize.feature)
-                VStack(alignment: .leading, spacing: Space.s4) {
-                    Text("0.3 mi").role(.numberSmall).foregroundStyle(Palette.onDark)
-                    Text("Second exit, either lane").role(.rowTitle).foregroundStyle(Palette.onDark)
+        VStack(alignment: .leading, spacing: Space.s16) {
+            SignalMark(size: SignalSize.welcome, lit: lit, horizontal: true)
+            VStack(alignment: .leading, spacing: Space.s12) {
+                HStack(alignment: .center, spacing: Space.s16) {
+                    RoundaboutMark(shape: RoundaboutShape(exitNumber: 2, exitAngle: 0, passedAngles: [270]), size: MarkSize.feature + Space.s16)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("0.\(tenths) mi").role(.number).foregroundStyle(Palette.onDark)
+                            .contentTransition(.numericText(countsDown: true))
+                        Text("Second exit, either lane").role(.rowTitle).foregroundStyle(Palette.onDark)
+                    }
+                }
+                HStack(spacing: Space.s8) {
+                    ForEach(Array(["←", "↑", "↑", "→"].enumerated()), id: \.offset) { i, label in
+                        let lit = i == 1 || i == 2
+                        LaneMark(label: label, size: MarkSize.inline)
+                            .foregroundStyle(lit ? Palette.ink : Palette.nightRead)
+                            .frame(maxWidth: .infinity, minHeight: LaneSize.sample)
+                            .background(lit ? Palette.ready : Palette.nightPanel, in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
+                    }
                 }
             }
-            HStack(spacing: Space.s8) {
-                ForEach(Array(["←", "↑", "↑", "→"].enumerated()), id: \.offset) { i, label in
-                    let lit = i == 1 || i == 2
-                    LaneMark(label: label, size: MarkSize.inline)
-                        .foregroundStyle(lit ? Palette.ink : Palette.nightRead)
-                        .frame(maxWidth: .infinity, minHeight: LaneSize.sample)
-                        .background(lit ? Palette.ready : Palette.nightPanel, in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
-                }
-            }
+            .opacity(revealed ? 1 : 0)
+            .offset(y: revealed ? 0 : Space.s16)
         }
         .padding(Space.s16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.ink, in: RoundedRectangle(cornerRadius: Corner.sheet, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Example: in 0.3 miles, take the second exit at the roundabout, either lane.")

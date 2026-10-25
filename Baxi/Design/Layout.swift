@@ -22,14 +22,15 @@ enum LaneSize {
 }
 
 enum ArrivedSize {
-    static let ring: CGFloat = 116
-    static let ringLine: CGFloat = 10
+    static let ring: CGFloat = 160
+    static let ringLine: CGFloat = 12
     static let segments: CGFloat = 76
 }
 
 enum SkillRingSize {
     static let ring: CGFloat = 46
     static let mark: CGFloat = 20
+    static let line: CGFloat = 5
 }
 
 enum DriveSize {
@@ -47,7 +48,7 @@ enum DriveSize {
 enum MapLine {
     static let route: CGFloat = 5
     static let edge: CGFloat = 9
-    static let dot: CGFloat = 12
+    static let dot: CGFloat = 10
     static let dotEdge: CGFloat = 2
     static let pin: CGFloat = 30
 }
@@ -70,6 +71,8 @@ enum SkillPanelSize { static let segments: CGFloat = 76 }
 enum SignSize {
     static let width: CGFloat = 58
     static let height: CGFloat = 70
+    /// The car's speed, under the sign.
+    static let readout: CGFloat = 46
     static let corner: CGFloat = 8
     static let innerCorner: CGFloat = 5
     static let inset: CGFloat = 3
@@ -81,6 +84,9 @@ enum BarSize {
     static let markerHeight: CGFloat = 3
 }
 
-enum HabitsSize { static let chart: CGFloat = 96 }
+enum HabitsSize {
+    static let chart: CGFloat = 96
+    static let barCorner: CGFloat = 4
+}
 
 enum DriveRowSize { static let date: CGFloat = 44 }

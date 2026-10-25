@@ -11,6 +11,8 @@ struct ArrivedView: View {
 
     private var arrived: Bool { session.progress.map { $0.remainingMeters < 300 } == true }
 
+    @Environment(AppStore.self) private var store
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.s32) {
@@ -19,12 +21,16 @@ struct ArrivedView: View {
                         .accessibilityAddTraits(.isHeader)
                     Text(session.route.name).role(.body).foregroundStyle(Palette.meta)
                 }
+                if let h = session.habits { score(h) }
                 stats
-                howItWent
+                if let h = session.habits { coaching(h) }
+                else if session.mode == .live && session.minutes >= DriveHabits.minTrackedMinutes {
+                    Text("Not enough driving on the route to judge this one.").role(.body).foregroundStyle(Palette.read)
+                }
                 if !levelUps.isEmpty { levelUpSection }
                 if !handled.isEmpty { handledSection }
-                logLine
                 transcript
+                Text(footnote).role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, Space.margin)
             .padding(.top, Space.s32)
@@ -32,70 +38,92 @@ struct ArrivedView: View {
         }
         .pageBackground()
         .safeAreaInset(edge: .bottom) {
-            BigButton(title: "Done", action: onDone)
-                .padding(.horizontal, Space.margin).padding(.vertical, Space.s12)
-                .background(Palette.page)
+            VStack(spacing: Space.s4) {
+                BigButton(title: "Done", action: onDone)
+                if record != nil {
+                    BigButton(title: "See it in your log", kind: .quiet) { store.tab = .log; onDone() }
+                }
+            }
+            .padding(.horizontal, Space.margin).padding(.vertical, Space.s12)
+            .background(Palette.page)
         }
         .interactiveDismissDisabled()
         .onAppear { if session.habits != nil { Haptic.reveal() } }
     }
 
-    // MARK: The numbers
+    // MARK: The score, then the numbers
+
+    /// The score leads: a large ring that fills once, the verdict, and what it was measured on.
+    private func score(_ h: HabitReport) -> some View {
+        VStack(spacing: Space.s12) {
+            ZStack {
+                ProgressRing(fraction: Double(h.score) / 100, size: ArrivedSize.ring, line: ArrivedSize.ringLine, animated: true)
+                VStack(spacing: 0) {
+                    Text("\(h.score)").role(.number).foregroundStyle(Palette.ink).monospacedDigit()
+                    Text("of 100").role(.meta).foregroundStyle(Palette.meta)
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Score \(h.score) out of 100")
+            Text(Self.verdict(h.score)).role(.rowTitle).foregroundStyle(Palette.ink)
+            Text(h.isDemo ? "A demo drive, driven the way Baxi coaches." : Self.measured(h))
+                .role(.meta).foregroundStyle(Palette.meta).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+    }
 
     private var stats: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.s32) {
-            if session.minutes >= 1 { stat("\(Int(session.minutes.rounded()))", "min") }
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
             stat(String(format: "%.1f", session.drivenMeters / 1609.34), "miles")
-            if let record, record.nightMinutes > 0 { stat("\(record.nightMinutes)", "min at night") }
-            Spacer(minLength: 0)
+            if session.minutes >= 1 { stat("\(Int(session.minutes.rounded()))", "minutes") }
+            // Only a drive that was logged shows what it added; the footnote says why another wasn't.
+            if let record { stat(DriveLog.hm(record.dayMinutes + record.nightMinutes), record.nightMinutes > 0 ? "logged, some at night" : "logged") }
         }
     }
 
     private func stat(_ value: String, _ unit: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(value).role(.number).foregroundStyle(Palette.ink)
-            Text(unit).role(.meta).foregroundStyle(Palette.meta)
+            Text(value).role(.numberSmall).foregroundStyle(Palette.ink)
+            Text(unit).role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: How it went
+    // MARK: Coaching
 
-    @ViewBuilder private var howItWent: some View {
-        if let h = session.habits {
-            VStack(alignment: .leading, spacing: Space.s16) {
-                GroupLabel("How it went")
-                HStack(alignment: .center, spacing: Space.s16) {
-                    ZStack {
-                        ProgressRing(fraction: Double(h.score) / 100, size: ArrivedSize.ring, line: ArrivedSize.ringLine, animated: true)
-                        Text("\(h.score)").role(.number).foregroundStyle(Palette.ink).monospacedDigit()
-                    }
-                    .accessibilityElement()
-                    .accessibilityLabel("Score \(h.score) out of 100")
+    private func coaching(_ h: HabitReport) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("How it went").padding(.bottom, Space.s4)
+            let tips = DriveHabits.tipItems(h)
+            ForEach(Array(tips.enumerated()), id: \.element.text) { i, tip in
+                HStack(alignment: .top, spacing: Space.s12) {
+                    Mark(glyph: Self.glyph(tip.kind), size: MarkSize.inline, weight: MarkWeight.emphasis)
+                        .foregroundStyle(tip.kind == .clean ? Palette.goText : Palette.readyText)
                     VStack(alignment: .leading, spacing: Space.s4) {
-                        Text(Self.verdict(h.score)).role(.rowTitle).foregroundStyle(Palette.ink)
-                        Text(h.isDemo ? "A demo drive, driven the way Baxi coaches." : Self.measured(h))
-                            .role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
+                        // The school line is a reminder, not a mark-down: say so, so it can't read as a contradiction.
+                        if tip.kind == .school { Text("Reminder").role(.metaStrong).foregroundStyle(Palette.readyText) }
+                        Text(tip.text).role(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                VStack(alignment: .leading, spacing: 0) {
-                    let tips = DriveHabits.tipItems(h)
-                    ForEach(Array(tips.enumerated()), id: \.element.text) { i, tip in
-                        HStack(alignment: .top, spacing: Space.s12) {
-                            Mark(glyph: Self.glyph(tip.kind), size: MarkSize.inline, weight: MarkWeight.emphasis)
-                                .foregroundStyle(tip.kind == .clean ? Palette.goText : Palette.readyText)
-                            Text(tip.text).role(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.vertical, Space.s12)
-                        .accessibilityElement(children: .combine)
-                        if i < tips.count - 1 { Hairline() }
-                    }
-                }
-                Text("Baxi's coaching, from the phone's GPS. Not a test result.").role(.meta).foregroundStyle(Palette.meta)
+                .padding(.vertical, Space.s12)
+                .accessibilityElement(children: .combine)
+                if i < tips.count - 1 { Hairline() }
             }
-        } else if session.mode == .live && session.minutes >= DriveHabits.minTrackedMinutes {
-            Text("Not enough driving on the route to judge this one.").role(.body).foregroundStyle(Palette.read)
         }
+    }
+
+    /// One line of fine print at the bottom: what the coaching is, and whether the drive counted.
+    private var footnote: String {
+        var parts: [String] = []
+        if session.habits != nil { parts.append("Baxi's coaching, from the phone's GPS. Not a test result.") }
+        if record != nil {
+            let totals = DriveLog.totals(drives.map(\.row))
+            parts.append("Saved to your log: \(DriveLog.hm(totals.minutes)) of 50 hours so far.")
+        } else {
+            parts.append(session.mode == .live ? "Drives under a minute or 200 m aren't logged." : "Replays are demos and never count toward the 50 hours.")
+        }
+        return parts.joined(separator: " ")
     }
 
     static func verdict(_ score: Int) -> String {
@@ -170,26 +198,7 @@ struct ArrivedView: View {
         }
     }
 
-    // MARK: The log and the transcript
-
-    private var logLine: some View {
-        HStack(alignment: .top, spacing: Space.s12) {
-            Mark(glyph: record == nil ? .log : .check, size: MarkSize.inline, weight: MarkWeight.emphasis)
-                .foregroundStyle(record == nil ? Palette.meta : Palette.goText)
-            Group {
-                if record != nil {
-                    let totals = DriveLog.totals(drives.map(\.row))
-                    Text("Saved to your log. \(DriveLog.hm(totals.minutes)) of 50 hours so far.")
-                } else {
-                    Text(session.mode == .live ? "Drives under a minute or 200 m aren't logged."
-                                               : "Replays are demos and never count toward the 50 hours.")
-                }
-            }
-            .role(.body).foregroundStyle(record == nil ? Palette.read : Palette.ink)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-    }
+    // MARK: The transcript
 
     /// Everything Baxi said, folded away; open it to go over the drive together afterward.
     private var transcript: some View {

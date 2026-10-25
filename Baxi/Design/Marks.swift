@@ -188,9 +188,13 @@ enum MarkPaths {
             return [p { $0.addEllipse(in: CGRect(x: 6, y: 6, width: 12, height: 12)) }, fill { $0.addEllipse(in: CGRect(x: 9.5, y: 9.5, width: 5, height: 5)) }]
 
         case .school:
-            // The school-zone sign's pentagon.
-            return [p { $0.move(to: CGPoint(x: 12, y: 3)); $0.addLine(to: CGPoint(x: 20, y: 10)); $0.addLine(to: CGPoint(x: 20, y: 21))
-                        $0.addLine(to: CGPoint(x: 4, y: 21)); $0.addLine(to: CGPoint(x: 4, y: 10)); $0.closeSubpath() }]
+            // The school-zone sign: the pentagon, with a person crossing inside it.
+            return [p { $0.move(to: CGPoint(x: 12, y: 2.5)); $0.addLine(to: CGPoint(x: 20.5, y: 9.5)); $0.addLine(to: CGPoint(x: 20.5, y: 21))
+                        $0.addLine(to: CGPoint(x: 3.5, y: 21)); $0.addLine(to: CGPoint(x: 3.5, y: 9.5)); $0.closeSubpath() },
+                    fill { $0.addEllipse(in: CGRect(x: 10.6, y: 8, width: 2.8, height: 2.8)) },
+                    p { $0.move(to: CGPoint(x: 12, y: 12.5)); $0.addLine(to: CGPoint(x: 11.4, y: 15.5))
+                        $0.addLine(to: CGPoint(x: 9.5, y: 18.5)); $0.move(to: CGPoint(x: 11.4, y: 15.5)); $0.addLine(to: CGPoint(x: 14, y: 18.5))
+                        $0.move(to: CGPoint(x: 9.5, y: 13.5)); $0.addLine(to: CGPoint(x: 14.5, y: 13.8)) }]
         case .crash, .offRoute:
             return [p { $0.move(to: CGPoint(x: 12, y: 3.5)); $0.addLine(to: CGPoint(x: 21.5, y: 20)); $0.addLine(to: CGPoint(x: 2.5, y: 20)); $0.closeSubpath()
                         $0.move(to: CGPoint(x: 12, y: 10)); $0.addLine(to: CGPoint(x: 12, y: 14)) },
@@ -402,11 +406,11 @@ struct SpeedReadout: View {
     private var over: Bool { limit.map { Double(mph) > Double($0) + DriveHabits.overMph } ?? false }
     var body: some View {
         VStack(spacing: 0) {
-            Text("\(mph)").font(Typeface.fixed(28, .extraBold)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
-            Text("mph").font(Typeface.fixed(11, .bold))
+            Text("\(mph)").font(Typeface.fixed(22, .extraBold)).monospacedDigit().contentTransition(.numericText(value: Double(mph)))
+            Text("mph").font(Typeface.fixed(10, .bold))
         }
         .foregroundStyle(over ? Palette.ink : (night ? Palette.onDark : Palette.ink))
-        .frame(width: SignSize.width, height: SignSize.height)
+        .frame(width: SignSize.width, height: SignSize.readout)
         .background(over ? Palette.ready : (night ? Palette.nightPanel : Palette.field),
                     in: RoundedRectangle(cornerRadius: SignSize.corner, style: .continuous))
         .animation(Motion.quick, value: mph)
@@ -420,17 +424,27 @@ struct SpeedReadout: View {
 struct SignalMark: View {
     var size: CGFloat = 44
     var lit: Int? = nil
+    /// Lamps side by side (a horizontal signal), as on the welcome card.
+    var horizontal = false
     var body: some View {
         let lamp = size * 0.26
-        VStack(spacing: size * 0.06) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle().fill([Palette.stop, Palette.ready, Palette.go][i])
-                    .opacity(lit == nil || lit == i ? 1 : 0.18)
-                    .frame(width: lamp, height: lamp)
+        let lamps = ForEach(0..<3, id: \.self) { i in
+            Circle().fill([Palette.stop, Palette.ready, Palette.go][i])
+                .opacity(lit == nil || lit == i ? 1 : 0.18)
+                .frame(width: lamp, height: lamp)
+                .shadow(color: lit == i ? [Palette.stop, Palette.ready, Palette.go][i].opacity(0.8) : .clear, radius: lamp * 0.4)
+        }
+        Group {
+            if horizontal {
+                HStack(spacing: size * 0.06) { lamps }
+                    .padding(.horizontal, size * 0.1)
+                    .frame(width: size, height: size * 0.46)
+            } else {
+                VStack(spacing: size * 0.06) { lamps }
+                    .padding(.vertical, size * 0.1)
+                    .frame(width: size * 0.46, height: size)
             }
         }
-        .padding(.vertical, size * 0.1)
-        .frame(width: size * 0.46, height: size)
         .background(Palette.ink, in: Capsule())
         .accessibilityHidden(true)
     }

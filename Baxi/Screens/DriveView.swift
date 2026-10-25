@@ -23,11 +23,8 @@ struct DriveView: View {
                 InstructionPanel(session: session, look: look)
                 StatusLine(session: session, look: look)
                 HStack(alignment: .top, spacing: Space.s8) {
-                    if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).transition(.opacity) }
-                    if let speed = session.currentMph {
-                        SpeedReadout(mph: speed, limit: session.isOnRoute ? session.speedLimitMph : nil, night: isNight)
-                            .transition(.opacity)
-                    }
+                    SpeedUnit(limit: session.speedLimitMph, speed: session.currentMph,
+                              judgedLimit: session.isOnRoute ? session.speedLimitMph : nil, night: isNight)
                     Spacer()
                     if let alert = session.activeAlert {
                         AlertChip(kind: alert.kind).transition(.move(edge: .trailing).combined(with: .opacity))
@@ -243,6 +240,12 @@ private struct InstructionPanel: View {
                     ProgressLine(fraction: 1 - p, tint: Palette.go, track: Palette.panelTrack)
                         .animation(Motion.follow, value: p)
                 }
+                // What Baxi just said, quietly, so a passenger can read it (unless a state above is showing).
+                if !session.lastCueText.isEmpty && !StatusLine.isState(session) {
+                    Text(session.lastCueText).role(.metaStrong).foregroundStyle(look.panelSoft).lineLimit(2)
+                        .contentTransition(.opacity)
+                        .accessibilityLabel("Baxi said: \(session.lastCueText)")
+                }
                 if let then = session.thenManeuver {
                     HStack(spacing: Space.s8) {
                         Text("Then").role(.metaStrong).foregroundStyle(look.panelSoft)
@@ -395,17 +398,21 @@ private struct StatusLine: View {
                 line(text: session.lastCueText, fill: Palette.ready, ink: Palette.ink) {
                     Mark(glyph: .offRoute, size: MarkSize.row).foregroundStyle(Palette.ink)
                 }
-            } else if !session.lastCueText.isEmpty {
-                line(text: session.lastCueText, fill: look.surface, ink: look.text) {
-                    Mark(glyph: .speaker, size: MarkSize.small).foregroundStyle(look.soft)
-                }
             }
         }
         .animation(Motion.standard, value: session.lastCueText)
     }
 
-    private var offRoute: Bool {
+    private var offRoute: Bool { Self.offRoute(session) }
+
+    static func offRoute(_ session: DriveSession) -> Bool {
         session.progress?.isOffRoute == true || session.isRerouting || session.lastCueText == DriveSession.rerouteFailedText
+    }
+
+    /// A state that matters more than the last thing said: waiting for GPS, location off, off the route.
+    static func isState(_ session: DriveSession) -> Bool {
+        (session.mode == .live && !session.hasFix && session.lastCueText.isEmpty)
+            || session.lastCueText == DriveSession.locationOffText || offRoute(session)
     }
 
     private func line<Accessory: View>(text: String, fill: Color, ink: Color, @ViewBuilder accessory: () -> Accessory) -> some View {
@@ -471,8 +478,8 @@ private struct ControlBar: View {
                 Text(DriveView.distance(remaining)).role(.numberSmall).foregroundStyle(look.text)
                     .contentTransition(.numericText())
                 Group {
-                    if case .replay(let x) = session.mode { Text("to go, replay \(Int(x))x") }
-                    else if let arrival { Text("to go, arrive \(arrival.formatted(date: .omitted, time: .shortened))") }
+                    if case .replay = session.mode { Text("Demo, not logged") }
+                    else if let arrival { Text("arrive \(arrival.formatted(date: .omitted, time: .shortened))") }
                     else { Text("to go") }
                 }
                 .role(.meta).foregroundStyle(look.soft)
@@ -495,5 +502,22 @@ private struct ControlBar: View {
             }
         }
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+    }
+}
+
+/// The posted limit and the car's speed as one unit: the sign, and the speed under it, amber (get ready) when
+/// more than 5 over. Either half hides when unknown.
+private struct SpeedUnit: View {
+    let limit: Int?
+    let speed: Int?
+    let judgedLimit: Int?
+    let night: Bool
+    var body: some View {
+        VStack(spacing: Space.s4) {
+            if let limit { SpeedLimitSign(mph: limit).transition(.opacity) }
+            if let speed { SpeedReadout(mph: speed, limit: judgedLimit, night: night).transition(.opacity) }
+        }
+        .animation(Motion.standard, value: limit)
+        .animation(Motion.standard, value: speed == nil)
     }
 }

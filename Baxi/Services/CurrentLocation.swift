@@ -1,6 +1,16 @@
 import Foundation
 import CoreLocation
 
+/// Whether maps may show "you are here". Not in the Mac copy, which exists only for screenshots: drawing the
+/// dot there makes macOS ask the Mac's owner for location every time a new copy is built.
+enum MapPrivacy {
+    #if DEBUG && targetEnvironment(macCatalyst)
+    static let showsYou = false
+    #else
+    static let showsYou = true
+    #endif
+}
+
 /// One recent location fix, for where a searched route starts. nil when location is off, not yet
 /// allowed, or no good fix arrives in time.
 @MainActor

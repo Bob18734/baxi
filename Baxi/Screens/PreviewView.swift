@@ -71,7 +71,7 @@ private struct SpotSection: View {
                 .clipShape(RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
             HStack(alignment: .firstTextBaseline, spacing: Space.s12) {
                 Text("\(index)").role(.rowTitle).monospacedDigit()
-                    .foregroundStyle(SpotColor.of(spot.kind) == Palette.stop ? Palette.onStop : Palette.ink)
+                    .foregroundStyle(SpotColor.onMarker(spot.kind))
                     .frame(width: PreviewSize.number, height: PreviewSize.number)
                     .background(SpotColor.of(spot.kind), in: Circle())
                 VStack(alignment: .leading, spacing: Space.s4) {
@@ -80,7 +80,12 @@ private struct SpotSection: View {
                 }
             }
             said
-            if let strip = spot.laneStrip { LaneRow(strip: strip, night: false) }
+            if let strip = spot.laneStrip {
+                // The same dark lane panel as the Drive screen, so the driver recognises it on the road.
+                LaneRow(strip: strip, night: true)
+                    .padding(Space.s12)
+                    .background(Palette.ink, in: RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
+            }
             if let note = spot.mapDataNote {
                 Text(note).role(.meta).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
             }

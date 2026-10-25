@@ -1,14 +1,16 @@
 import SwiftUI
 import SwiftData
 
-/// Home answers one question, "where are you driving?": search, the Carmel practice routes, how far along the
-/// 50 hours are, the skills, and the demo drive. Settings sit behind the mark at the top.
+/// Home answers "where are you driving?" and "what should I practice next?": search, the one practice route that
+/// does the most for this driver right now (the screen's main action), the hours toward 50, and the skills. The
+/// full list of practice routes lives on Routes. Settings sit behind the mark at the top.
 struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var showSettings = false
 
     private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
+    private var done: SkillCounts { Practice.total(drives.map(\.skills)) }
 
     var body: some View {
         ScrollView {
@@ -20,13 +22,13 @@ struct HomeView: View {
                         .accessibilityAddTraits(.isHeader)
                     searchEntry
                 }
-                practiceRoutes
-                HoursSummary(totals: totals, hasDrives: !drives.isEmpty) { store.tab = .log }
-                SkillsSummary(done: Practice.total(drives.map(\.skills))) { store.tab = .log }
-                BigButton(title: "Watch a 3-minute demo drive", kind: .secondary, glyph: .play, working: store.isStartingDemo) {
-                    store.startDemoDrive()
+                NextDrive(suggestion: next) { preset in
+                    store.choosePreset(preset.id)
+                    withAnimation(Motion.standard) { store.tab = .route }
                 }
-                .accessibilityHint("A replay of the highway loop. It's not logged.")
+                HoursSummary(totals: totals, hasDrives: !drives.isEmpty) { store.tab = .log }
+                SkillsSummary(done: done) { store.tab = .log }
+                demo
             }
             .padding(.horizontal, Space.margin)
             .padding(.top, Space.s8)
@@ -35,6 +37,19 @@ struct HomeView: View {
         .pageBackground()
         .sheet(isPresented: $showSettings) { SettingsView() }
         .task { store.loadCarmelDemo() }
+    }
+
+    /// The practice route that does the most for this driver now: First drive before any drive is logged, then
+    /// the route that covers the skills furthest from their goals (Practice.suggest).
+    private var next: NextDrive.Suggestion {
+        let first = RouteService.presets[0]
+        guard !drives.isEmpty, let s = Practice.suggest(done: done, routes: store.presetSkills),
+              let preset = RouteService.presets.first(where: { $0.id == s.presetId }) else {
+            return .init(preset: first, reason: "Start here: quiet streets and all-way stops at 20 to 25 mph.",
+                         miles: store.presetMeters[first.id])
+        }
+        let what = s.covers.prefix(2).map { "\($0.count) \($0.skill.title.lowercased())" }.joined(separator: " and ")
+        return .init(preset: preset, reason: "Practices what you need most: \(what).", miles: store.presetMeters[preset.id])
     }
 
     private var topRow: some View {
@@ -64,31 +79,52 @@ struct HomeView: View {
         .accessibilityHint("Opens Routes")
     }
 
-    private var practiceRoutes: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            GroupLabel("Practice routes in Carmel").padding(.bottom, Space.s4)
-            ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
-                Button {
-                    Haptic.tap()
-                    store.choosePreset(p.id)
-                    withAnimation(Motion.standard) { store.tab = .route }
-                } label: {
-                    Row(title: p.name, detail: facts(p), showsDivider: i < RouteService.presets.count - 1) {
-                        RowArrow()
+    /// For a first look (and for judges): a replay of the highway loop at 4x, never logged. Quiet, not a main action.
+    private var demo: some View {
+        Button {
+            guard !store.isStartingDemo else { return }
+            Haptic.tap(); store.startDemoDrive()
+        } label: {
+            HStack(spacing: Space.s12) {
+                ZStack {
+                    Mark(glyph: .play, size: MarkSize.small).opacity(store.isStartingDemo ? 0 : 1)
+                    if store.isStartingDemo { SignalDots() }
+                }
+                .frame(minWidth: MarkSize.standard)
+                Text("Watch a 3-minute demo drive").role(.bodyStrong)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Palette.ink)
+            .frame(minHeight: Size.tap)
+        }
+        .buttonStyle(Press())
+        .accessibilityHint("A replay of the highway loop. It's not logged.")
+    }
+}
+
+/// The next drive: one route, why it's the one, and the screen's main action.
+private struct NextDrive: View {
+    struct Suggestion { let preset: RouteService.Preset; let reason: String; let miles: Double? }
+    let suggestion: Suggestion
+    let go: (RouteService.Preset) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s12) {
+            GroupLabel("Your next drive")
+            VStack(alignment: .leading, spacing: Space.s4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(suggestion.preset.name).role(.screenTitle).foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: Space.s8)
+                    if let miles = suggestion.miles {
+                        Text("\(Int(max(1, (miles / 1609.34).rounded()))) mi").role(.numberSmall).foregroundStyle(Palette.meta)
                     }
                 }
-                .buttonStyle(Press())
-                .accessibilityHint("Shows the route on the map")
+                Text(suggestion.reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
             }
+            BigButton(title: "See the route", glyph: .route) { go(suggestion.preset) }
         }
-    }
-
-    private func facts(_ p: RouteService.Preset) -> String {
-        guard let m = store.presetMeters[p.id] else { return p.short }
-        // Lower-case the first letter only when it starts an ordinary word ("All-way stops"), not a name ("US 31").
-        let second = p.short.dropFirst().first
-        let short = second?.isUppercase == true ? p.short : p.short.prefix(1).lowercased() + p.short.dropFirst()
-        return "\(Int(max(1, (m / 1609.34).rounded()))) mi, \(short)"
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -101,7 +137,7 @@ private struct HoursSummary: View {
     var body: some View {
         Button { Haptic.tap(); open() } label: {
             VStack(alignment: .leading, spacing: Space.s12) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .center) {
                     GroupLabel("Supervised hours")
                     Spacer()
                     RowArrow()
@@ -117,7 +153,7 @@ private struct HoursSummary: View {
                     Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").role(.meta).foregroundStyle(Palette.meta)
                 }
                 if !hasDrives {
-                    Text("No drives yet. Your first drive starts the count.").role(.meta).foregroundStyle(Palette.read)
+                    Text("Your first drive starts the count.").role(.meta).foregroundStyle(Palette.read)
                 }
             }
             .contentShape(Rectangle())
@@ -129,43 +165,43 @@ private struct HoursSummary: View {
     }
 }
 
-/// The six skills as rings, each with its level under it. Opens the Log.
+/// The six skills as rings you read without reading (each skill's mark inside), and the one to work on next.
 private struct SkillsSummary: View {
     let done: SkillCounts
     var open: () -> Void
 
-    private var levels: Int { Skill.allCases.map { Practice.level($0, count: done[$0] ?? 0).level }.reduce(0, +) }
+    /// The skill furthest from its goal.
+    private var nextSkill: Skill? {
+        Skill.allCases.filter { (done[$0] ?? 0) < $0.goal }
+            .min { Double(done[$0] ?? 0) / Double($0.goal) < Double(done[$1] ?? 0) / Double($1.goal) }
+    }
 
     var body: some View {
         Button { Haptic.tap(); open() } label: {
             VStack(alignment: .leading, spacing: Space.s12) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .center) {
                     GroupLabel("Skills")
                     Spacer()
-                    Text("\(levels) of \(Skill.allCases.count * 4) levels").role(.meta).foregroundStyle(Palette.meta)
+                    if let nextSkill {
+                        Text("Next: \(nextSkill.title.lowercased())").role(.meta).foregroundStyle(Palette.meta).lineLimit(1)
+                    }
                     RowArrow()
                 }
-                HStack(alignment: .top, spacing: 0) {
+                HStack(spacing: 0) {
                     ForEach(Skill.allCases) { s in
-                        VStack(spacing: Space.s8) {
-                            ZStack {
-                                ProgressRing(fraction: Double(done[s] ?? 0) / Double(s.goal), size: SkillRingSize.ring)
-                                Mark(glyph: .skill(s), size: SkillRingSize.mark).foregroundStyle(Palette.ink)
-                            }
-                            Text(Practice.level(s, count: done[s] ?? 0).title).role(.meta).foregroundStyle(Palette.meta)
-                                .lineLimit(1).minimumScaleFactor(0.7)
+                        ZStack {
+                            ProgressRing(fraction: Double(done[s] ?? 0) / Double(s.goal), size: SkillRingSize.ring)
+                            Mark(glyph: .skill(s), size: SkillRingSize.mark).foregroundStyle(Palette.ink)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(Press())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Skills: \(levels) of \(Skill.allCases.count * 4) levels. "
-            + Skill.allCases.map { "\($0.title), \(Practice.level($0, count: done[$0] ?? 0).title)" }.joined(separator: ". "))
+        .accessibilityLabel("Skills. " + Skill.allCases.map { "\($0.title), \(Practice.level($0, count: done[$0] ?? 0).title)" }.joined(separator: ". "))
         .accessibilityHint("Opens the log")
     }
 }

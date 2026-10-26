@@ -27,10 +27,10 @@ targets:
         CFBundleDisplayName: Baxi
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocationWhenInUseUsageDescription: "Baxi uses location for driving cues and, when requested, a trip starting point. Planning a route shares its start and destination with the route provider."
+        NSLocationWhenInUseUsageDescription: "Baxi follows your route during a drive so each cue is spoken at the right moment, and starts a searched route where you are (or from a starting point you choose). Your drives stay on this phone."
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes: [location, audio]
-        UIAppFonts: [Overpass-SemiBold.ttf, Overpass-Bold.ttf, Overpass-ExtraBold.ttf, Overpass-Black.ttf]
+        UIAppFonts: [Overpass-Bold.ttf, Overpass-ExtraBold.ttf, Overpass-Black.ttf]
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1"

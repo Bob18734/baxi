@@ -1,8 +1,11 @@
 import SwiftUI
 import MapKit
 
-/// Pick a preset Carmel practice route or search a destination, see the route with its hard spots
-/// numbered the way the Preview shows them, then start the drive (live, or a replay for the demo).
+/// Plan a drive: search a destination or pick a practice route, see it on the map, preview it, start it.
+/// The map fills the screen. With no route chosen it shows every practice route, each with its number; the
+/// numbers match the list. One panel rests along the bottom at one of three heights (just the search field,
+/// half the screen, nearly all of it) and is dragged between them, so the map can be the whole screen.
+/// The panel ends where the bottom bar begins.
 struct RouteView: View {
     @Environment(AppStore.self) private var store
     @State private var camera: MapCameraPosition = .automatic
@@ -10,42 +13,86 @@ struct RouteView: View {
     @FocusState private var searchFocused: Bool
     @State private var results: [MKMapItem] = []
     @State private var showStartingPoint = false
-    @State private var searchError: String?
-    @State private var searchID = UUID()
+    /// Finding a route, or switching between the fastest and the calmer one.
+    private var routing: Bool { store.isRouting }
+    /// Why the search shows no places: nothing matched, or no connection. nil while results show.
+    @State private var searchNote: String?
     @State private var showPreview = false
     @State private var startAfterPreview = false
+    /// Every practice route's line, read once from the bundle, for the map.
+    @State private var presetLines: [String: Polyline] = [:]
+    /// Routes has been opened at least once. The map lives from launch (the tab stays alive), and its location dot
+    /// would ask for permission over Home; it waits until the tab is seen.
+    @State private var opened = false
+    /// The map has framed the routes once; after that, coming back to the tab keeps where the driver left the map.
+    @State private var framed = false
+
+    // The panel.
+    @State private var detent: PanelDetent = .half
+    /// How far the panel has been dragged from its resting height; zero when at rest.
+    @State private var drag: CGFloat = 0
+    /// Measured: the part of the panel that always shows (grabber and the search field or the route's title).
+    @State private var headerHeight: CGFloat = 0
+    /// Measured: everything under the header.
+    @State private var contentHeight: CGFloat = 0
+
+    /// The panel shows places while the field is in use.
+    private var searching: Bool { searchFocused || !query.isEmpty }
+    /// Home's search field was tapped and Routes is now the tab on screen.
+    private var wantsSearchNow: Bool { store.tab == .route && store.wantsSearch }
 
     var body: some View {
-        NavigationStack {
-            routeMap
-                .safeAreaInset(edge: .bottom, spacing: 0) { panel }
-                .navigationTitle("Routes")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(.visible, for: .navigationBar)
-                .searchable(text: $query, prompt: "Search a destination")
-                .searchFocused($searchFocused)
-                .onSubmit(of: .search) { Task { await search() } }
-                .searchSuggestions { suggestions }
-        }
-        .onAppear {
-            store.loadCarmelDemo(); store.refreshPrep()
-            if let r = store.route { camera = Self.overview(r) }
-            else { camera = .region(MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000)) }
-        }
-        .onChange(of: store.wantsSearch, initial: true) { _, want in
-            if want { searchFocused = true; store.wantsSearch = false }
-        }
-        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
-        .onChange(of: store.home) { _, home in
-            results = []; searchID = UUID(); searchError = nil
-            if store.route == nil, let home {
-                camera = .region(MKCoordinateRegion(center: home.clLocation, latitudinalMeters: 9_000, longitudinalMeters: 9_000))
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                routeMap(height: geo.size.height, topInset: geo.safeAreaInsets.top)
+                panel(available: geo.size.height)
             }
         }
-        .onChange(of: query) { _, _ in results = []; searchID = UUID(); searchError = nil }
+        // Places appear while typing, once the typing pauses.
+        .task(id: query) {
+            do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+            await search()
+        }
+        .task {
+            // Reading five bundled routes takes a moment; do it off the main thread, once.
+            guard presetLines.isEmpty else { return }
+            presetLines = await Task.detached(priority: .utility) {
+                Dictionary(uniqueKeysWithValues: RouteService.presets.compactMap { p in
+                    (try? RouteService.preset(p.id)).map { (p.id, $0.polyline) }
+                })
+            }.value
+        }
+        // The tab stays alive while hidden, so its work runs each time it is opened, not when the app launches
+        // (which would ask for location over the Welcome screen).
+        .onChange(of: store.tab, initial: true) { _, tab in
+            guard tab == .route else { searchFocused = false; return }
+            opened = true
+            store.loadCarmelDemo(); store.refreshPrep()
+            Task { await store.refreshOrigin() }
+        }
+        // Once the phone's location arrives, show it (until a route is picked).
+        .onChange(of: store.originIsHere) { _, here in
+            guard here, store.route == nil, presetLines.isEmpty else { return }
+            withAnimation(Motion.standard) { camera = .region(homeRegion) }
+        }
+        .onChange(of: wantsSearchNow) { _, want in
+            guard want else { return }
+            store.wantsSearch = false
+            searchFocused = true
+        }
+        .onChange(of: searchFocused) { _, focused in
+            if focused { settle(.full) }
+        }
+        // A new starting point: the places found were measured from the old one.
+        .onChange(of: store.home) { _, _ in results = []; searchNote = nil }
+        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
+        .onChange(of: store.route?.id) { _, id in
+            // A route arrives or leaves: the panel rests where its content fits, and the map frames the route.
+            settle(id == nil ? .half : .half)
+        }
         .sheet(isPresented: $showPreview, onDismiss: {
             // Start only after the sheet is gone; presenting the drive mid-dismiss can be dropped.
-            if startAfterPreview { startAfterPreview = false; store.activeSession = store.makeSession(replay: nil) }
+            if startAfterPreview { startAfterPreview = false; startDrive(replay: nil) }
         }) {
             if let r = store.route {
                 PreviewView(routeName: r.name, spots: spots, route: r) { startAfterPreview = true }
@@ -55,304 +102,562 @@ struct RouteView: View {
 
     // MARK: Map
 
-    private var routeMap: some View {
-        Map(position: $camera) {
-            if let r = store.route {
-                MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
-                    .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
-                // Where to change lanes, as on the Drive screen.
-                ForEach(store.laneZones, id: \.zone.id) { z in
-                    MapPolyline(coordinates: z.line)
-                        .stroke(BaxiColor.signInk, style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .round))
-                    MapPolyline(coordinates: z.line)
-                        .stroke(BaxiColor.warning, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+    private func routeMap(height: CGFloat, topInset: CGFloat) -> some View {
+        MapReader { proxy in
+            Map(position: $camera) {
+                if MapPrivacy.showsYou && opened { UserAnnotation() }
+                if let r = store.route {
+                    chosenRoute(r)
+                } else {
+                    allRoutes
                 }
-                // Small dots here; the Preview numbers and explains each one.
-                ForEach(spots) { spot in
-                    Annotation(spot.title, coordinate: spot.location.clLocation) {
-                        Circle().fill(SpotPin.color(spot.kind)).frame(width: 12, height: 12)
-                            .overlay(Circle().stroke(.white, lineWidth: 2))
-                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+            }
+            .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
+            .mapControls {
+                if MapPrivacy.showsYou && opened { MapUserLocationButton() }
+                MapCompass()
+                MapScaleView()
+            }
+            // Map chrome (the location button, the compass, the Apple logo) keeps clear of the status bar at the
+            // top and of the panel's lowest height at the bottom.
+            .safeAreaPadding(.top, topInset + Space.s8)
+            .safeAreaPadding(.bottom, headerHeight)
+            .onTapGesture { point in
+                guard store.route == nil, !searching, let tapped = proxy.convert(point, from: .local),
+                      let reach = proxy.convert(CGPoint(x: point.x, y: point.y + MapLine.tapReach), from: .local) else { return }
+                if let id = nearestPreset(to: Coordinate(tapped), within: Geo.distanceMeters(Coordinate(tapped), Coordinate(reach))) {
+                    Haptic.tap(); store.choosePreset(id)
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+            .onChange(of: store.route?.id, initial: true) { _, _ in frame(mapHeight: height) }
+            .onChange(of: store.home) { _, _ in frame(mapHeight: height) }
+            .onChange(of: presetLines.isEmpty) { _, _ in frame(mapHeight: height) }
+            .onChange(of: store.tab) { _, tab in if tab == .route, !framed { frame(mapHeight: height) } }
+        }
+    }
+
+    /// The chosen route: the planned road in ink with a white edge, lane changes in amber, hard spots as dots.
+    @MapContentBuilder private func chosenRoute(_ r: PlannedRoute) -> some MapContent {
+        MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
+            .stroke(Palette.field, style: StrokeStyle(lineWidth: MapLine.edge, lineCap: .round, lineJoin: .round))
+        MapPolyline(coordinates: r.polyline.points.map(\.clLocation))
+            .stroke(Palette.ink, style: StrokeStyle(lineWidth: MapLine.route, lineCap: .round, lineJoin: .round))
+        ForEach(store.laneZones, id: \.zone.id) { z in
+            MapPolyline(coordinates: z.line)
+                .stroke(Palette.ready, style: StrokeStyle(lineWidth: MapLine.route, lineCap: .round, lineJoin: .round))
+        }
+        // Hard spots as small dots; the Preview explains each one.
+        ForEach(spots) { spot in
+            Annotation(spot.title, coordinate: spot.location.clLocation) {
+                Circle().fill(SpotColor.of(spot.kind)).frame(width: MapLine.dot, height: MapLine.dot)
+                    .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
+            }
+            .annotationTitles(.hidden)
+        }
+        if let start = r.polyline.points.first {
+            Annotation("Start", coordinate: start.clLocation) {
+                Mark(glyph: .start, size: MarkSize.small).foregroundStyle(Palette.onDark)
+                    .frame(width: MapLine.pin, height: MapLine.pin).background(Palette.ink, in: Circle())
+                    .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
+            }
+        }
+    }
+
+    /// Every practice route, numbered as in the list. Tapping a number (or the line) chooses that route.
+    @MapContentBuilder private var allRoutes: some MapContent {
+        ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
+            if let line = presetLines[p.id] {
+                MapPolyline(coordinates: line.points.map(\.clLocation))
+                    .stroke(Palette.field, style: StrokeStyle(lineWidth: MapLine.edge, lineCap: .round, lineJoin: .round))
+                MapPolyline(coordinates: line.points.map(\.clLocation))
+                    .stroke(Palette.mapRouteOther, style: StrokeStyle(lineWidth: MapLine.other, lineCap: .round, lineJoin: .round))
+                // The loops all start downtown, so each number sits out along its route, where no other number is.
+                if let place = numberPlaces[p.id] {
+                    Annotation(p.name, coordinate: place.at.clLocation, anchor: place.anchor) {
+                        Button { Haptic.tap(); store.choosePreset(p.id) } label: { NumberTab(number: i + 1) }
+                            .buttonStyle(Press())
+                            .accessibilityLabel("Route \(i + 1), \(p.name)")
+                            .accessibilityHint("Shows the route")
                     }
                     .annotationTitles(.hidden)
                 }
-                if let start = r.polyline.points.first {
-                    Annotation("Start", coordinate: start.clLocation) {
-                        Image(systemName: "flag.fill").font(BaxiFont.footnote.weight(.bold)).foregroundStyle(.white)
-                            .frame(width: 30, height: 30).background(BaxiColor.signInk, in: Circle())
-                            .overlay(Circle().stroke(.white, lineWidth: 2))
-                    }
-                }
-            } else if let home = store.home {
-                Annotation(store.homeLabel, coordinate: home.clLocation) {
-                    Image(systemName: "mappin.circle.fill").font(BaxiFont.title).foregroundStyle(BaxiColor.accent)
-                }
             }
         }
-        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-        .onChange(of: store.route) { _, r in
-            // .automatic again is no change to SwiftUI, so step through the route's region first.
-            guard let r else { return }
-            withAnimation(.smooth) { camera = .region(Self.region(r)) }
-            Task { await Task.yield(); withAnimation(.smooth) { camera = Self.overview(r) } }
+        if presetLines.isEmpty && !store.originIsHere {
+            Annotation("Carmel", coordinate: AppStore.carmelDemoHome.clLocation) { SignalMark(size: SignalSize.map) }
         }
+        // A starting point the driver chose.
+        if store.homeChosen {
+            Annotation(store.homeLabel, coordinate: store.home.clLocation) {
+                Mark(glyph: .start, size: MarkSize.small).foregroundStyle(Palette.onDark)
+                    .frame(width: MapLine.pin, height: MapLine.pin).background(Palette.ink, in: Circle())
+                    .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
+            }
+        }
+    }
+
+    /// Where each route's number goes: a point along the route, chosen so the numbers keep clear of each other
+    /// and of the other routes' lines. Worked out once the lines are read.
+    private var numberPlaces: [String: (at: Coordinate, anchor: UnitPoint)] {
+        var placed: [Coordinate] = []
+        var out: [String: (at: Coordinate, anchor: UnitPoint)] = [:]
+        for p in RouteService.presets {
+            guard let line = presetLines[p.id] else { continue }
+            let others = presetLines.filter { $0.key != p.id }.map(\.value)
+            let choices = MapFrame.numberSpots.compactMap { line.coordinate(atMeters: line.lengthMeters * $0) }
+            // Score: distance to the nearest placed number and to the nearest other route, the larger the better.
+            let best = choices.max { a, b in clearance(a, placed, others) < clearance(b, placed, others) } ?? choices.first
+            guard let best else { continue }
+            // Two small loops side by side can't keep a tab's width apart at the city-wide zoom: the later one's
+            // number stacks above its neighbour instead of sitting on it.
+            let crowded = placed.filter { Geo.distanceMeters(best, $0) < MapFrame.stackMeters }.count
+            placed.append(best)
+            out[p.id] = (best, UnitPoint(x: UnitPoint.center.x, y: UnitPoint.center.y + MapFrame.stackStep * Double(crowded)))
+        }
+        return out
+    }
+
+    private func clearance(_ c: Coordinate, _ placed: [Coordinate], _ others: [Polyline]) -> Double {
+        let toNumbers = placed.map { Geo.distanceMeters(c, $0) }.min() ?? .infinity
+        let toLines = others.map { Geo.distanceMeters(from: c, toPolyline: $0.points) }.min() ?? .infinity
+        return min(toNumbers, toLines * MapFrame.lineWeight)
+    }
+
+    /// The practice route whose line passes within `meters` of a tapped point.
+    private func nearestPreset(to point: Coordinate, within meters: Double) -> String? {
+        RouteService.presets.compactMap { p -> (String, Double)? in
+            guard let line = presetLines[p.id] else { return nil }
+            return (p.id, Geo.distanceMeters(from: point, toPolyline: line.points))
+        }
+        .filter { $0.1 <= meters }
+        .min { $0.1 < $1.1 }?.0
+    }
+
+    /// Where the map rests with no route and no practice routes yet: around the phone when its location is
+    /// known, else Carmel.
+    private var homeRegion: MKCoordinateRegion {
+        MKCoordinateRegion(center: (store.originIsHere ? store.origin : AppStore.carmelDemoHome).clLocation,
+                           latitudinalMeters: MapSpan.home, longitudinalMeters: MapSpan.home)
+    }
+
+    /// Frames the chosen route, or all the practice routes, in the map above the panel at its middle height.
+    private func frame(mapHeight: CGFloat) {
+        let covered = max(0, mapHeight * PanelSize.halfFraction - headerHeight)
+        let visible = max(1, mapHeight - headerHeight)
+        let region: MKCoordinateRegion
+        if let r = store.route {
+            region = Self.fit(Self.rect(r.polyline), coveredBelow: covered / visible)
+        } else if !presetLines.isEmpty {
+            var all = presetLines.values.map(Self.rect).reduce(MKMapRect.null) { $0.union($1) }
+            if store.homeChosen { all = all.union(Self.rect(Polyline([store.home]))) }
+            region = Self.fit(all, coveredBelow: covered / visible)
+        } else {
+            region = homeRegion
+        }
+        withAnimation(Motion.standard) { camera = .region(region) }
+        if !presetLines.isEmpty || store.route != nil { framed = true }
+    }
+
+    static func rect(_ line: Polyline) -> MKMapRect {
+        line.points.reduce(MKMapRect.null) {
+            $0.union(MKMapRect(origin: MKMapPoint($1.clLocation), size: MKMapSize(width: 1, height: 1)))   // design-lint:allow a one-point map rect to union, not a drawn size
+        }
+    }
+
+    /// A region that shows `rect` with a margin, in the top part of the map: the bottom `coveredBelow` share
+    /// of the map (0 to 1) sits under the panel. Map y grows southward, so the extra height goes under the panel.
+    static func fit(_ rect: MKMapRect, coveredBelow: Double) -> MKCoordinateRegion {
+        guard !rect.isNull else { return MKCoordinateRegion(center: AppStore.carmelDemoHome.clLocation, latitudinalMeters: MapSpan.home, longitudinalMeters: MapSpan.home) }
+        let share = min(0.85, max(0, coveredBelow))
+        var r = rect.insetBy(dx: -rect.width * MapFrame.margin, dy: -rect.height * MapFrame.margin)
+        r.size.height += r.size.height * share / (1 - share)
+        return MKCoordinateRegion(r)
     }
 
     // MARK: Panel
 
-    private var panel: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
-            Button { showStartingPoint = true } label: {
-                HStack(spacing: BaxiSpace.sm) {
-                    Image(systemName: "mappin.circle.fill").foregroundStyle(BaxiColor.accent)
-                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                        Text("Starting point").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-                        Text(store.homeLabel).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                    }
-                    Spacer(minLength: 0)
-                    Text("Change").font(BaxiFont.footnote).foregroundStyle(BaxiColor.accent)
-                }
-                .padding(.vertical, BaxiSpace.xs)
+    /// The sheet: a grabber, the header that always shows, and the content under it. Dragged between heights.
+    private func panel(available: CGFloat) -> some View {
+        let height = panelHeight(available: available)
+        return VStack(spacing: 0) {
+            header
+                .fixedSize(horizontal: false, vertical: true)
+                .background(HeightReader(onChange: { headerHeight = $0 }))
+            ScrollView {
+                content
+                    .padding(.horizontal, Space.margin)
+                    .padding(.bottom, Space.s24)
+                    .background(HeightReader(onChange: { contentHeight = $0 }))
             }
-            .accessibilityHint("Choose your current location or search for a starting place")
-            if let searchError { Text(searchError).font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText) }
-            if store.route == nil { Eyebrow("Practice routes in Carmel") }
-            ScrollViewReader { reader in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: BaxiSpace.md) {
-                        ForEach(RouteService.presets) { p in
-                            PresetCard(preset: p, selected: store.route?.id == p.id) {
-                                withAnimation(.snappy) { store.choosePreset(p.id) }
-                            }
-                            .id(p.id)
-                        }
-                    }
-                    .padding(.horizontal, BaxiSpace.page)
-                }
-                .padding(.horizontal, -BaxiSpace.page)
-                .fixedSize(horizontal: false, vertical: true) // otherwise the row grows to fill the screen
-                .onAppear { if let id = store.route?.id { reader.scrollTo(id, anchor: .center) } }
-                .onChange(of: store.route?.id) { _, id in if let id { withAnimation { reader.scrollTo(id, anchor: .center) } } }
-            }
-            if store.isRouting {
-                RoundedRectangle(cornerRadius: BaxiRadius.md).fill(BaxiColor.sunken).frame(height: 64).shimmer()
-            } else if let err = store.routeError {
-                Label(err, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote).foregroundStyle(BaxiColor.stopText)
-            } else if let r = store.route {
-                selected(r)
-            } else {
-                Text("Pick a practice route, or search a destination above.")
-                    .font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+            .scrollDisabled(detent != .full)
+            .scrollDismissesKeyboard(.immediately)
+            .scrollBounceBehavior(.basedOnSize)
+            // Pulling the list down past its top lowers the panel, as it does in Maps.
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, y in
+                if y < -PanelSize.pullToLower, detent == .full, drag == 0 { lower() }
             }
         }
-        .padding(.horizontal, BaxiSpace.page)
-        .padding(.top, BaxiSpace.lg)
-        .padding(.bottom, BaxiSpace.md)
-        .background(BaxiColor.surface)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: BaxiRadius.xl, topTrailingRadius: BaxiRadius.xl, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 12, y: -2)
+        .frame(maxWidth: .infinity)
+        .frame(height: height, alignment: .top)
+        .clipped()
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: Corner.sheet, topTrailingRadius: Corner.sheet, style: .continuous)
+                .fill(Palette.page)
+                .shadow(color: Palette.shadow, radius: Space.s16, y: -Space.s4)
+        }
+        .gesture(dragGesture(available: available))
+        .animation(Motion.standard, value: searching)
+        .animation(Motion.standard, value: store.route?.id)
+        .animation(Motion.standard, value: routing)
     }
 
-    @ViewBuilder private func selected(_ r: PlannedRoute) -> some View {
-        if let calmerId = store.calmerOptionId, let fastest = store.routeOptions.first,
-           let calmer = store.routeOptions.first(where: { $0.id == calmerId }) {
-            HStack(spacing: BaxiSpace.sm) {
-                RouteChoice(title: "Fastest", option: fastest, selected: r.id == fastest.id) { switchTo(fastest.id) }
-                RouteChoice(title: "Calmer", option: calmer, selected: r.id == calmer.id) { switchTo(calmer.id) }
-            }
-        }
-        RouteFacts(route: r, spots: spots)
-        if let w = store.weather { WeatherLine(weather: w) }
-        if let note = store.roadDataNote {
-            Label(note, systemImage: "wifi.exclamationmark").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-        }
-        HStack(spacing: BaxiSpace.sm) {
-            Button { showPreview = true } label: {
-                Label("Preview", systemImage: "binoculars.fill")
-            }
-            .buttonStyle(.baxiSecondary)
-            .disabled(store.isPreparing)
-            Menu {
-                Section("Replay the route, not logged") {
-                    ForEach([1.0, 4, 8, 16], id: \.self) { x in
-                        Button("At \(Int(x))x speed") { store.activeSession = store.makeSession(replay: x) }
-                    }
-                }
-            } label: {
-                Label("Replay", systemImage: "play.fill")
-            }
-            .buttonStyle(.baxiSecondary)
-            .disabled(store.isPreparing)
-        }
-        Button { store.activeSession = store.makeSession(replay: nil) } label: {
-            Label("Start drive", systemImage: "car.fill")
-        }
-        .buttonStyle(.baxiPrimary)
-        .disabled(store.isPreparing)
-        Label("Mount the phone first. The driver never touches it.", systemImage: "hand.raised.fill")
-            .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+    private func panelHeight(available: CGFloat) -> CGFloat {
+        let rest = restingHeight(detent, available: available)
+        let low = restingHeight(.collapsed, available: available), high = restingHeight(.full, available: available)
+        let raw = rest - drag
+        // Past the ends the panel gives a little, then stops.
+        if raw < low { return low - (low - raw) * MapFrame.giveBeyond }
+        if raw > high { return high + (raw - high) * MapFrame.giveBeyond }
+        return raw
     }
 
-    @ViewBuilder private var suggestions: some View {
-        ForEach(results, id: \.self) { item in
+    /// Where the panel rests at each height. The middle and the top never exceed what the content needs.
+    private func restingHeight(_ d: PanelDetent, available: CGFloat) -> CGFloat {
+        let natural = headerHeight + contentHeight
+        switch d {
+        case .collapsed: return headerHeight
+        case .half: return min(max(headerHeight, available * PanelSize.halfFraction), max(natural, headerHeight))
+        case .full: return min(available - PanelSize.topGap, max(natural, headerHeight))
+        }
+    }
+
+    private func dragGesture(available: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: Space.s8, coordinateSpace: .global)
+            .onChanged { v in drag = v.translation.height }
+            .onEnded { v in
+                let current = restingHeight(detent, available: available) - v.translation.height
+                let flick = v.predictedEndTranslation.height - v.translation.height
+                var target: PanelDetent
+                if abs(flick) > PanelSize.flick {
+                    target = flick < 0 ? detent.higher : detent.lower
+                } else {
+                    target = PanelDetent.allCases.min { abs(restingHeight($0, available: available) - current) < abs(restingHeight($1, available: available) - current) } ?? detent
+                }
+                // Pulled down while typing: the keyboard goes, the places stay.
+                if target != .full, searchFocused { searchFocused = false }
+                drag = 0
+                settle(target)
+            }
+    }
+
+    private func settle(_ d: PanelDetent) {
+        withAnimation(Motion.sheet) { detent = d; drag = 0 }
+    }
+
+    private func lower() { settle(detent.lower) }
+
+    /// The grabber, then the search field (or the chosen route's title and its one main action).
+    private var header: some View {
+        VStack(spacing: Space.s12) {
             Button {
-                Task {
-                    query = ""; results = []; searchFocused = false
-                    await store.routeTo(Coordinate(item.placemark.coordinate), name: item.name ?? "Destination")
-                }
+                Haptic.tap(); settle(detent == .collapsed ? .half : .collapsed)
             } label: {
-                VStack(alignment: .leading) {
-                    Text(item.name ?? "Place").foregroundStyle(BaxiColor.ink)
-                    Text(item.placemark.title ?? "").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-                }
+                Capsule().fill(Palette.hairline).frame(width: PanelSize.grabberWidth, height: PanelSize.grabberHeight)
+                    .frame(maxWidth: .infinity, minHeight: Space.s24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(detent == .collapsed ? "Show the routes" : "Show the map")
+            if let r = store.route, !searching, !routing {
+                RouteHeader(route: r, spots: spots, start: { startDrive(replay: nil) })
+                    .padding(.horizontal, Space.margin)
+            } else {
+                searchField.padding(.horizontal, Space.margin)
             }
         }
+        .padding(.bottom, Space.s12)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var content: some View {
+        if searching {
+            places
+        } else if routing {
+            VStack(alignment: .leading, spacing: Space.s12) {
+                Placeholder(width: PanelSize.placeholderWide, height: Space.s24)
+                Placeholder(width: PanelSize.placeholderNarrow)
+                Text(store.routeStep ?? "Finding a route…").role(.meta).foregroundStyle(Palette.meta)
+                    .contentTransition(.opacity)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let err = store.routeError {
+            VStack(alignment: .leading, spacing: Space.s12) {
+                Text(err).role(.body).foregroundStyle(Palette.stopText).fixedSize(horizontal: false, vertical: true)
+                BigButton(title: "Back to practice routes", kind: .secondary) { store.clearRoute() }
+            }
+        } else if let r = store.route {
+            RouteCard(route: r, showPreview: { showPreview = true }, switchTo: switchTo, replay: { startDrive(replay: $0) })
+        } else {
+            practiceRoutes
+        }
+    }
+
+    /// The one search field. It lives in the header so it is never rebuilt while being typed in.
+    private var searchField: some View {
+        HStack(spacing: Space.s12) {
+            FieldBox {
+                Mark(glyph: .search, size: MarkSize.row).foregroundStyle(Palette.meta)
+                TextField("Search a destination", text: $query)
+                    .role(.body)
+                    .foregroundStyle(Palette.ink)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await search() } }
+                    .autocorrectionDisabled()
+                if !query.isEmpty {
+                    MarkButton(glyph: .close, label: "Clear search", tint: Palette.meta) { query = ""; results = []; searchNote = nil }
+                        .padding(.trailing, -Space.s12)
+                }
+            }
+            if searching {
+                Button("Cancel") { query = ""; results = []; searchNote = nil; searchFocused = false; settle(.half) }
+                    .role(.bodyStrong).foregroundStyle(Palette.ink)
+                    .buttonStyle(Press()).frame(minHeight: Size.tap)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var startRow: some View { StartFromRow { showStartingPoint = true } }
+
+    /// Places matching the search.
+    private var places: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            startRow
+            if let searchNote {
+                Text(searchNote).role(.body).foregroundStyle(Palette.read).padding(.vertical, Space.s12)
+            } else if results.isEmpty {
+                if query.isEmpty {
+                    Text("Type a place or an address.").role(.body).foregroundStyle(Palette.meta).padding(.vertical, Space.s12)
+                } else {
+                    SignalDots().padding(.vertical, Space.s16)
+                }
+            }
+            ForEach(Array(results.enumerated()), id: \.offset) { i, item in
+                Button { go(to: item) } label: {
+                    Row(title: item.name ?? "Place", detail: item.placemark.title, showsDivider: i < results.count - 1) {
+                        RowArrow()
+                    }
+                }
+                .buttonStyle(Press())
+            }
+        }
+    }
+
+    private var practiceRoutes: some View {
+        VStack(alignment: .leading, spacing: Space.s8) {
+            startRow
+            GroupLabel("Practice routes in Carmel")
+            ForEach(Array(RouteService.presets.enumerated()), id: \.element.id) { i, p in
+                RouteGuideSign(number: i + 1, name: p.name,
+                               facts: [p.short, store.presetMeters[p.id].map { "\(Int(max(1, ($0 / 1609.34).rounded()))) mi" }]
+                                .compactMap { $0 }.joined(separator: ", ")) { store.choosePreset(p.id) }
+                    .accessibilityHint("Shows the route on the map")
+            }
+        }
+    }
+
+    private func go(to item: MKMapItem) {
+        guard !routing else { return }
+        Haptic.tap()
+        searchFocused = false
+        let name = item.name ?? "Destination"
+        query = ""; results = []; searchNote = nil
+        Task { await store.routeTo(Coordinate(item.placemark.coordinate), name: name) }
     }
 
     private func switchTo(_ id: String) {
+        guard !routing else { return }
         Task { await store.chooseOption(id) }
+    }
+
+    /// Starts the drive (or a replay). Nothing to start is said, never swallowed.
+    private func startDrive(replay: Double?) {
+        guard store.activeSession == nil else { return }
+        if let s = store.makeSession(replay: replay) { store.activeSession = s }
+        else { store.routeError = "The road data isn't ready yet. Try again in a moment." }
     }
 
     /// Built in the background with the route's cues; empty for a moment after a route is picked.
     private var spots: [HardSpot] { store.hardSpots() }
 
     private func search() async {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { results = []; return }
-        let id = UUID(); searchID = id
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { results = []; searchNote = nil; return }
         let req = MKLocalSearch.Request()
-        req.naturalLanguageQuery = text
-        req.region = MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation,
-                                        latitudinalMeters: 25_000, longitudinalMeters: 25_000)
+        req.naturalLanguageQuery = q
+        req.region = MKCoordinateRegion(center: store.origin.clLocation, latitudinalMeters: MapSpan.search, longitudinalMeters: MapSpan.search)
         do {
-            let found = try await MKLocalSearch(request: req).start().mapItems
-            guard searchID == id else { return }
-            results = found
-            searchError = found.isEmpty ? "No destinations found. Try another address or place." : nil
+            let items = try await MKLocalSearch(request: req).start().mapItems
+            guard q == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }   // typing moved on
+            results = items
+            searchNote = items.isEmpty ? "No places found for \u{201C}\(q)\u{201D}." : nil
         } catch {
-            guard searchID == id else { return }
+            guard q == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
             results = []
-            searchError = "Destination search is unavailable. Check your connection and try again."
+            // MapKit reports "nothing matched" as an error too.
+            searchNote = (error as? MKError)?.code == .placemarkNotFound
+                ? "No places found for \u{201C}\(q)\u{201D}."
+                : "No connection. Check the internet and try again."
         }
-    }
-
-    /// Fits the route line and its pins in the part of the map the panel leaves visible.
-    static func overview(_ r: PlannedRoute) -> MapCameraPosition { .automatic }
-
-    static func region(_ r: PlannedRoute) -> MKCoordinateRegion {
-        let rect = r.polyline.points.reduce(MKMapRect.null) {
-            $0.union(MKMapRect(origin: MKMapPoint($1.clLocation), size: MKMapSize(width: 1, height: 1)))
-        }
-        return MKCoordinateRegion(rect)
     }
 }
 
-/// A preset route as a small guide sign when chosen, a plain card otherwise.
-private struct PresetCard: View {
-    let preset: RouteService.Preset
-    let selected: Bool
-    var choose: () -> Void
+/// The panel's three resting heights.
+enum PanelDetent: CaseIterable {
+    case collapsed, half, full
+    var higher: PanelDetent { self == .collapsed ? .half : .full }
+    var lower: PanelDetent { self == .full ? .half : .collapsed }
+}
 
+/// How the map frames a route: the margin around it, and how much the panel gives when dragged past its ends.
+enum MapFrame {
+    static let margin = 0.16
+    static let giveBeyond: CGFloat = 0.18
+    /// Where along a route its number may sit (shares of its length), tried in this order.
+    static let numberSpots: [Double] = [0.5, 0.38, 0.62, 0.28, 0.72, 0.2, 0.8]
+    /// How much a number clearing another route's line counts, against clearing another number.
+    static let lineWeight = 2.0
+    /// Two numbers closer than this (about a tab's width when all of Carmel is on screen) stack instead.
+    static let stackMeters = 750.0
+    /// How far up each stacked number moves, in tab heights.
+    static let stackStep = 1.25
+}
+
+/// Reports a view's height to its parent, for the panel's measured heights.
+private struct HeightReader: View {
+    let onChange: (CGFloat) -> Void
     var body: some View {
-        Button(action: choose) {
-            VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                Text(preset.name).font(BaxiFont.headline)
-                Text(preset.id == "preset_roundabouts" ? "Roundabouts" : preset.id == "preset_highway" ? "Merges & exits" : "Multi-lane roads")
-                    .font(BaxiFont.footnote).foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.inkSoft)
-            }
-            .frame(width: 220, alignment: .topLeading)
-            .padding(.vertical, BaxiSpace.md)
-            .padding(.horizontal, BaxiSpace.lg)
-            .modifier(PresetBackground(selected: selected))
-        }
-        .buttonStyle(PressableStyle())
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-private struct PresetBackground: ViewModifier {
-    let selected: Bool
-    func body(content: Content) -> some View {
-        if selected {
-            content.foregroundStyle(BaxiColor.onSign)
-                .background(BaxiColor.sign, in: RoundedRectangle(cornerRadius: BaxiRadius.md))
-        }
-        else {
-            content.foregroundStyle(BaxiColor.ink)
-                .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+        GeometryReader { g in
+            Color.clear.onChange(of: g.size.height, initial: true) { _, h in onChange(h) }
         }
     }
 }
 
-/// Distance, time and what is on the route, as small facts.
-private struct RouteFacts: View {
+/// The chosen route's title row and the screen's one main action: always visible, even with the panel lowered.
+private struct RouteHeader: View {
     let route: PlannedRoute
     let spots: [HardSpot]
+    let start: () -> Void
+    @Environment(AppStore.self) private var store
 
     var body: some View {
-        let rb = spots.filter { $0.kind == .roundabout }.count
-        let ramps = spots.filter { $0.kind == .ramp }.count
-        let mins = Int((route.durationSeconds / 60).rounded())
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-            let parts = [DriveView.distance(route.distanceMeters), "\(mins) min",
-                         rb > 0 ? "\(rb) roundabout\(rb == 1 ? "" : "s")" : nil,
-                         ramps > 0 ? "\(ramps) ramp\(ramps == 1 ? "" : "s")" : nil].compactMap { $0 }
-            Text(parts.joined(separator: ", ")).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-            Text(route.source == "apple" ? "No lane details on this route." : "Yellow on the map is where to change lanes.")
-                .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-        }
-    }
-}
-
-/// A numbered hard spot on the map, colored like the sign it stands for.
-struct SpotPin: View {
-    let number: Int
-    let kind: HardSpot.Kind
-    var body: some View {
-        Text("\(number)").font(BaxiFont.signFace(13))
-            .foregroundStyle(kind == .roundabout || kind == .ramp || kind == .laneTurn ? BaxiColor.onSign : BaxiColor.signInk)
-            .frame(width: 26, height: 26)
-            .background(SpotPin.color(kind), in: RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous).stroke(.white, lineWidth: 2))
-            .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
-    }
-
-    static func color(_ kind: HardSpot.Kind) -> Color {
-        switch kind {
-        case .roundabout, .ramp, .laneTurn: BaxiColor.sign
-        case .schoolZone: BaxiColor.school
-        case .crashCorridor, .studyIntersection, .fatalCrash: BaxiColor.caution
-        case .glare: BaxiColor.warning
-        }
-    }
-}
-
-extension DriveSession: Identifiable {
-    var id: ObjectIdentifier { ObjectIdentifier(self) }
-}
-
-/// The weather where the drive starts, in one line; an alert in effect is shown first, in orange.
-private struct WeatherLine: View {
-    let weather: RoadWeather
-    private var symbol: String {
-        switch weather.condition {
-        case .clear: "cloud.sun.fill"
-        case .wind: "wind"
-        case .rain: "cloud.rain.fill"
-        case .fog: "cloud.fog.fill"
-        case .storm: "cloud.bolt.rain.fill"
-        case .snowOrIce: "snowflake"
-        }
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-            if let alert = weather.alerts.first {
-                Label(alert, systemImage: "exclamationmark.triangle.fill").font(BaxiFont.footnote.weight(.semibold))
-                    .foregroundStyle(BaxiColor.caution)
+        VStack(alignment: .leading, spacing: Space.s12) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
+                VStack(alignment: .leading, spacing: Space.s4) {
+                    Text(route.name).role(.screenTitle).foregroundStyle(Palette.ink)
+                        .lineLimit(2).minimumScaleFactor(0.7)
+                    Text(facts).role(.meta).foregroundStyle(Palette.meta)
+                }
+                Spacer(minLength: 0)
+                MarkButton(glyph: .close, label: "Close this route") { store.clearRoute() }
+                    .padding(.trailing, -Space.s12)
             }
-            Label(weather.summary, systemImage: symbol).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+            BigButton(title: "Start drive", working: store.isPreparing, action: start)
+                .accessibilityHint(store.isPreparing ? "Getting the route ready" : "Mount the phone first")
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    /// Counted from the route's own maneuvers, the same way Home and the Log count skills, so numbers agree everywhere.
+    private var facts: String {
+        let c = Practice.count(maneuvers: route.maneuvers, features: store.features, fastMeters: 0)
+        let rb = (c[.singleLaneRoundabout] ?? 0) + (c[.multiLaneRoundabout] ?? 0)
+        let ramps = (c[.highwayMerge] ?? 0) + (c[.exitRamp] ?? 0)
+        let mins = Int((route.durationSeconds / 60).rounded())
+        return [DriveView.distance(route.distanceMeters), "\(mins) min",
+                rb > 0 ? "\(rb) roundabout\(rb == 1 ? "" : "s")" : nil,
+                ramps > 0 ? "\(ramps) ramp\(ramps == 1 ? "" : "s")" : nil].compactMap { $0 }.joined(separator: ", ")
+    }
+}
+
+/// The rest of the chosen route, under its header: the choice of fastest or calmer, what's on it, Preview, Replay.
+private struct RouteCard: View {
+    let route: PlannedRoute
+    let showPreview: () -> Void
+    let switchTo: (String) -> Void
+    let replay: (Double) -> Void
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s16) {
+            if let calmerId = store.calmerOptionId, let fastest = store.routeOptions.first,
+               let calmer = store.routeOptions.first(where: { $0.id == calmerId }) {
+                HStack(spacing: Space.s8) {
+                    RouteChoice(title: "Fastest", option: fastest, selected: route.id == fastest.id) { switchTo(fastest.id) }
+                    RouteChoice(title: "Calmer", option: calmer, selected: route.id == calmer.id) { switchTo(calmer.id) }
+                }
+            }
+            if store.isPreparing {
+                Text("Getting the route ready…").role(.meta).foregroundStyle(Palette.meta).transition(.opacity)
+            }
+            notes
+            // Secondary actions as quiet links: Start drive is the one main action.
+            HStack(spacing: Space.s32) {
+                Button { Haptic.tap(); showPreview() } label: {
+                    HStack(spacing: Space.s8) { Mark(glyph: .search, size: MarkSize.small); Text("Preview hard spots").role(.bodyStrong) }
+                        .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
+                }
+                .buttonStyle(Press())
+                .disabled(store.isPreparing)
+                Menu {
+                    Section("Replay the route, not logged") {
+                        ForEach([1.0, 4, 8, 16], id: \.self) { x in
+                            Button("At \(Int(x))x speed") { replay(x) }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: Space.s8) { Mark(glyph: .play, size: MarkSize.small); Text("Replay").role(.bodyStrong) }
+                        .foregroundStyle(Palette.ink).frame(minHeight: Size.tap)
+                }
+                .buttonStyle(Press())
+                .disabled(store.isPreparing)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var notes: some View {
+        VStack(alignment: .leading, spacing: Space.s8) {
+            // Weather only when it changes the drive.
+            if let w = store.weather, w.spoken != nil {
+                if let alert = w.alerts.first {
+                    Text(alert).role(.metaStrong).foregroundStyle(Palette.readyText)
+                }
+                Text(w.summary).role(.meta).foregroundStyle(Palette.readyText)
+            }
+            if route.source == "apple" {
+                Text("No lane details on this route.").role(.meta).foregroundStyle(Palette.meta)
+            } else if store.isFetchingRoads {
+                HStack(spacing: Space.s8) {
+                    SignalDots(onFill: false)
+                    Text("Loading lanes and roundabouts from OpenStreetMap…").role(.meta).foregroundStyle(Palette.meta)
+                }
+            } else if !store.laneZones.isEmpty {
+                HStack(spacing: Space.s8) {
+                    Capsule().fill(Palette.ready).frame(width: Space.s16, height: Size.progress)
+                    Text("Change lanes along the amber stretches.").role(.meta).foregroundStyle(Palette.meta)
+                }
+            }
+            if let note = store.roadDataNote {
+                Text(note).role(.meta).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: Space.s8) {
+                Mark(glyph: .handsOff, size: MarkSize.tiny).foregroundStyle(Palette.meta)
+                Text("Mount the phone first. The driver never touches it.").role(.meta).foregroundStyle(Palette.meta)
+            }
+        }
     }
 }
 
@@ -364,21 +669,34 @@ private struct RouteChoice: View {
     var choose: () -> Void
 
     var body: some View {
-        Button(action: choose) {
-            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                Text(title).font(BaxiFont.bodyBold)
-                Text("\(Int((option.route.durationSeconds / 60).rounded())) min").font(BaxiFont.footnote.weight(.semibold))
+        Button { Haptic.tap(); choose() } label: {
+            VStack(alignment: .leading, spacing: Space.s4) {
+                Text(title).role(.rowTitle)
+                Text("\(Int((option.route.durationSeconds / 60).rounded())) min").role(.meta)
                 if let fast = option.fastMeters {
-                    Text(String(format: "%.1f mi at 45+ mph", fast / 1609.34)).font(BaxiFont.caption)
+                    Text(String(format: "%.1f mi at 45+ mph", fast / 1609.34)).role(.meta)
                 }
             }
-            .foregroundStyle(selected ? BaxiColor.onSign : BaxiColor.ink)
+            .foregroundStyle(selected ? Palette.onDark : Palette.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(BaxiSpace.md)
-            .background(selected ? BaxiColor.sign : BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+            .padding(Space.s12)
+            .background(selected ? Palette.ink : Palette.field, in: RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Corner.control, style: .continuous)
+                        .strokeBorder(selected ? Palette.ink : Palette.hairline, lineWidth: Size.hairline))
         }
-        .buttonStyle(PressableStyle())
+        .buttonStyle(Press())
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
+/// Hard spots on maps: crash records in `stop`; everything else in ink, so amber means only "change lanes here".
+enum SpotColor {
+    static func isCrash(_ kind: HardSpot.Kind) -> Bool { [.crashCorridor, .studyIntersection, .fatalCrash].contains(kind) }
+    static func of(_ kind: HardSpot.Kind) -> Color { isCrash(kind) ? Palette.stop : Palette.ink }
+    /// Text on a spot's marker.
+    static func onMarker(_ kind: HardSpot.Kind) -> Color { isCrash(kind) ? Palette.onStop : Palette.onDark }
+}
+
+extension DriveSession: Identifiable {
+    var id: ObjectIdentifier { ObjectIdentifier(self) }
+}

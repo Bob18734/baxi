@@ -105,3 +105,21 @@ struct CalmerRouteTests {
         #expect(RouteService.calmer(in: [option(14, fastMiles: nil), calm]) == nil)              // fastest unmeasured
     }
 }
+
+/// Offline: the shape of the query the live servers accept (checked Oct 25, 2026: a URL over about 8 KB is refused).
+struct OverpassQueryTests {
+    @Test func queryStaysShortEnoughForTheServers() throws {
+        let route = try RouteService.preset("preset_parkway")
+        let pieces = OverpassService.pieces(of: route.polyline)
+        #expect(pieces.allSatisfy { $0.count <= OverpassService.pointsPerQuery })
+        for piece in pieces {
+            let q = OverpassService.query(around: piece)
+            // The line is written into the query twice: once for the roads, once for the schools.
+            let line = String(format: "%.5f,%.5f", piece[0].lat, piece[0].lon)
+            #expect(q.components(separatedBy: line).count - 1 == 2)
+            var c = URLComponents(string: "https://overpass-api.de/api/interpreter")!
+            c.queryItems = [URLQueryItem(name: "data", value: q)]
+            #expect((c.url?.absoluteString.utf8.count ?? .max) < 7_500)
+        }
+    }
+}

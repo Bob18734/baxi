@@ -60,13 +60,18 @@ enum LanePicker {
     /// 4. `none` or an empty lane entry allows every direction.
     /// 5. laneLabel is "left lane", "right lane", "middle lane", or "lane 2 of 4" style for the inner lanes of 4+.
     static func pick(turnLanes: String?, exitNumber: Int, totalExits: Int) -> LaneAdvice? {
+        pick(turnLanes: turnLanes, side: exitSide(exitNumber: exitNumber, totalExits: totalExits), exitNumber: exitNumber)
+    }
+
+    /// The same, when the side the exit leaves on is already known (from the route's own shape, `side(exitAngle:)`).
+    static func pick(turnLanes: String?, side: ExitSide, exitNumber: Int) -> LaneAdvice? {
         guard let lanes = parse(turnLanes) else { return nil }
         let idx: Int
         let what: String
-        switch exitSide(exitNumber: exitNumber, totalExits: totalExits) {
+        switch side {
         case .right:
             idx = lanes.lastIndex { allows($0, right) } ?? lanes.count - 1
-            what = "exit 1 is a right turn"
+            what = "exit \(exitNumber) is a right turn"
         case .left:
             idx = lanes.firstIndex { allows($0, left) } ?? 0
             what = "exit \(exitNumber) turns left"
@@ -134,6 +139,19 @@ enum LanePicker {
     static func exitSide(exitNumber: Int, totalExits: Int) -> ExitSide {
         if exitNumber <= 1 { return .right }
         return exitNumber >= max(2, totalExits - 1) ? .left : .through
+    }
+
+    /// Where an exit leaves, from its angle (degrees clockwise from straight ahead, `RoundaboutShape.exitAngle`).
+    /// Better than counting exits: a first exit that carries straight on (a driveway on the right is not an
+    /// exit) is going through, and either lane may take it. Within 45° of ahead is through; 45-165° right;
+    /// 195-315° left; straight back (165-195°, a U-turn) left, unless it is the first exit.
+    static func side(exitAngle: Double, exitNumber: Int) -> ExitSide {
+        guard exitAngle.isFinite else { return exitNumber <= 1 ? .right : .through }
+        let a = (exitAngle.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        if a <= 45 || a >= 315 { return .through }
+        if a < 165 { return .right }
+        if a > 195 { return .left }
+        return exitNumber <= 1 ? .right : .left
     }
 
     private static func advice(_ index: Int, of count: Int, reason: String) -> LaneAdvice {

@@ -34,7 +34,7 @@ struct DriveSessionTests {
         #expect(Set(s.passedManeuvers.map(\.id)).count == s.passedManeuvers.count, "a maneuver counted twice")
     }
 
-    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway"], ExperienceLevel.allCases)
+    @Test(arguments: ["preset_roundabouts", "preset_parkway", "preset_highway", "preset_firstdrive", "preset_downtown", "preset_library"], ExperienceLevel.allCases)
     func presetDrivesEndToEnd(_ id: String, level: ExperienceLevel) throws {
         let (s, said) = try drive(id, level: level)
         #expect(s.isFinished)
@@ -109,5 +109,66 @@ struct DriveSessionTests {
         let end = s.endedAt
         s.end()
         #expect(s.endedAt == end)
+    }
+}
+
+/// Oct 24 audit: only a real supervised drive goes into the 50 hours.
+struct ShouldLogTests {
+    @Test func needsAMinuteAndMovement() {
+        #expect(!DriveSession.shouldLog(mode: .live, seconds: 600, meters: 50))      // phone on a desk
+        #expect(DriveSession.shouldLog(mode: .live, seconds: 600, meters: 250))
+        #expect(!DriveSession.shouldLog(mode: .live, seconds: 30, meters: 5000))     // under a minute
+        #expect(!DriveSession.shouldLog(mode: .replay(speedMultiplier: 4), seconds: 600, meters: 9000))
+    }
+}
+
+/// Oct 24 audit: a reroute that cannot reach the router must say so, not leave "finding a new way" hanging.
+@MainActor
+struct RerouteFailureTests {
+    struct Offline: Error {}
+
+    @Test func failedRerouteTellsTheDriver() async throws {
+        let rec = Recorder()
+        let route = PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
+                                 durationSeconds: 200, source: "test")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: [], highInjury: nil,
+                             level: .gettingComfortable, mode: .live, speaker: rec)
+        s.router = { _, _, _ in throw Offline() }
+        var t = 0.0
+        for m in stride(from: 0.0, through: 500, by: 10) { s.feed(TestRoute.point(metersEast: m), at: t); t += 1 }
+        for _ in 0..<20 { s.feed(TestRoute.point(metersEast: 500, metersNorth: 300), at: t); t += 1 }
+        for _ in 0..<50 where s.lastCueText != DriveSession.rerouteFailedText { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+        #expect(!s.isRerouting)
+        // Still off the route: the message stays and nothing is said again on every fix.
+        let said = rec.lines.count
+        for _ in 0..<5 { s.feed(TestRoute.point(metersEast: 500, metersNorth: 300), at: t); t += 1 }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+        #expect(rec.lines.count == said)
+        #expect(rec.lines.filter { $0.contains("off the route") }.count == 1)
+    }
+
+    /// Before the car first reaches the route, a failed reroute must stay on screen too.
+    @Test func failedRerouteBeforeReachingTheRouteStaysUp() async throws {
+        let route = PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
+                                 durationSeconds: 200, source: "test")
+        let s = DriveSession(route: route, cache: DriveSessionTests.cache, features: [], highInjury: nil,
+                             level: .gettingComfortable, mode: .live, speaker: Recorder())
+        s.router = { _, _, _ in throw Offline() }
+        var t = 0.0
+        s.feed(TestRoute.point(metersEast: 0, metersNorth: 500), at: t)
+        for _ in 0..<50 where s.lastCueText != DriveSession.rerouteFailedText { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+        for _ in 0..<5 { t += 1; s.feed(TestRoute.point(metersEast: 0, metersNorth: 500), at: t) }
+        #expect(s.lastCueText == DriveSession.rerouteFailedText)
+    }
+
+    @Test func noFixYetOnALiveDrive() {
+        let s = DriveSession(route: PlannedRoute(id: "t", name: "t", polyline: TestRoute.line, maneuvers: [], distanceMeters: 2000,
+                                                 durationSeconds: 200, source: "test"),
+                             cache: DriveSessionTests.cache, features: [], highInjury: nil, level: .new, mode: .live, speaker: Recorder())
+        #expect(!s.hasFix)
+        s.feed(TestRoute.point(metersEast: 0), at: 0)
+        #expect(s.hasFix)
     }
 }

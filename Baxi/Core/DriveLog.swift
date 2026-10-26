@@ -10,6 +10,8 @@ struct LogRow: Equatable {
     let routeTitle: String
     let distanceMeters: Double
     let manual: Bool
+    /// The stored drive this row came from, so an edit is not compared with itself.
+    var id: UUID? = nil
 
     var minutes: Int { dayMinutes + nightMinutes }
 }
@@ -33,17 +35,23 @@ enum DriveLog {
         Totals(minutes: rows.map(\.minutes).reduce(0, +), nightMinutes: rows.map(\.nightMinutes).reduce(0, +))
     }
 
+    /// Whether start...end shares any time with a drive already in the log (other than `excluding`, the one
+    /// being edited). Drives that only touch end to start do not overlap.
+    static func overlaps(_ start: Date, _ end: Date, with rows: [LogRow], excluding: UUID?) -> Bool {
+        rows.contains { r in (excluding == nil || r.id != excluding) && r.start < end && start < r.end }
+    }
+
     /// "1:05" for 65 minutes, the way the paper log writes hours and minutes.
     static func hm(_ minutes: Int) -> String { "\(minutes / 60):" + String(format: "%02d", minutes % 60) }
 
-    static func csv(_ rows: [LogRow], timeZone: TimeZone = .current) -> String {
+    static func csv(_ rows: [LogRow], prior: PriorHours = PriorHours(), timeZone: TimeZone = .current) -> String {
         let date = DateFormatter(), time = DateFormatter()
         date.timeZone = timeZone; time.timeZone = timeZone
         date.locale = Locale(identifier: "en_US_POSIX"); time.locale = date.locale
         date.dateFormat = "MM/dd/yyyy"; time.dateFormat = "HH:mm"
         func field(_ s: String) -> String {
             // A typed route name starting with = + - @ would run as a formula in Excel; a leading ' keeps it text.
-            let safe = s.first.map { "=+-@".contains($0) } == true ? "'" + s : s
+            let safe = s.first.map { "=+-@\t\r".contains($0) } == true ? "'" + s : s
             return safe.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" })
                 ? "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : safe
         }
@@ -55,6 +63,12 @@ enum DriveLog {
         }
         let t = totals(rows)
         lines.append("Total,,,\(hm(t.minutes)),\(hm(t.dayMinutes)),\(hm(t.nightMinutes)),,,")
+        // Hours driven before Baxi: on their own line, since they have no date and stay on the paper log.
+        if !prior.isEmpty {
+            lines.append("Before Baxi (paper log),,,\(hm(prior.totalMinutes)),\(hm(prior.dayMinutes)),\(hm(prior.nightMinutes)),,,")
+            let all = totals(rows, prior: prior)
+            lines.append("Total with hours before Baxi,,,\(hm(all.minutes)),\(hm(all.dayMinutes)),\(hm(all.nightMinutes)),,,")
+        }
         return lines.joined(separator: "\n") + "\n"
     }
 }

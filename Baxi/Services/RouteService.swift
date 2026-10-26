@@ -7,18 +7,38 @@ enum RouteService {
         let id: String
         let name: String
         let summary: String
+        /// A few words for the Routes tiles.
+        var short: String = ""
     }
 
     static let presets: [Preset] = [
-        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "16 roundabouts, single and two-lane, on 116th Street, River Road and 126th Street"),
-        Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp"),
-        Preset(id: "preset_highway", name: "Highway ramp loop", summary: "Merge onto US 31, exit through a roundabout interchange, merge again"),
+        Preset(id: "preset_firstdrive", name: "First drive", summary: "Quiet downtown streets: all-way stops, low speeds, one small roundabout",
+               short: "Quiet streets and all-way stops"),
+        Preset(id: "preset_downtown", name: "Downtown and the Palladium",
+               summary: "City Center Drive past the Palladium: eight roundabouts, five of them back to back, in Carmel's busiest blocks",
+               short: "Back-to-back roundabouts downtown"),
+        Preset(id: "preset_library", name: "Library and the high school",
+               summary: "From the Carmel Clay library past the high school: neighborhood all-way stops, then Keystone's interchange roundabouts",
+               short: "Quiet streets by the high school, then Keystone"),
+        Preset(id: "preset_roundabouts", name: "Roundabout loop", summary: "Single and two-lane roundabouts on 116th Street, River Road and 126th Street",
+               short: "Single and two-lane roundabouts"),
+        Preset(id: "preset_parkway", name: "Parkway loop", summary: "Keystone Parkway at 50 mph, a fork, a merge and an exit ramp",
+               short: "Keystone Parkway at 50 mph"),
+        Preset(id: "preset_highway", name: "Highway ramp loop", summary: "Merge onto US 31, exit through a roundabout interchange, merge again",
+               short: "US 31 merges and exits"),
     ]
 
     static func preset(_ id: String) throws -> PlannedRoute {
         guard let url = Bundle.baxi.url(forResource: id, withExtension: "json") else { throw BundledData.LoadError.missing(id) }
         return try OSRMParser.parse(Data(contentsOf: url), source: "preset")
     }
+
+    /// Carmel City Center, where the presets start; also where a searched route starts when the phone's
+    /// location is unknown (denied, no fix yet).
+    static let carmelCityCenter = Coordinate(lat: 39.9765, lon: -86.1281)
+
+    /// Where a searched route starts: the phone's own position when known, else Carmel City Center.
+    static func origin(fix: Coordinate?) -> Coordinate { fix ?? carmelCityCenter }
 
     static let osrmBase = "https://router.project-osrm.org/route/v1/driving/"
 

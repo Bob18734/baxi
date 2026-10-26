@@ -13,13 +13,31 @@ let package = Package(
             exclude: ["App/BaxiApp.swift", "App/ScreenCheck.swift", "Screens", "Design", "Info.plist", "Resources/Assets.xcassets", "Resources/Fonts", "Resources/Content", "Resources/PrivacyInfo.xcprivacy",
                       ],
             sources: ["Core", "Models", "Services", "App/AppStore.swift"],
-            resources: [.process("Resources/Data"), .process("Resources/Routes"), .process("Resources/Forms")],
+            resources: [.process("Resources/Data"), .process("Resources/Routes"), .process("Resources/Forms"), .copy("Resources/Voice")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
             name: "baxi-transcript",
             dependencies: ["Baxi"],
             path: "Tools/transcript",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "baxi-voicelines",
+            dependencies: ["Baxi"],
+            path: "Tools/voicelines",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "baxi-audit",
+            dependencies: ["Baxi"],
+            path: "Tools/audit",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "baxi-demo-check",
+            dependencies: ["Baxi"],
+            path: "Tools/demo-check",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

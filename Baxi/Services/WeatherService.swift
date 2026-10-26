@@ -5,7 +5,7 @@ import Foundation
 /// screen and, when roads may be affected, one spoken line as the drive starts. The location sent is
 /// rounded to two decimals (about 1 km).
 struct RoadWeather: Equatable {
-    enum Condition: Int, Comparable {
+    enum Condition: Int, Comparable, CaseIterable {
         case clear, wind, rain, fog, storm, snowOrIce
         static func < (a: Condition, b: Condition) -> Bool { a.rawValue < b.rawValue }
     }
@@ -58,7 +58,9 @@ enum WeatherService {
     }
 
     private static func get(_ url: String) async throws -> Data {
-        var req = URLRequest(url: URL(string: url)!, timeoutInterval: 15)
+        // The hourly link comes from the server's own answer: it must still be the weather service, over https.
+        guard let u = URL(string: url), u.scheme == "https", u.host() == "api.weather.gov" else { throw URLError(.badURL) }
+        var req = URLRequest(url: u, timeoutInterval: 15)
         req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("application/geo+json", forHTTPHeaderField: "Accept")
         let (data, resp) = try await URLSession.shared.data(for: req)

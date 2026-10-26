@@ -77,6 +77,10 @@ struct ReviewFixTests {
                            routeTitle: "=HYPERLINK(\"x\")", distanceMeters: 1000, manual: true)]
         let csv = DriveLog.csv(rows, timeZone: TimeZone(identifier: "UTC")!)
         #expect(csv.contains("\"'=HYPERLINK(\"\"x\"\")\""))
+        // A leading tab is the same trick.
+        let tabbed = [LogRow(start: start, end: start.addingTimeInterval(600), dayMinutes: 10, nightMinutes: 0,
+                             routeTitle: "\t=1+1", distanceMeters: 1000, manual: true)]
+        #expect(DriveLog.csv(tabbed, timeZone: TimeZone(identifier: "UTC")!).contains("'\t=1+1"))
     }
 
     // Crash data.
@@ -150,4 +154,48 @@ private final class QuietSpeech: SpeechOutput {
     var isMuted = false
     func say(_ text: String) {}
     func stop() {}
+}
+
+/// Oct 24 audit: searched routes start from the phone's location, not always Carmel City Center.
+struct OriginTests {
+    @Test func originFallsBackToCarmel() {
+        let o = RouteService.origin(fix: nil)
+        #expect(abs(o.lat - 39.9765) < 1e-9 && abs(o.lon - -86.1281) < 1e-9)
+    }
+
+    @Test func originUsesFix() {
+        let fortWayne = Coordinate(lat: 41.0793, lon: -85.1394)
+        #expect(RouteService.origin(fix: fortWayne) == fortWayne)
+    }
+}
+
+/// Oct 24 audit: a slow Overpass server must not hold a searched route for over a minute.
+struct DeadlineTests {
+    @Test func fastWorkReturnsItsValue() async {
+        let v = await Deadline.run(seconds: 2) { 7 }
+        #expect(v == 7)
+    }
+
+    @Test func slowWorkGivesNilAtTheDeadline() async {
+        let start = Date()
+        let v: Int? = await Deadline.run(seconds: 0.2) { try await Task.sleep(for: .seconds(30)); return 7 }
+        #expect(v == nil)
+        #expect(Date().timeIntervalSince(start) < 25)   // well short of the work's 30 s, even on a busy test run
+    }
+
+    /// A location request or a callback API does not stop when cancelled; the deadline must still hold.
+    @Test func workThatIgnoresCancellationStillTimesOut() async {
+        let start = Date()
+        let v: Int? = await Deadline.run(seconds: 0.2) {
+            await withCheckedContinuation { c in DispatchQueue.global().asyncAfter(deadline: .now() + 30) { c.resume(returning: 7) } }
+        }
+        #expect(v == nil)
+        #expect(Date().timeIntervalSince(start) < 25)
+    }
+
+    @Test func throwingWorkGivesNil() async {
+        struct Boom: Error {}
+        let v: Int? = await Deadline.run(seconds: 2) { throw Boom() }
+        #expect(v == nil)
+    }
 }

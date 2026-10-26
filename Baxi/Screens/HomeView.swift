@@ -1,219 +1,213 @@
 import SwiftUI
 import SwiftData
 
-/// Home answers one question: where are you driving? A destination search, the Carmel practice routes
-/// as quiet list rows, and how far along the 50 hours are. Settings sit behind the gear.
+/// Home answers "where are you driving?" and "what should I practice next?": search, the one practice route that
+/// does the most for this driver right now (the screen's main action), the hours toward 50, and the skills. The
+/// full list of practice routes lives on Routes. Settings sit behind the mark at the top.
 struct HomeView: View {
     @Environment(AppStore.self) private var store
     @Query(sort: \DriveRecord.start, order: .reverse) private var drives: [DriveRecord]
     @State private var showSettings = false
     @State private var showStartingPoint = false
 
-    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row)) }
+    private var totals: DriveLog.Totals { DriveLog.totals(drives.map(\.row), prior: store.priorHours) }
+    private var done: SkillCounts { Practice.total(drives.map(\.skills)) }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: BaxiSpace.xl) {
-                    header
-                    VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                        Text("Plan a drive").font(BaxiFont.title).foregroundStyle(BaxiColor.ink)
-                            .padding(.bottom, BaxiSpace.sm)
-                        whereTo
-                        Button { showStartingPoint = true } label: {
-                            HStack(spacing: BaxiSpace.sm) {
-                                Image(systemName: "mappin.circle.fill")
-                                Text("From \(store.homeLabel)").multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right")
-                            }
-                            .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                            .frame(minHeight: 44)
-                        }
-                        .accessibilityHint("Change the starting point for destination searches")
-                    }
-                    VStack(alignment: .leading, spacing: BaxiSpace.md) {
-                        HStack {
-                            Text("Practice routes").font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
-                            Spacer()
-                            Text("Carmel, IN").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                        }
-                        VStack(spacing: 0) {
-                            ForEach(RouteService.presets) { p in
-                                PracticeRouteRow(preset: p, miles: store.presetMeters[p.id].map { $0 / 1609.34 },
-                                          skills: store.presetSkills.first { $0.id == p.id }?.skills ?? [:]) {
-                                    store.choosePreset(p.id)
-                                    store.tab = .route
-                                }
-                                if p.id != RouteService.presets.last?.id {
-                                    Divider().padding(.leading, BaxiSpace.lg)
-                                }
-                            }
-                        }
-                        .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.lg))
-                    }
-                    VStack(alignment: .leading, spacing: BaxiSpace.md) {
-                        Text("Your hours").font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
-                        HoursLine(totals: totals) { store.tab = .log }
-                    }
-                    Divider()
-                    DemoRow { store.startDemoDrive() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.s32) {
+                VStack(alignment: .leading, spacing: Space.s16) {
+                    topRow
+                    Text("Where are you driving?").role(.hero).foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    searchEntry
+                    startRow
                 }
-                .padding(.horizontal, BaxiSpace.page)
-                .padding(.bottom, BaxiSpace.xxl)
+                NextDrive(suggestion: next) { preset in
+                    store.choosePreset(preset.id)
+                    withAnimation(Motion.standard) { store.tab = .route }
+                }
+                HoursSummary(totals: totals, hasDrives: !drives.isEmpty || !store.priorHours.isEmpty) { store.tab = .log }
+                SkillsSummary(done: done) { store.tab = .log }
+                demo
             }
-            .baxiPage()
-            .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .sheet(isPresented: $showStartingPoint) { StartingPointView() }
+            .padding(.horizontal, Space.margin)
+            .padding(.top, Space.s8)
+            .padding(.bottom, Space.s32)
         }
+        .pageBackground()
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showStartingPoint) { StartingPointView() }
         .task { store.loadCarmelDemo() }
     }
 
-    private var header: some View {
-        HStack(alignment: .center) {
-            Text("Baxi").font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
-            Spacer()
-            Button { showSettings = true } label: {
-                Image(systemName: "gearshape").font(BaxiFont.section).foregroundStyle(BaxiColor.inkSoft)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Settings")
+    /// The practice route that does the most for this driver now: First drive before any drive is logged, then
+    /// the route that covers the skills furthest from their goals (Practice.suggest).
+    private var next: NextDrive.Suggestion {
+        let first = RouteService.presets[0]
+        if drives.isEmpty {
+            return .init(preset: first, reason: "Start here: quiet streets and all-way stops at 20 to 25 mph.", miles: store.presetMeters[first.id])
         }
-        .padding(.top, BaxiSpace.md)
+        guard let s = Practice.suggest(done: done, routes: store.presetSkills),
+              let preset = RouteService.presets.first(where: { $0.id == s.presetId }) else {
+            // Every goal met, or the routes' skills are still being counted: no claim about what it practices.
+            return .init(preset: first, reason: store.presetSkills.isEmpty ? nil : "Every skill goal is met. Any route keeps you sharp.",
+                         miles: store.presetMeters[first.id])
+        }
+        // The skills furthest from their goals first, the same order the suggestion weighs them.
+        let what = s.covers.sorted { Double($0.count) / Double($0.skill.goal) > Double($1.count) / Double($1.skill.goal) }
+            .prefix(2).map { $0.skill.count($0.count) }.joined(separator: " and ")
+        return .init(preset: preset, reason: "Practices what you need most: \(what).", miles: store.presetMeters[preset.id])
     }
 
-    /// Looks like a search field; opens Routes with its search active.
-    private var whereTo: some View {
-        Button {
-            store.wantsSearch = true
-            store.tab = .route
-        } label: {
-            HStack(spacing: BaxiSpace.md) {
-                Image(systemName: "magnifyingglass").font(BaxiFont.headline).foregroundStyle(BaxiColor.inkSoft)
-                Text("Search a destination").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                Spacer()
-            }
-            .padding(.horizontal, BaxiSpace.lg)
-            .padding(.vertical, BaxiSpace.md)
-            .frame(minHeight: 54)
-            .background(BaxiColor.surface, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous).strokeBorder(BaxiColor.hairline, lineWidth: 1))
+    private var topRow: some View {
+        HStack {
+            SignalMark(size: SignalSize.corner)
+            Spacer()
+            MarkButton(glyph: .settings, label: "Settings") { showSettings = true }
+                .padding(.trailing, -Space.s12)
         }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel("Search for a destination")
+    }
+
+    /// Looks like the search field; opens Routes with its search active.
+    private var searchEntry: some View {
+        Button {
+            Haptic.tap()
+            store.wantsSearch = true
+            withAnimation(Motion.standard) { store.tab = .route }
+        } label: {
+            FieldBox {
+                Mark(glyph: .search, size: MarkSize.row).foregroundStyle(Palette.meta)
+                Text("Search a destination").role(.body).foregroundStyle(Palette.meta)
+                Spacer(minLength: 0)
+            }
+        }
+        .buttonStyle(Press())
+        .accessibilityLabel("Search a destination")
+        .accessibilityHint("Opens Routes")
+    }
+
+    private var startRow: some View { StartFromRow { showStartingPoint = true } }
+
+    /// For a first look (and for judges): a replay of the downtown route at 4x, never logged. Quiet, not a main action.
+    private var demo: some View {
+        Button {
+            guard !store.isStartingDemo else { return }
+            Haptic.tap(); store.startDemoDrive()
+        } label: {
+            HStack(spacing: Space.s12) {
+                ZStack {
+                    Mark(glyph: .play, size: MarkSize.small).opacity(store.isStartingDemo ? 0 : 1)
+                    if store.isStartingDemo { SignalDots() }
+                }
+                .frame(minWidth: MarkSize.standard)
+                Text("Watch a 3-minute demo drive").role(.bodyStrong)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Palette.ink)
+            .frame(minHeight: Size.tap)
+        }
+        .buttonStyle(Press())
+        .accessibilityHint("A replay of Downtown and the Palladium, eight roundabouts. It's not logged.")
     }
 }
 
-/// Consistent native rows keep practice choices secondary to destination search.
-private struct PracticeRouteRow: View {
-    let preset: RouteService.Preset
-    let miles: Double?
-    let skills: SkillCounts
-    var choose: () -> Void
-
-    private var facts: String {
-        var parts: [String] = []
-        if let miles { parts.append(String(format: "%.0f mi", miles)) }
-        let rb = (skills[.singleLaneRoundabout] ?? 0) + (skills[.multiLaneRoundabout] ?? 0)
-        if rb > 0 { parts.append("\(rb) roundabouts") }
-        let ramps = (skills[.highwayMerge] ?? 0) + (skills[.exitRamp] ?? 0)
-        if ramps > 0 { parts.append("\(ramps) ramps") }
-        return parts.joined(separator: "   ")
-    }
+/// The next drive: one route, why it's the one, and the screen's main action.
+private struct NextDrive: View {
+    struct Suggestion { let preset: RouteService.Preset; let reason: String?; let miles: Double? }
+    let suggestion: Suggestion
+    let go: (RouteService.Preset) -> Void
 
     var body: some View {
-        Button(action: choose) {
-            HStack(spacing: BaxiSpace.lg) {
-                Image(systemName: preset.id == "preset_roundabouts" ? "arrow.trianglehead.2.clockwise.rotate.90" : preset.id == "preset_highway" ? "arrow.merge" : "road.lanes")
-                    .font(BaxiFont.headline).foregroundStyle(BaxiColor.accent)
-                    .frame(width: 28)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: BaxiSpace.xs) {
-                    Text(preset.name).font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                    Text(facts.isEmpty ? "Loading route details…" : facts)
-                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint)
+        VStack(alignment: .leading, spacing: Space.s12) {
+            // The screen's main action, as the guide sign it is on the road.
+            RouteGuideSign(kicker: "Your next drive", name: suggestion.preset.name,
+                           facts: suggestion.miles.map { "\(Int(max(1, ($0 / 1609.34).rounded()))) miles in Carmel" }, large: true) {
+                go(suggestion.preset)
             }
-            .padding(BaxiSpace.lg)
-            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
-            .contentShape(Rectangle())
+            .accessibilityHint("Shows the route on the map")
+            if let reason = suggestion.reason {
+                Text(reason).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel("\(preset.name). \(facts)")
-        .accessibilityHint("Opens the route on the map")
     }
 }
 
-/// Hours with a separate night line so the summary stays readable at larger text sizes.
-private struct HoursLine: View {
+/// Hours toward the 50 (10 at night): one big number, a bar, and the night line. Opens the Log.
+private struct HoursSummary: View {
     let totals: DriveLog.Totals
+    let hasDrives: Bool
     var open: () -> Void
 
     var body: some View {
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(DriveLog.hm(totals.minutes)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
-                    Text("of 50 hours").font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+        Button { Haptic.tap(); open() } label: {
+            VStack(alignment: .leading, spacing: Space.s12) {
+                HStack(alignment: .center) {
+                    GroupLabel("Supervised hours")
                     Spacer()
-                    Image(systemName: "chevron.right").font(BaxiFont.footnote.weight(.semibold)).foregroundStyle(BaxiColor.inkFaint)
+                    RowArrow()
                 }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(BaxiColor.sunken)
-                        Capsule().fill(BaxiColor.sign)
-                            .frame(width: max(6, geo.size.width * min(1, Double(totals.minutes) / Double(DriveLog.requiredMinutes))))
-                            .opacity(totals.minutes == 0 ? 0 : 1)
-                    }
+                HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
+                    Text(DriveLog.hm(totals.minutes)).role(.number).foregroundStyle(Palette.ink)
+                        .contentTransition(.numericText())
+                    Text("of 50").role(.body).foregroundStyle(Palette.meta)
                 }
-                .frame(height: 6)
-                Text("\(DriveLog.hm(totals.nightMinutes)) of 10 hours at night")
-                    .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+                ProgressLine(fraction: Double(totals.minutes) / Double(DriveLog.requiredMinutes))
+                HStack(spacing: Space.s8) {
+                    Mark(glyph: .moon, size: MarkSize.tiny).foregroundStyle(Palette.meta)
+                    Text("\(DriveLog.hm(totals.nightMinutes)) of 10 at night").role(.meta).foregroundStyle(Palette.meta)
+                }
+                if !hasDrives {
+                    Text("Your first drive starts the count.").role(.meta).foregroundStyle(Palette.read)
+                }
             }
-            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
-        .buttonStyle(PressableStyle())
+        .buttonStyle(Press())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(DriveLog.hm(totals.minutes)) of 50 supervised hours, \(DriveLog.hm(totals.nightMinutes)) of 10 at night")
         .accessibilityHint("Opens the log")
     }
 }
 
-/// For a first look (and for judges): the highway loop replayed at 4x, never logged.
-private struct DemoRow: View {
-    var start: () -> Void
+/// The six skills as rings you read without reading (each skill's mark inside), and the one to work on next.
+private struct SkillsSummary: View {
+    let done: SkillCounts
+    var open: () -> Void
+
+    /// The skill furthest from its goal.
+    private var nextSkill: Skill? {
+        Skill.allCases.filter { (done[$0] ?? 0) < $0.goal }
+            .min { Double(done[$0] ?? 0) / Double($0.goal) < Double(done[$1] ?? 0) / Double($1.goal) }
+    }
+
     var body: some View {
-        Button(action: start) {
-            HStack(spacing: BaxiSpace.md) {
-                Image(systemName: "play.circle").font(BaxiFont.section).foregroundStyle(BaxiColor.accent)
-                VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                    Text("Try a demo drive").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                    Text("3 minutes. Does not count toward your hours.").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
+        Button { Haptic.tap(); open() } label: {
+            VStack(alignment: .leading, spacing: Space.s12) {
+                HStack(alignment: .center) {
+                    GroupLabel("Skills")
+                    Spacer()
+                    if let nextSkill {
+                        Text("Next: \(nextSkill.title.lowercased())").role(.meta).foregroundStyle(Palette.meta).lineLimit(1)
+                    }
+                    RowArrow()
                 }
-                Spacer(minLength: 0)
+                HStack(spacing: 0) {
+                    ForEach(Skill.allCases) { s in
+                        ZStack {
+                            ProgressRing(fraction: Double(done[s] ?? 0) / Double(s.goal), size: SkillRingSize.ring)
+                            Mark(glyph: .skill(s), size: SkillRingSize.mark).foregroundStyle(Palette.ink)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
             }
             .contentShape(Rectangle())
-            .frame(minHeight: 44)
         }
-        .buttonStyle(PressableStyle())
-    }
-}
-
-/// The US route shield outline.
-struct Shield: Shape {
-    func path(in r: CGRect) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: r.minX + r.width * 0.08, y: r.minY))
-            p.addLine(to: CGPoint(x: r.maxX - r.width * 0.08, y: r.minY))
-            p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + r.height * 0.18), control: CGPoint(x: r.maxX, y: r.minY))
-            p.addQuadCurve(to: CGPoint(x: r.midX, y: r.maxY), control: CGPoint(x: r.maxX, y: r.maxY * 0.85))
-            p.addQuadCurve(to: CGPoint(x: r.minX, y: r.minY + r.height * 0.18), control: CGPoint(x: r.minX, y: r.maxY * 0.85))
-            p.addQuadCurve(to: CGPoint(x: r.minX + r.width * 0.08, y: r.minY), control: CGPoint(x: r.minX, y: r.minY))
-            p.closeSubpath()
-        }
+        .buttonStyle(Press())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Skills. " + Skill.allCases.map { "\($0.title), \(Practice.level($0, count: done[$0] ?? 0).title)" }.joined(separator: ". "))
+        .accessibilityHint("Opens the log")
     }
 }

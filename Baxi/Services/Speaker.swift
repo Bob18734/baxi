@@ -7,19 +7,33 @@ protocol SpeechOutput: AnyObject {
     /// `chime`: a short tone first, for driving instructions.
     func say(_ text: String, chime: Bool)
     func stop()
+    /// True from the moment a line is asked for until the last queued line has finished (the tone included).
+    /// A demo replay drives at real speed while this is true, so an instruction is heard before its turn.
+    var isSpeaking: Bool { get }
 }
 
 extension SpeechOutput {
     func say(_ text: String, chime: Bool) { say(text) }
+    var isSpeaking: Bool { false }
 }
 
-/// Speaks one cue at a time with the system voice. Other audio (music) ducks while it talks.
-final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
+/// Speaks one line at a time. A line recorded ahead of time with the natural voice (VoiceLines, the practice
+/// routes) plays its recording; any other line is spoken by the best installed system voice. Lines queue
+/// rather than cut each other off, a tone comes before instructions, and other audio (music) ducks while it talks.
+final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     static let rateKey = "voiceRate"
     private let synth = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice?
+    private enum Line { case recording(URL), speech(AVSpeechUtterance) }
+    private var queue: [(line: Line, chime: Bool)] = []
+    private var playing = false
+    private var player: AVAudioPlayer?
+    /// The line being spoken by the system voice, so a callback for a line already handled is ignored.
+    private var utterance: AVSpeechUtterance?
+    /// Bumped by stop(), so a "line finished" from before it cannot start the next line early.
+    private var generation = 0
     var isMuted = false {
-        didSet { if isMuted { synth.stopSpeaking(at: .word) } }
+        didSet { if isMuted { stop() } }
     }
 
     override init() {
@@ -29,8 +43,23 @@ final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .voicePrompt,
                                                          options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+        NotificationCenter.default.addObserver(self, selector: #selector(interrupted(_:)),
+                                               name: AVAudioSession.interruptionNotification, object: nil)
         #endif
     }
+
+    #if os(iOS)
+    /// A call or Siri took the audio mid-line. A recording just pauses and never reports finishing, which left
+    /// the speaker busy, and silent, for the rest of the drive. That line is lost; the next one plays as usual.
+    @objc private func interrupted(_ n: Notification) {
+        guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+        DispatchQueue.main.async {
+            if let p = self.player { p.stop(); self.finished() }
+            else if self.utterance != nil { self.synth.stopSpeaking(at: .immediate) }   // reported as a cancel
+        }
+    }
+    #endif
 
     /// The most natural US English voice installed: premium over enhanced over default, and among equals
     /// the voices that sound least synthetic.
@@ -50,6 +79,8 @@ final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
         return ("\(v.name) (\(q))", v.quality == .default)
     }
 
+    var isSpeaking: Bool { playing || !queue.isEmpty }
+
     func say(_ text: String) { say(text, chime: false) }
 
     func say(_ text: String, chime: Bool) {
@@ -57,18 +88,67 @@ final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
-        // Lines queue rather than cut each other off; a half-spoken cue is worse than a late one.
-        let u = AVSpeechUtterance(string: text)
-        u.voice = voice
-        let setting = UserDefaults.standard.object(forKey: Self.rateKey) as? Double ?? 1
-        u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.97 * Float(setting)
-        u.postUtteranceDelay = 0.15
-        if chime, !synth.isSpeaking {
+        let line: Line
+        if let url = VoiceLines.recording(for: text) {
+            line = .recording(url)
+        } else {
+            let u = AVSpeechUtterance(string: text)
+            u.voice = voice
+            let setting = UserDefaults.standard.object(forKey: Self.rateKey) as? Double ?? 1
+            u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.97 * Float(setting)
+            line = .speech(u)
+        }
+        // The tone only when nothing is being said: a queued line follows the one before it directly.
+        queue.append((line, chime && !playing && queue.isEmpty))
+        playNext()
+    }
+
+    private func playNext() {
+        guard !playing, !queue.isEmpty else { return }
+        let next = queue.removeFirst()
+        playing = true
+        if next.chime {
             chimePlayer?.currentTime = 0
             chimePlayer?.play()
-            u.preUtteranceDelay = 0.45   // let the tone finish before the words
+            let gen = generation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in   // the tone first
+                guard let self, self.generation == gen else { return }
+                self.start(next.line)
+            }
+        } else {
+            start(next.line)
         }
-        synth.speak(u)
+    }
+
+    private func start(_ line: Line) {
+        guard playing else { return }   // stopped while the tone played
+        switch line {
+        case .recording(let url):
+            let rate = UserDefaults.standard.object(forKey: Self.rateKey) as? Double ?? 1
+            guard let p = try? AVAudioPlayer(contentsOf: url) else { finished(); return }
+            p.delegate = self
+            p.enableRate = true
+            p.rate = Float(min(1.5, max(0.75, rate)))
+            player = p
+            if !p.play() { finished() }
+        case .speech(let u):
+            utterance = u
+            synth.speak(u)
+        }
+    }
+
+    /// One line done: a short pause, then the next, or the audio goes back to the music.
+    private func finished() {
+        // Cleared now, not after the pause, so a second callback for the same line (a decode error then a
+        // finish) can't end the next line early.
+        player = nil
+        utterance = nil
+        let gen = generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, self.generation == gen else { return }
+            self.playing = false
+            if self.queue.isEmpty { self.releaseAudioIfIdle() } else { self.playNext() }
+        }
     }
 
     /// A soft two-note tone (G5 then C6) before an instruction, made here so there is no sound file.
@@ -96,15 +176,40 @@ final class Speaker: NSObject, SpeechOutput, AVSpeechSynthesizerDelegate {
         return p
     }()
 
-    func stop() { synth.stopSpeaking(at: .immediate) }
+    func stop() {
+        generation += 1
+        queue.removeAll()
+        player?.stop(); player = nil
+        utterance = nil
+        chimePlayer?.stop()
+        synth.stopSpeaking(at: .immediate)
+        playing = false
+        releaseAudioIfIdle()
+        // The session is still running sound at this instant and refuses to deactivate; ask again in a moment,
+        // or the driver's music stays quiet after End or Mute.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.releaseAudioIfIdle() }
+    }
 
-    // When the queue is empty, give the audio back so the driver's music comes back to full volume.
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { releaseAudioIfIdle() }
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { releaseAudioIfIdle() }
+    deinit {
+        synth.stopSpeaking(at: .immediate)
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
+    }
 
+    func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully: Bool) { DispatchQueue.main.async { if p === self.player { self.finished() } } }
+    func audioPlayerDecodeErrorDidOccur(_ p: AVAudioPlayer, error: Error?) { DispatchQueue.main.async { if p === self.player { self.finished() } } }
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { DispatchQueue.main.async { if u === self.utterance { self.finished() } } }
+    /// stop() clears the line first, so only a cancel the app didn't ask for (a call, Siri) still has it: that
+    /// line is over, and the next one plays, rather than the speaker staying "busy" for good.
+    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) {
+        DispatchQueue.main.async { if u === self.utterance { self.finished() } else { self.releaseAudioIfIdle() } }
+    }
+
+    // When nothing is left to say, give the audio back so the driver's music comes back to full volume.
     private func releaseAudioIfIdle() {
         #if os(iOS)
-        guard !synth.isSpeaking else { return }
+        guard !playing, queue.isEmpty else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
     }

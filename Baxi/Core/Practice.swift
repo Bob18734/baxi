@@ -18,6 +18,21 @@ enum Skill: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// The title for one of it: "1 highway merge", not "1 highway merges".
+    var singular: String {
+        switch self {
+        case .singleLaneRoundabout: "Single-lane roundabout"
+        case .multiLaneRoundabout: "Two-lane roundabout"
+        case .highwayMerge: "Highway merge"
+        case .exitRamp: "Exit ramp"
+        case .laneTurn: "Turn from a multi-lane road"
+        case .fastRoadMiles: "Mile at 45 mph or more"
+        }
+    }
+
+    /// "2 exit ramps", "1 exit ramp", in lower case for the middle of a sentence.
+    func count(_ n: Int) -> String { "\(n) \((n == 1 ? singular : title).lowercased())" }
+
     /// How many to practice before the driving test. Baxi's suggestion.
     var goal: Int {
         switch self {
@@ -101,6 +116,26 @@ enum Practice {
         }
         guard let best = routes.max(by: { score($0.skills) < score($1.skills) }), score(best.skills) > 0 else { return nil }
         return Suggestion(presetId: best.id, covers: useful(best.skills).sorted { $0.count > $1.count })
+    }
+
+    // MARK: Levels
+
+    static let levelTitles = ["Not yet", "Started", "Steady", "Confident", "Test-ready"]
+
+    /// A skill's level, 0 to 4, at a quarter, half, three quarters and all of its goal (rounded up), and how
+    /// many more reps reach the next level (nil at the top).
+    static func level(_ skill: Skill, count: Int) -> (level: Int, title: String, toNext: Int?) {
+        let marks = (1...4).map { Int((Double(skill.goal) * Double($0) / 4).rounded(.up)) }
+        let level = marks.filter { count >= $0 }.count
+        return (level, levelTitles[level], level < 4 ? marks[level] - count : nil)
+    }
+
+    /// The skills whose level went up between two totals, with the new level.
+    static func levelUps(before: SkillCounts, after: SkillCounts) -> [(skill: Skill, level: Int)] {
+        Skill.allCases.compactMap { s in
+            let now = level(s, count: after[s] ?? 0).level
+            return now > level(s, count: before[s] ?? 0).level ? (s, now) : nil
+        }
     }
 
     // Stored on DriveRecord as JSON text, so old records (empty) still load.

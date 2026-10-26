@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import CoreLocation
+import os
 
 /// App-wide state: the loaded road data, the experience level, the chosen route.
 /// Kept small on purpose; drives live in SwiftData.
@@ -13,19 +14,65 @@ final class AppStore {
     var tab: AppTab = .home
     /// Set by Home's "Where to?" field: Routes opens with its search field active.
     var wantsSearch = false
+    /// Settings > "Drive screen at night": the next drives use the night look whatever the clock says (this session).
+    var demoNight = false
+    /// Where the remembered settings live (a test passes its own).
     @ObservationIgnored private let preferences: UserDefaults
+    /// Remembered between launches (Settings > Experience).
     var level: ExperienceLevel {
-        didSet { preferences.set(level.rawValue, forKey: "experienceLevel") }
+        didSet { preferences.set(level.rawValue, forKey: Self.levelKey) }
+    }
+    nonisolated static let levelKey = "experienceLevel"
+    /// Supervised hours driven before Baxi; they count toward the totals everywhere. Saved on the phone.
+    var priorHours: PriorHours {
+        didSet { priorHours.save(preferences) }
     }
 
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
-        self.level = ExperienceLevel(rawValue: preferences.string(forKey: "experienceLevel") ?? "") ?? .gettingComfortable
+        self.level = ExperienceLevel(rawValue: preferences.string(forKey: Self.levelKey) ?? "") ?? .gettingComfortable
+        self.priorHours = PriorHours.load(preferences)
     }
-    private(set) var home: Coordinate? = AppStore.carmelDemoHome
-    private(set) var homeLabel: String = "Carmel City Center (demo)"
+
+    // MARK: Where a searched route starts
+
+    /// A starting point the driver chose (Home or Routes > From): kept for this session only. Until one is chosen,
+    /// a searched route starts where the phone is (`origin`), or at Carmel City Center when that is unknown.
+    private(set) var home: Coordinate = AppStore.carmelDemoHome
+    private(set) var homeLabel = "Carmel City Center"
+    private(set) var homeChosen = false
+    /// The start a searched route will use right now.
+    var start: Coordinate { homeChosen ? home : (originIsHere ? origin : home) }
+    var startLabel: String { homeChosen ? homeLabel : (originIsHere ? "Your location" : homeLabel) }
+    /// Only the newest route request may change the route or its loading state.
     private var routeRequest = RouteRequestState()
     var isRouting: Bool { routeRequest.isRouting }
+
+    func chooseStart(_ coordinate: Coordinate, label: String) {
+        guard CLLocationCoordinate2DIsValid(coordinate.clLocation) else { return }
+        routeRequest.cancel()
+        roadsTask?.cancel(); isFetchingRoads = false; routeStep = nil
+        home = coordinate; homeLabel = label; homeChosen = true
+        routeError = nil; routeOptions = []; calmerOptionId = nil; roadDataNote = nil; routeRoads = nil
+        // A searched route belongs to its old start; the practice loops keep their own.
+        if route?.source != "preset" { route = nil; prep = nil; prepTask?.cancel(); weather = nil }
+    }
+
+    /// Back to starting where the phone is.
+    func useOwnLocationAsStart() {
+        guard homeChosen else { return }
+        chooseStart(Self.carmelDemoHome, label: "Carmel City Center")
+        homeChosen = false
+    }
+    nonisolated static let log = Logger(subsystem: "com.vardaangoel.Baxi", category: "routes")
+    /// Where a searched route starts: the phone's last known position, else Carmel City Center.
+    private(set) var origin: Coordinate = RouteService.carmelCityCenter
+    /// True once `origin` is the phone's own position.
+    private(set) var originIsHere = false
+    /// What a route search is doing right now, shown under the loading shimmer. nil when idle.
+    private(set) var routeStep: String?
+    /// From the demo button's tap until the demo drive is on screen.
+    private(set) var isStartingDemo = false
     var cache: OSMCache?
     var features: [RoadFeature] = []
     var highInjury: HighInjuryNetwork?
@@ -39,13 +86,23 @@ final class AppStore {
     /// Lives as long as the app, so the permission prompt is not torn down with the welcome sheet.
     @ObservationIgnored let locationPermission = CLLocationManager()
 
-    /// The judge demo: the US 31 loop replayed at 4x, starting just before the merge onto the highway,
-    /// so a merge, two exit ramps, the interchange roundabout and multi-lane roundabouts happen in about three minutes.
-    nonisolated static let demoPreset = "preset_highway"
-    nonisolated static let demoStartMeters = 4_400.0
+    /// The judge demo: the downtown route past the Palladium, replayed at 4x from its start, so eight roundabouts
+    /// (five of them back to back) happen in about three minutes. The same route the video shows.
+    nonisolated static let demoPreset = "preset_downtown"
+    nonisolated static let demoStartMeters: Double? = nil
 
     /// Carmel City Center: the demo home point and the start of every preset route.
-    nonisolated static let carmelDemoHome = Coordinate(lat: 39.9765, lon: -86.1281)
+    nonisolated static let carmelDemoHome = RouteService.carmelCityCenter
+
+    /// Asks for one location fix and makes it the start of searched routes. Keeps the last good one
+    /// when no new fix comes.
+    func refreshOrigin() async {
+        // The first time, the permission prompt is on screen: give the person time to answer it.
+        let undecided = locationPermission.authorizationStatus == .notDetermined
+        guard let fix = await CurrentLocation.once(timeout: undecided ? 30 : 4) else { return }
+        origin = RouteService.origin(fix: fix)
+        originIsHere = true
+    }
 
     /// Starts loading the bundled Carmel data in the background (decoding and feature extraction take a
     /// noticeable moment); safe to call again.
@@ -63,8 +120,9 @@ final class AppStore {
             }.value
             if let (c, f, hin) = loaded {
                 cache = c; features = f; highInjury = hin
-                let roundabouts = f.filter { [.singleLaneRoundabout, .multiLaneRoundabout, .interchangeRoundabout].contains($0.kind) }.count
-                dataStatus = "Carmel: \(roundabouts) roundabouts, road data from OpenStreetMap \(c.fetched.prefix(10))"
+                let day = DateFormatter(); day.dateFormat = "yyyy-MM-dd"; day.locale = Locale(identifier: "en_US_POSIX")
+                let fetched = day.date(from: String(c.fetched.prefix(10))).map { $0.formatted(date: .long, time: .omitted) } ?? String(c.fetched.prefix(10))
+                dataStatus = "Carmel's roads, built in, from OpenStreetMap (\(fetched))."
             } else {
                 dataStatus = "The Carmel road data did not load. Reinstall Baxi; it ships inside the app."
             }
@@ -96,16 +154,17 @@ final class AppStore {
         weather = nil
         Task { @MainActor in
             let fetched = try? await WeatherService.weather(at: start)
-            guard let currentStart = self.route?.polyline.points.first,
-                  String(format: "%.2f,%.2f", currentStart.lat, currentStart.lon) == key else { return }
+            // The route may have changed while the forecast was on its way.
+            guard let now = self.route?.polyline.points.first, String(format: "%.2f,%.2f", now.lat, now.lon) == key else { return }
             weather = fetched
         }
     }
 
-    @MainActor func refreshPrep() {
+    /// `force` rebuilds a prep that exists, when better road data has arrived for the same route.
+    @MainActor func refreshPrep(force: Bool = false) {
         guard let route else { prep = nil; return }
         refreshWeather(for: route)
-        if prep?.routeId == route.id { return }
+        if prep?.routeId == route.id, !force { return }
         prepTask?.cancel()
         prepTask = Task { @MainActor in
             await ensureLoaded()
@@ -118,25 +177,19 @@ final class AppStore {
         }
     }
 
-    func chooseStart(_ coordinate: Coordinate, label: String) {
-        guard CLLocationCoordinate2DIsValid(coordinate.clLocation) else { return }
-        routeRequest.cancel()
-        isFetchingRoads = false
-        home = coordinate
-        homeLabel = label
-        routeError = nil
-        routeOptions = []; calmerOptionId = nil; roadDataNote = nil; routeRoads = nil
-        // A searched route belongs to its old start; keep fixed practice loops available.
-        if route?.source != "preset" {
-            route = nil; prep = nil; prepTask?.cancel(); weather = nil
-        }
+    /// Back to no route: the Routes panel shows search and the practice routes again.
+    func clearRoute() {
+        routeRequest.cancel(); routeStep = nil
+        route = nil; routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil
+        prepTask?.cancel(); prep = nil
+        roadsTask?.cancel(); isFetchingRoads = false
     }
 
     func choosePreset(_ id: String) {
         routeRequest.cancel()
-        isFetchingRoads = false
+        roadsTask?.cancel(); isFetchingRoads = false; routeStep = nil
         do { route = try RouteService.preset(id); routeError = nil; roadDataNote = nil; routeOptions = []; calmerOptionId = nil }
-        catch { routeError = "That practice route did not load."; print("Preset \(id) failed: \(error)") }
+        catch { routeError = "That practice route did not load."; Self.log.error("Preset \(id, privacy: .public) failed: \(error)") }
         refreshPrep()
     }
 
@@ -158,19 +211,26 @@ final class AppStore {
     private(set) var routeOptions: [RouteService.Option] = []
     private(set) var calmerOptionId: String?
 
+    /// The public map servers take 30 s and more for a corridor (Oct 25, 2026), so the route shows first and the
+    /// details follow; after this long, the drive goes ahead without them.
+    nonisolated static let roadDataSeconds = 45.0
+
     func routeTo(_ destination: Coordinate, name: String) async {
         let request = routeRequest.begin()
-        let start = home ?? Self.carmelDemoHome
-        routeError = nil
         defer {
-            if routeRequest.accepts(request) { isFetchingRoads = false }
+            if routeRequest.accepts(request) { routeStep = nil }
             routeRequest.finish(request)
         }
         await ensureLoaded()
-        guard routeRequest.accepts(request), !Task.isCancelled else { return }
+        guard routeRequest.accepts(request) else { return }
+        routeStep = "Finding a route…"
+        if !homeChosen { await refreshOrigin() }
+        guard routeRequest.accepts(request) else { return }
+        let from = start
         do {
-            let options = try await RouteService.options(from: start, to: destination, name: name)
-            guard routeRequest.accepts(request), !Task.isCancelled else { return }
+            let options = try await RouteService.options(from: from, to: destination, name: name)
+            // A newer destination, a chosen start or a practice route has taken over: this answer is dropped.
+            guard routeRequest.accepts(request) else { return }
             guard !options.isEmpty else { throw URLError(.cannotFindHost) }
             routeError = nil
             routeOptions = options
@@ -178,11 +238,11 @@ final class AppStore {
             calmerOptionId = calmer?.id
             // New drivers start on the calmer route; everyone can switch.
             let pick = (level == .new ? calmer : nil) ?? options[0]
-            await use(pick.route, request: request)
+            await use(pick.route)
         } catch {
-            guard routeRequest.accepts(request), !Task.isCancelled else { return }
+            guard routeRequest.accepts(request) else { return }
             routeError = "No route found. Check the internet connection and try again, or pick a practice route."
-            print("Routing failed: \(error)")
+            Self.log.error("Routing failed: \(error)")
         }
     }
 
@@ -190,32 +250,38 @@ final class AppStore {
     func chooseOption(_ id: String) async {
         guard let o = routeOptions.first(where: { $0.id == id }), o.id != route?.id else { return }
         let request = routeRequest.begin()
-        defer {
-            if routeRequest.accepts(request) { isFetchingRoads = false }
-            routeRequest.finish(request)
-        }
-        await use(o.route, request: request)
+        defer { routeRequest.finish(request) }
+        await use(o.route)
     }
 
-    /// Makes `found` the route: downloads its road data from OpenStreetMap first, then builds its prep.
-    private func use(_ found: PlannedRoute, request: UUID) async {
+    /// Makes `found` the route right away (turn-by-turn needs nothing more), then downloads its road data from
+    /// OpenStreetMap in the background and rebuilds the cues with the lanes, roundabouts, lights and limits.
+    private func use(_ found: PlannedRoute) async {
         roadDataNote = nil
-        isFetchingRoads = true
-        if let base = cache, let corridor = try? await OverpassService.corridor(along: found.polyline) {
-            guard routeRequest.accepts(request), !Task.isCancelled else { return }
-            let merged = OverpassService.combine(base, corridor)
-            let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
-            guard routeRequest.accepts(request), !Task.isCancelled else { return }
-            routeRoads = (found.id, merged, f)
-        } else {
-            guard routeRequest.accepts(request), !Task.isCancelled else { return }
-            roadDataNote = "Could not load lane and roundabout details for this route (no connection to OpenStreetMap). "
-                + "Turn-by-turn still works."
-        }
-        isFetchingRoads = false
+        routeStep = nil
         route = found
         refreshPrep()
+        roadsTask?.cancel()
+        roadsTask = Task { @MainActor in
+            isFetchingRoads = true
+            defer { isFetchingRoads = false }
+            let line = found.polyline
+            // A slow map server must not hold the drive: after this long, it goes ahead without lane details.
+            let corridor = await Deadline.run(seconds: Self.roadDataSeconds) { try await OverpassService.corridor(along: line) }
+            guard !Task.isCancelled, route?.id == found.id else { return }
+            if let base = cache, let corridor {
+                let merged = OverpassService.combine(base, corridor)
+                let f = await Task.detached(priority: .userInitiated) { FeatureExtractor.extract(from: merged) }.value
+                guard !Task.isCancelled, route?.id == found.id else { return }
+                routeRoads = (found.id, merged, f)
+                refreshPrep(force: true)
+            } else {
+                roadDataNote = "Lane and roundabout details didn't load for this route (OpenStreetMap was slow or unreachable). "
+                    + "Turn-by-turn still works."
+            }
+        }
     }
+    @ObservationIgnored private var roadsTask: Task<Void, Never>?
 
     /// The skills each preset route contains, for suggesting what to drive next. Built in the background
     /// once the road data is loaded; empty until then.
@@ -262,29 +328,50 @@ final class AppStore {
     /// Starts a replay once the road data and the route's prep are ready (both build in the background).
     @MainActor func startDemoDrive(preset: String = AppStore.demoPreset, speed: Double = 4,
                                    startMeters: Double? = AppStore.demoStartMeters) {
+        guard !isStartingDemo, activeSession == nil else { return }
+        isStartingDemo = true
         choosePreset(preset)
         Task { @MainActor in
             await ensureLoaded()
             await prepTask?.value
-            activeSession = makeSession(replay: speed)
-            if let startMeters { activeSession?.skip(toMeters: startMeters) }
+            if routeError == nil, let s = makeSession(replay: speed) {
+                activeSession = s
+                if let startMeters { s.skip(toMeters: startMeters) }
+            } else {
+                // The road data didn't load: Routes shows why, instead of a button that does nothing.
+                if routeError == nil { routeError = dataStatus }
+                tab = .route
+            }
+            isStartingDemo = false
         }
     }
 
     func makeSession(replay: Double?) -> DriveSession? {
         guard let route, let (cache, features) = roads else { return nil }
         let mode: DriveSession.Mode = replay.map { .replay(speedMultiplier: $0) } ?? .live
-        #if DEBUG && targetEnvironment(macCatalyst)
-        // The Mac copy is only for screenshots; keep it quiet.
-        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
+        let s: DriveSession
+        #if DEBUG
+        // Screenshot copies (the Mac, or a simulator launched with --silent) must not talk through the Mac's speakers.
+        if Self.silentForScreenshots {
+            s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
                              mode: mode, speaker: SilentSpeech(), prep: prep)
-        s.weatherLine = weather?.spoken
-        return s
+        } else {
+            s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level, mode: mode, prep: prep)
+        }
         #else
-        let s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level,
-                             mode: mode, prep: prep)
+        s = DriveSession(route: route, cache: cache, features: features, highInjury: highInjury, level: level, mode: mode, prep: prep)
+        #endif
         s.weatherLine = weather?.spoken
         return s
+    }
+
+    #if DEBUG
+    nonisolated static var silentForScreenshots: Bool {
+        #if targetEnvironment(macCatalyst)
+        return true
+        #else
+        return ProcessInfo.processInfo.arguments.contains("--silent")
         #endif
     }
+    #endif
 }

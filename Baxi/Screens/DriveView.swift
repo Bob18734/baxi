@@ -2,140 +2,267 @@ import SwiftUI
 import MapKit
 import SwiftData
 
-/// The main screen. The phone is mounted; nobody touches it while the car moves. Everything here is
-/// readable at a glance: the next maneuver as a green guide sign with its distance, the lane strip with
-/// the lane to be in lit yellow, the light count, the speed limit, and the last thing Baxi said.
-/// Only Mute and End are tappable, both meant for the passenger or for when the car is parked.
+/// The Drive screen. The phone is mounted and read in under a second, so the next instruction is the biggest
+/// thing on it, the lane to be in is the brightest, and nothing else competes. After sunset it is the app's one
+/// dark screen, for glare. Only Mute and End can be tapped, for the passenger.
 struct DriveView: View {
+    @Environment(AppStore.self) private var store
     let session: DriveSession
     var onClose: () -> Void
     @Environment(\.modelContext) private var context
     @State private var camera: MapCameraPosition = .automatic
+    /// The car as drawn, carried along the route between fixes (Maps-style): the last two fixes give its speed, and
+    /// each frame moves it on from the last fix by that speed, correcting when the next fix lands. The camera and
+    /// the marker are set from the same point in the same frame, so one can never slide ahead of the other.
+    @State private var lastFix: (along: Double, at: Date)?
+    @State private var previousFix: (along: Double, at: Date)?
+    @State private var shownAlong: Double?
+    @State private var shownHeading: Double?
+    @State private var car: Coordinate?
+    @State private var lastFrame: Date?
+    /// The route in three stretches that join under the arrow: driven (pale), the next stretch (ink), and the rest
+    /// (quieter), so on a loop "where you are going now" and "where you come back later" never look alike.
+    @State private var behind: [CLLocationCoordinate2D] = []
+    @State private var near: [CLLocationCoordinate2D] = []
+    @State private var later: [CLLocationCoordinate2D] = []
+    @State private var linesCutAt: Double?
+    /// The camera follows the car until the driver (the passenger, really) pans or zooms; it resumes on its own
+    /// after a moment, or on Re-center.
+    @State private var following = true
+    @State private var resumeTask: Task<Void, Never>?
     @State private var saved: DriveRecord?
     @State private var didSave = false
     @State private var isNight = false
 
+    private var look: DriveLook { DriveLook(night: isNight) }
+
     var body: some View {
         ZStack(alignment: .top) {
-            map
-            VStack(spacing: BaxiSpace.sm) {
-                ManeuverSign(session: session, night: isNight)
-                if !session.lastCueText.isEmpty { SaidBanner(session: session) }
-                HStack(alignment: .top) {
-                    if let mph = session.speedLimitMph { SpeedLimitSign(mph: mph).animation(.snappy, value: mph) }
+            TimelineView(.animation(minimumInterval: DriveFollow.frameInterval, paused: !following)) { frame in
+                map.onChange(of: frame.date, initial: true) { _, now in step(now) }
+            }
+            VStack(spacing: Space.s8) {
+                InstructionPanel(session: session, look: look)
+                StatusLine(session: session, look: look)
+                HStack(alignment: .top, spacing: Space.s8) {
+                    SpeedUnit(limit: session.speedLimitMph, speed: session.currentMph,
+                              judgedLimit: session.isOnRoute ? session.speedLimitMph : nil, night: isNight)
                     Spacer()
                     if let alert = session.activeAlert {
-                        Group {
-                            switch alert.kind {
-                            case .schoolZone: SchoolZoneChip()
-                            case .railroad: RailChip()
-                            case .glare: GlareChip()
-                            default: CrashChip()
-                            }
-                        }
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        AlertChip(kind: alert.kind).transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
-                .animation(.snappy, value: session.activeAlert?.id)
+                .animation(Motion.standard, value: session.activeAlert?.id)
+                .animation(Motion.standard, value: session.currentMph == nil)
+                .animation(Motion.standard, value: session.speedLimitMph)
                 Spacer()
-                DriveBottomBar(session: session)
+                if !following {
+                    HStack {
+                        Button { Haptic.tap(); resumeFollowing() } label: {
+                            HStack(spacing: Space.s8) {
+                                Mark(glyph: .locate, size: MarkSize.small)
+                                Text("Re-center").role(.bodyStrong)
+                            }
+                            .foregroundStyle(Palette.ink)
+                            .padding(.horizontal, Space.s16)
+                            .frame(minHeight: Size.tap)
+                            .background(Palette.field, in: Capsule())
+                        }
+                        .buttonStyle(Press())
+                        Spacer()
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                ControlBar(session: session, look: look)
             }
-            .padding(.horizontal, BaxiSpace.md)
-            .padding(.vertical, BaxiSpace.sm)
+            .padding(.horizontal, Space.s12)
+            .padding(.vertical, Space.s8)
         }
+        .background(look.ground.ignoresSafeArea())
         .onAppear {
             // The phone is mounted for the whole drive, so the screen must not lock.
             UIApplication.shared.isIdleTimerDisabled = true
-            // After sunset the whole screen goes dark so it does not glare in the driver's eyes.
-            if let s = Daylight.sunriseSunset(on: Date(), at: session.startCoordinate ?? AppStore.carmelDemoHome) {
-                isNight = Date() < s.sunrise || Date() >= s.sunset
+            isNight = nightNow()
+            session.start(); fixArrived()
+        }
+        // After sunset the screen goes dark so it does not glare in the driver's eyes; checked every minute so a
+        // drive across sunset switches over.
+        .task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                let night = nightNow()
+                if night != isNight { withAnimation(Motion.reveal) { isNight = night } }
             }
-            session.start(); follow()
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
-            if !session.isFinished { session.end() }
+            // Torn down mid-drive (the cover dismissed some other way): end it and keep the record, since the
+            // onChange below can no longer fire.
+            if !session.isFinished { session.end(); save() }
         }
-        .onChange(of: session.position) { _, _ in follow() }
-        .onChange(of: traveledStep) { _, _ in traveled = traveledPoints?.map(\.clLocation) ?? [] }
+        .onChange(of: session.position) { _, _ in fixArrived() }
         .onChange(of: session.isFinished) { _, done in if done { save() } }
         .sheet(isPresented: .constant(session.isFinished)) {
             ArrivedView(session: session, record: saved, onDone: onClose)
         }
-        .preferredColorScheme(isNight ? .dark : nil)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
+    }
+
+    private func nightNow() -> Bool {
+        #if DEBUG
+        // Screenshots: --drive-time day|night shows either look whatever the clock says.
+        if let forced = ScreenCheck.value("--drive-time") { return forced == "night" }
+        #endif
+        if store.demoNight { return true }
+        let at = session.position ?? session.startCoordinate ?? AppStore.carmelDemoHome
+        guard let s = Daylight.sunriseSunset(on: Date(), at: at) else { return false }
+        return Date() < s.sunrise || Date() >= s.sunset
     }
 
     // MARK: Map
 
     private var map: some View {
-        Map(position: $camera, interactionModes: []) {
-            MapPolyline(coordinates: session.routeCoordinates)
-                .stroke(BaxiColor.route, style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
-            // Where to change lanes, in the lane strip's yellow: from the lane cue to "be in the lane by here".
-            ForEach(zonesAhead) { z in
-                if let line = session.laneZoneCoordinates[z.id], line.count > 1 {
-                    // A dark edge under the yellow, so it stands out on Apple Maps' own yellow freeways.
-                    MapPolyline(coordinates: line)
-                        .stroke(BaxiColor.signInk, style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round))
-                    MapPolyline(coordinates: line)
-                        .stroke(BaxiColor.warning, style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round))
-                    Annotation("", coordinate: line[line.count - 1]) { InLaneMarker(zone: z) }
+        Map(position: $camera, interactionModes: [.pan, .zoom]) {
+            if near.isEmpty {
+                MapPolyline(coordinates: session.routeCoordinates)
+                    .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
+                MapPolyline(coordinates: session.routeCoordinates)
+                    .stroke(look.route, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+            } else {
+                ForEach([(behind, look.traveled), (later, look.later), (near, look.route)], id: \.1) { line, tint in
+                    if line.count > 1 {
+                        MapPolyline(coordinates: line)
+                            .stroke(look.routeEdge, style: StrokeStyle(lineWidth: DriveSize.routeEdge, lineCap: .round, lineJoin: .round))
+                        MapPolyline(coordinates: line)
+                            .stroke(tint, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+                    }
                 }
             }
-            if traveled.count > 1 {
-                MapPolyline(coordinates: traveled)
-                    .stroke(.gray.opacity(0.75), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
+            // Where to change lanes: amber, from the lane cue to "be in the lane by here".
+            ForEach(zonesAhead) { z in
+                if let line = session.laneZoneCoordinates[z.id], line.count > 1 {
+                    MapPolyline(coordinates: line)
+                        .stroke(Palette.ready, style: StrokeStyle(lineWidth: DriveSize.route, lineCap: .round, lineJoin: .round))
+                    Annotation("", coordinate: line[line.count - 1]) { InLaneTab(zone: z) }
+                }
             }
             if let m = session.nextManeuver {
                 Annotation("", coordinate: m.location.clLocation) {
-                    Image(systemName: Self.symbol(for: m)).font(BaxiFont.headline).foregroundStyle(BaxiColor.onSign)
-                        .frame(width: 34, height: 34)
-                        .signPanel(radius: BaxiRadius.sm)
+                    Mark(glyph: .maneuver(m), size: MarkSize.row, weight: MarkWeight.emphasis).foregroundStyle(Palette.ink)
+                        .frame(width: DriveSize.marker, height: DriveSize.marker)
+                        .background(Palette.go, in: Circle())
                 }
             }
-            if let p = session.position {
+            // The arrow appears with the first fix: before it, drawing the route's start would be a guess.
+            if session.hasFix, let p = car ?? session.position {
                 Annotation("", coordinate: p.clLocation) {
-                    Image(systemName: "location.north.fill").font(BaxiFont.title).foregroundStyle(.white)
-                        .frame(width: 52, height: 52)
-                        .background(BaxiColor.route, in: Circle())
-                        .overlay(Circle().stroke(.white, lineWidth: 4))
-                        .shadow(color: .black.opacity(0.3), radius: 6, y: 2)
+                    Mark(glyph: .locate, size: MarkSize.car).foregroundStyle(Palette.onDark)
+                        .frame(width: DriveSize.car, height: DriveSize.car)
+                        .background(Palette.ink, in: Circle())
+                        .overlay(Circle().stroke(Palette.field, lineWidth: DriveSize.carEdge))
                 }
             }
         }
-        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll)) // 3D freeways would cover the route and lane zones
+        // Flat: 3D freeways would cover the route and the lane stretches.
+        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+        // A finger on the map takes over from the camera; it comes back after a moment.
+        .simultaneousGesture(DragGesture(minimumDistance: Space.s8).onChanged { _ in userMovedMap() })
+        .simultaneousGesture(MagnifyGesture().onChanged { _ in userMovedMap() })
+        .environment(\.colorScheme, isNight ? .dark : .light)
         .ignoresSafeArea()
     }
 
-    @State private var traveled: [CLLocationCoordinate2D] = []
-    private var traveledStep: Int { Int((session.progress?.alongMeters ?? 0) / 50) }
 
-    /// The driven part of the route, redrawn every 50 m rather than on every fix: rebuilding a long map
-    /// overlay several times a second is what makes the map stutter.
-    private var traveledPoints: [Coordinate]? {
-        guard let p = session.progress else { return nil }
-        let line = session.route.polyline
-        let step = (p.alongMeters / 50).rounded(.down) * 50
-        guard step > 0, let end = line.coordinate(atMeters: step) else { return nil }
-        let upTo = line.cumulative.lastIndex { $0 <= step } ?? 0
-        return Array(line.points.prefix(upTo + 1)) + [end]
-    }
-
-    /// Lane zones not yet passed and within 3 km, so the map is not cluttered with the whole route's.
+    /// Lane stretches not yet passed and within 3 km, so the map is not cluttered with the whole route's.
     private var zonesAhead: [LaneZone] {
         let along = session.progress?.alongMeters ?? 0
         return session.laneZones.filter { $0.endMeters > along && $0.startMeters < along + 3_000 }
     }
 
-    private func follow() {
-        guard let p = session.position else { return }
-        // Closer while changing lanes, so the yellow stretch and its end marker are easy to read.
-        let distance: Double = session.activeLaneZone == nil ? 700 : 420
-        withAnimation(.linear(duration: 0.25)) {
-            camera = .camera(MapCamera(centerCoordinate: p.clLocation, distance: distance, heading: session.heading, pitch: 50))
+    /// A new fix from the session (the car on the route, or wherever it is when off it).
+    private func fixArrived() {
+        guard let p = session.progress, session.isOnRoute || session.mode != .live else {
+            // Off the route (or still heading to it): draw the fix itself, nothing predicted.
+            lastFix = nil; previousFix = nil; shownAlong = nil
+            car = session.position
+            follow(now: Date())
+            return
         }
+        previousFix = lastFix
+        lastFix = (p.alongMeters, Date())
+        if shownAlong == nil { shownAlong = p.alongMeters; recutLines(at: p.alongMeters) }
+    }
+
+    /// One frame: carry the car on from the last fix at its speed, settle the heading, set the marker and camera.
+    private func step(_ now: Date) {
+        defer { lastFrame = now }
+        guard let fix = lastFix, let was = shownAlong else { return }
+        let frameDt = lastFrame.map { now.timeIntervalSince($0) } ?? DriveFollow.frameInterval
+        let speed: Double = previousFix.map { prev in
+            let dt = fix.at.timeIntervalSince(prev.at)
+            return dt > 0 ? max(0, (fix.along - prev.along) / dt) : 0
+        } ?? 0
+        let predicted = fix.along + speed * min(now.timeIntervalSince(fix.at), DriveFollow.predictSeconds)
+        var along = was
+        if abs(predicted - was) > DriveFollow.snapMeters { along = predicted }            // the GPS caught up: snap
+        else if predicted > was { along = min(predicted, was + speed * frameDt * 1.5) }    // carry on, a little faster to catch up
+        // else: the fix is behind where the car is drawn: hold, never roll back
+        let line = session.route.polyline
+        guard let c = line.coordinate(atMeters: along) else { return }
+        let target = line.bearing(atMeters: min(line.lengthMeters, along + DriveFollow.headingAhead)) ?? session.heading
+        let settled = shownHeading.map { h in
+            var d = (target - h).truncatingRemainder(dividingBy: 360)
+            if d > 180 { d -= 360 } else if d < -180 { d += 360 }
+            return h + d * (1 - exp(-frameDt / DriveFollow.headingSettle))
+        } ?? target
+        shownAlong = along
+        shownHeading = settled
+        car = c
+        if abs(along - (linesCutAt ?? -.infinity)) >= DriveFollow.lineRecut { recutLines(at: along) }
+        follow(now: now)
+    }
+
+    /// The three stretches of the route, joined exactly where the arrow is drawn.
+    private func recutLines(at along: Double) {
+        let line = session.route.polyline
+        linesCutAt = along
+        behind = along > 0 ? line.slice(from: 0, to: along).map(\.clLocation) : []
+        let nearEnd = min(line.lengthMeters, along + DriveFollow.nearAhead)
+        near = line.slice(from: along, to: nearEnd).map(\.clLocation)
+        later = nearEnd < line.lengthMeters ? line.slice(from: nearEnd, to: line.lengthMeters).map(\.clLocation) : []
+    }
+
+    /// The camera, set with no animation: it moves every frame, with the marker.
+    private func follow(now: Date) {
+        guard following, let p = car else { return }
+        // Before the first fix on the route (the car still at the start), face the way the route begins rather
+        // than north: the road ahead must be ahead from the first frame.
+        let heading = shownHeading ?? (session.progress == nil ? (session.route.polyline.bearing(atMeters: 0) ?? session.heading) : session.heading)
+        // Closer while changing lanes, so the amber stretch and its end are easy to read. The camera centres a
+        // way ahead of the car, so the car sits low on the screen and the road ahead fills it.
+        let close = session.activeLaneZone != nil
+        let ahead = Geo.offset(p, bearingDegrees: heading, meters: close ? DriveFollow.lookAheadClose : DriveFollow.lookAhead)
+        var t = Transaction(); t.disablesAnimations = true
+        withTransaction(t) {
+            camera = .camera(MapCamera(centerCoordinate: ahead.clLocation, distance: close ? 420 : 700, heading: heading, pitch: 50))
+        }
+    }
+
+    private func userMovedMap() {
+        if following { withAnimation(Motion.quick) { following = false } }
+        resumeTask?.cancel()
+        resumeTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(DriveFollow.resumeSeconds))
+            guard !Task.isCancelled else { return }
+            resumeFollowing()
+        }
+    }
+
+    private func resumeFollowing() {
+        resumeTask?.cancel()
+        withAnimation(Motion.quick) { following = true }
+        follow(now: Date())
     }
 
     // MARK: Save
@@ -143,19 +270,20 @@ struct DriveView: View {
     private func save() {
         guard !didSave else { return }
         didSave = true
-        let end = session.endedAt ?? Date()
-        // A replay is a demo, not a supervised drive, so it never counts toward the 50 hours.
-        guard session.mode == .live, end.timeIntervalSince(session.startedAt) >= 60 else { return }
+        let end = session.endedAt ?? Date()   // design-lint:allow end() always sets endedAt before isFinished; never nil here
+        // A replay is a demo, not a supervised drive, and a drive where the car never moved is not practice.
+        guard DriveSession.shouldLog(mode: session.mode, seconds: end.timeIntervalSince(session.startedAt),
+                                     meters: session.drivenMeters) else { return }
         let split = Daylight.split(start: session.startedAt, end: end, at: session.startCoordinate ?? AppStore.carmelDemoHome)
         let record = DriveRecord(start: session.startedAt, end: end, dayMinutes: split.day, nightMinutes: split.night,
                                  level: session.level, routeTitle: session.route.name,
                                  distanceMeters: session.drivenMeters, cuesSpoken: session.spokenLog.count,
-                                 skills: session.practiced)
+                                 skills: session.practiced, habits: session.habits)
         context.insert(record)
         // Save now rather than waiting for autosave: the app may be closed right after arriving.
         try? context.save()
         saved = record
-        Haptics.success()
+        Haptic.success()
     }
 
     // MARK: Formatting
@@ -166,230 +294,152 @@ struct DriveView: View {
         let feet = Int((meters * 3.281 / 50).rounded()) * 50
         return "\(max(feet, 0)) ft"
     }
-
-    static func symbol(for m: Maneuver) -> String {
-        switch m.kind {
-        case .roundabout: return "arrow.triangle.turn.up.right.circle"
-        case .merge, .onRamp: return "arrow.merge"
-        case .offRamp, .fork: return (m.direction?.rawValue.lowercased().contains("left") ?? false) ? "arrow.up.left" : "arrow.up.right"
-        case .arrive: return "flag.checkered"
-        case .turn:
-            switch m.direction {
-            case .left, .sharpLeft: return "arrow.turn.up.left"
-            case .right, .sharpRight: return "arrow.turn.up.right"
-            case .slightLeft: return "arrow.up.left"
-            case .slightRight: return "arrow.up.right"
-            case .uturn: return "arrow.uturn.down"
-            default: return "arrow.up"
-            }
-        default: return "arrow.up"
-        }
-    }
 }
 
-/// The next maneuver as a green guide sign: lanes on top, then the arrow, the distance and the words,
-/// and the traffic lights left before the turn.
-private struct ManeuverSign: View {
-    let session: DriveSession
+/// The Drive screen's colours by day and by night: the only screen with a night.
+struct DriveLook {
     let night: Bool
+    var ground: Color { night ? Palette.night : Palette.page }
+    /// The instruction is an overhead guide sign: highway green with a white border, white sign lettering (the
+    /// format drivers are trained to read at a glance); a dimmer green at night.
+    var panel: Color { night ? Palette.signNight : Palette.sign }
+    var panelText: Color { Palette.onSign }
+    var panelSoft: Color { Palette.onSignSoft }
+    var surface: Color { night ? Palette.nightPanel : Palette.field }
+    var text: Color { night ? Palette.onDark : Palette.ink }
+    var soft: Color { night ? Palette.nightRead : Palette.meta }
+    var line: Color { night ? Palette.nightLine : Palette.hairline }
+    var route: Color { night ? Palette.onDark : Palette.ink }
+    var routeEdge: Color { night ? Palette.night : Palette.field }
+    /// The driven part of the route: pale, so the way ahead reads first.
+    var traveled: Color { night ? Palette.nightLine : Palette.hairline }
+    /// The way ahead beyond the next stretch: quieter than the stretch you're on.
+    var later: Color { night ? Palette.nightRead : Palette.label }
+}
+
+// MARK: - The instruction
+
+/// The next move: the lane change while in a lane stretch, or the lanes to use, then the mark, the distance
+/// (the biggest thing on the screen), the instruction and a bar that empties toward the turn; the lights left
+/// before it; and what comes right after, when it is close.
+private struct InstructionPanel: View {
+    let session: DriveSession
+    let look: DriveLook
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.md) {
+        VStack(alignment: .leading, spacing: Space.s12) {
             if let zone = session.activeLaneZone {
-                LaneChangePanel(zone: zone, progress: session.laneZoneProgress,
-                                metersLeft: zone.endMeters - (session.progress?.alongMeters ?? zone.startMeters))
+                LaneChange(zone: zone, progress: session.laneZoneProgress,
+                           metersLeft: zone.endMeters - (session.progress?.alongMeters ?? zone.startMeters), look: look)
                     .transition(.move(edge: .top).combined(with: .opacity))
-            } else if let strip = session.laneStrip {
-                LaneStripView(strip: strip).transition(.move(edge: .top).combined(with: .opacity))
+            } else if let strip = session.upcomingLanes {
+                LaneRow(strip: strip, onSign: true, height: DriveSize.laneTall).transition(.move(edge: .top).combined(with: .opacity))
             }
-            HStack(alignment: .center, spacing: BaxiSpace.md) {
-                if let m = session.nextManeuver {
+            if let m = session.nextManeuver {
+                HStack(alignment: .center, spacing: Space.s16) {
                     if let shape = session.roundaboutShapes[m.id] {
-                        RoundaboutGlyph(shape: shape, size: 64)
+                        RoundaboutMark(shape: shape, size: DriveSize.markBig + Space.s8, ink: look.panelText, way: Palette.onSign)
                     } else {
-                        Image(systemName: DriveView.symbol(for: m))
-                            .font(.system(size: 46, weight: .heavy)) // design-lint:allow the sign's arrow is a drawn mark
-                            .frame(width: 60)
+                        Mark(glyph: .maneuver(m), size: DriveSize.markBig, weight: MarkWeight.drive).foregroundStyle(look.panelText)
                     }
-                    VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(DriveView.distance(session.metersToNextManeuver ?? 0))
-                            .font(BaxiFont.signFace(38))
+                            .role(.driveDistance).foregroundStyle(look.panelText)
+                            .lineLimit(1).minimumScaleFactor(0.6)
                             .contentTransition(.numericText())
-                            .animation(.snappy, value: session.metersToNextManeuver.map { Int($0 / 15) })
-                        Text(m.instruction).font(BaxiFont.headline).lineLimit(2).minimumScaleFactor(0.7)
-                        // Shrinks to the turn, so "almost there" reads without the number.
-                        if let p = session.nextManeuverProgress {
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(BaxiColor.onSign.opacity(0.2))
-                                    Capsule().fill(BaxiColor.onSign).frame(width: max(4, geo.size.width * (1 - p)))
-                                }
-                            }
-                            .frame(height: 5)
-                            .padding(.top, BaxiSpace.xs)
-                            .animation(.linear(duration: 0.25), value: p)
-                        }
+                            .animation(Motion.quick, value: session.metersToNextManeuver.map { Int($0 / 15) })
+                        Text(m.instruction).role(.driveInstruction).foregroundStyle(look.panelText)
+                            .lineLimit(3).minimumScaleFactor(0.75)
                     }
                     Spacer(minLength: 0)
-                    if let n = session.lightsToNextManeuver { LightCount(count: n) }
-                } else {
-                    Image(systemName: "location.north.line.fill").font(BaxiFont.title).frame(width: 60)
-                    Text("Head to the start of the route").font(BaxiFont.section)
-                    Spacer(minLength: 0)
+                    if let n = session.lightsToNextManeuver { LightsLeft(count: n, look: look) }
+                }
+                if let p = session.nextManeuverProgress {
+                    // Empties toward the turn, so "almost there" reads without the number.
+                    ProgressLine(fraction: 1 - p, tint: Palette.onSign, track: Palette.signTrack)
+                        .animation(Motion.follow, value: p)
+                }
+                // What Baxi just said, quietly, so a passenger can read it (unless a state above is showing).
+                // Not a line about a maneuver already passed ("Roundabout: first exit" under the next turn).
+                if !session.lastCueText.isEmpty && !StatusLine.isState(session)
+                    && (session.lastCue?.maneuverId == nil || session.lastCue?.maneuverId == session.nextManeuver?.id) {
+                    Text(session.lastCueText).role(.metaStrong).foregroundStyle(look.panelSoft).lineLimit(2)
+                        .contentTransition(.opacity)
+                        .accessibilityLabel("Baxi said: \(session.lastCueText)")
+                }
+                if let then = session.thenManeuver {
+                    HStack(spacing: Space.s8) {
+                        Text("Then").role(.metaStrong).foregroundStyle(look.panelSoft)
+                        Mark(glyph: .maneuver(then), size: MarkSize.inline, weight: MarkWeight.emphasis).foregroundStyle(look.panelText)
+                        Text(then.instruction).role(.metaStrong).foregroundStyle(look.panelText).lineLimit(1)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Then \(then.instruction)")
+                }
+            } else {
+                HStack(spacing: Space.s16) {
+                    Mark(glyph: .start, size: DriveSize.markBig, weight: MarkWeight.heavy).foregroundStyle(look.panelText)
+                    Text("Head to the start of the route").role(.driveInstruction).foregroundStyle(look.panelText)
                 }
             }
         }
-        .padding(BaxiSpace.lg)
-        .padding(.horizontal, BaxiSpace.xs)
+        .padding(Space.s16 + SignStyle.borderInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .signPanel(radius: BaxiRadius.xl, deep: night)
-        .overlay(alignment: .bottomTrailing) {
-            // What comes right after, when it is close: no surprise second turn.
-            if let then = session.thenManeuver {
-                HStack(spacing: BaxiSpace.xs) {
-                    Text("Then").font(BaxiFont.footnote.weight(.semibold))
-                    Image(systemName: DriveView.symbol(for: then)).font(BaxiFont.headline)
-                }
-                .foregroundStyle(BaxiColor.signInk)
-                .padding(.horizontal, BaxiSpace.md).padding(.vertical, BaxiSpace.xs)
-                .background(BaxiColor.onSign, in: Capsule())
-                .padding(BaxiSpace.lg)
-                .accessibilityLabel("Then \(then.instruction)")
-            }
-        }
-        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
-        .animation(.snappy, value: session.laneStrip)
-        .animation(.snappy, value: session.activeLaneZone?.id)
-        .animation(.snappy, value: session.nextManeuver?.id)
+        .background(look.panel, in: RoundedRectangle(cornerRadius: SignStyle.corner + Space.s4, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: SignStyle.corner, style: .continuous)
+                    .inset(by: SignStyle.borderInset + 1).stroke(Palette.onSign, lineWidth: SignStyle.border))
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .animation(Motion.standard, value: session.upcomingLanes)
+        .animation(Motion.standard, value: session.activeLaneZone?.id)
+        .animation(Motion.standard, value: session.nextManeuver?.id)
     }
 }
 
-/// "2 lights": how many traffic lights are left before the turn, the turn's own light included.
-private struct LightCount: View {
+/// How many traffic lights are left before the turn, the turn's own light included.
+private struct LightsLeft: View {
     let count: Int
+    let look: DriveLook
     var body: some View {
-        HStack(spacing: BaxiSpace.sm) {
-            TrafficLightMark(size: 9)
-            VStack(spacing: 0) {
-                Text("\(count)").font(BaxiFont.signFace(30)).contentTransition(.numericText())
-                Text(count == 1 ? "light" : "lights").font(BaxiFont.signFace(12, weight: "Bold"))
-            }
+        VStack(spacing: Space.s4) {
+            Text("\(count)").role(.number).foregroundStyle(look.panelText).contentTransition(.numericText())
+            Text(count == 1 ? "light" : "lights").role(.metaStrong).foregroundStyle(look.panelSoft)
         }
-        .padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
-        .background(BaxiColor.onSign.opacity(0.14), in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
-        .animation(.snappy, value: count)
-        .accessibilityElement()
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(count) traffic \(count == 1 ? "light" : "lights") until the turn")
     }
 }
 
-/// The last thing Baxi said, so a passenger can read it. Orange while off the route.
-private struct SaidBanner: View {
-    let session: DriveSession
-    var body: some View {
-        let off = session.progress?.isOffRoute == true || session.isRerouting
-        HStack(spacing: BaxiSpace.md) {
-            Image(systemName: off ? "arrow.triangle.branch" : "waveform")
-                .font(BaxiFont.headline)
-                .symbolEffect(.variableColor.iterative, isActive: session.isRerouting)
-                .foregroundStyle(off ? BaxiColor.signInk : BaxiColor.accent)
-            Text(session.lastCueText).font(BaxiFont.bodyBold).lineLimit(2)
-                .foregroundStyle(off ? BaxiColor.signInk : BaxiColor.ink)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, BaxiSpace.lg).padding(.vertical, BaxiSpace.md)
-        .background {
-            if off { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(BaxiColor.caution) }
-            else { RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).fill(.regularMaterial) }
-        }
-        .animation(.snappy, value: session.lastCueText)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Baxi said: \(session.lastCueText)")
-    }
-}
-
-/// Mute, distance and arrival time, End. For the passenger; the driver never needs it.
-private struct DriveBottomBar: View {
-    let session: DriveSession
-
-    private var remaining: Double { session.progress?.remainingMeters ?? session.route.distanceMeters }
-    private var arrival: Date? {
-        guard session.route.distanceMeters > 0, session.mode == .live else { return nil }
-        return Date().addingTimeInterval(session.route.durationSeconds * remaining / session.route.distanceMeters)
-    }
-
-    var body: some View {
-        HStack(spacing: BaxiSpace.md) {
-            Button { session.muted.toggle(); Haptics.tap() } label: {
-                Image(systemName: session.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(BaxiFont.section)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(session.muted ? BaxiColor.signInk : BaxiColor.ink)
-                    .frame(width: 60, height: 60)
-                    .background(session.muted ? AnyShapeStyle(BaxiColor.warning) : AnyShapeStyle(.regularMaterial), in: Circle())
-            }
-            .accessibilityLabel(session.muted ? "Unmute Baxi" : "Mute Baxi")
-
-            VStack(spacing: 0) {
-                Text(DriveView.distance(remaining)).font(BaxiFont.numberSmall).foregroundStyle(BaxiColor.ink)
-                    .contentTransition(.numericText())
-                Group {
-                    if case .replay(let x) = session.mode { Text("to go · replay \(Int(x))×") }
-                    else if let arrival { Text("to go · arrive \(arrival.formatted(date: .omitted, time: .shortened))") }
-                    else { Text("to go") }
-                }
-                .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
-            }
-            .frame(maxWidth: .infinity, minHeight: 60)
-            .background(.regularMaterial, in: Capsule())
-
-            Button { session.end() } label: {
-                Text("End").font(BaxiFont.button).foregroundStyle(.white)
-                    .frame(width: 84, height: 60)
-                    .background(BaxiColor.stop, in: Capsule())
-            }
-            .accessibilityLabel("End drive")
-        }
-    }
-}
-
-/// While the car is in a lane zone: the lanes as seen from above, the lane to be in lit yellow, chevrons
-/// in the other lanes sweeping toward it, and a bar for the room left to make the change. The lane lines
-/// are dashed while changing is fine and turn solid at "be in the lane by here", as they do on the road.
-private struct LaneChangePanel: View {
+/// While the car is in a lane stretch: what to do, the room left, and the lanes from above with the one to be in
+/// lit amber and chevrons sweeping toward it. The lane lines are dashed while changing is fine and turn solid at
+/// "be in the lane by here", as on the road.
+private struct LaneChange: View {
     let zone: LaneZone
     let progress: Double
     let metersLeft: Double
+    let look: DriveLook
     @State private var sweep = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var committed: Bool { metersLeft <= 0 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.sm) {
+        VStack(alignment: .leading, spacing: Space.s8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(committed ? "Stay in this lane" : zone.instruction).font(BaxiFont.signFace(22))
-                Spacer(minLength: BaxiSpace.sm)
+                Text(committed ? "Stay in this lane" : zone.instruction).role(.signTitle).foregroundStyle(look.panelText)
+                Spacer(minLength: Space.s8)
                 if !committed {
-                    Text("\(DriveView.distance(metersLeft)) to do it").font(BaxiFont.signFace(14, weight: "Bold"))
+                    Text("\(DriveView.distance(metersLeft)) to do it").role(.metaStrong).foregroundStyle(look.panelSoft)
                         .contentTransition(.numericText())
-                        .animation(.snappy, value: Int(metersLeft / 15))
+                        .animation(Motion.quick, value: Int(metersLeft / 15))
                 }
             }
             road
-            // Room left to change lanes: full at the start of the zone, empty at the end.
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(BaxiColor.onSign.opacity(0.18))
-                    Capsule().fill(BaxiColor.warning).frame(width: max(6, geo.size.width * (1 - progress)))
-                        .opacity(committed ? 0 : 1)
-                }
-            }
-            .frame(height: 6)
+            ProgressLine(fraction: committed ? 0 : 1 - progress, tint: Palette.ready, track: Palette.signTrack)
         }
-        .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: false)) { sweep = true } }
+        .onAppear { if !reduceMotion { withAnimation(Motion.sweep) { sweep = true } } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(committed ? "Stay in this lane" : "\(zone.instruction), \(DriveView.distance(metersLeft)) left to do it. "
-                            + LaneStripView.spoken(zone.strip))
+                            + LaneRow.spoken(zone.strip))
     }
 
     private var road: some View {
@@ -398,25 +448,21 @@ private struct LaneChangePanel: View {
         return HStack(spacing: 0) {
             ForEach(0..<s.laneCount, id: \.self) { i in
                 ZStack {
-                    Rectangle().fill(lit.contains(i) ? BaxiColor.warning : BaxiColor.onSign.opacity(0.10))
-                    LaneArrows(label: i < s.labels.count ? s.labels[i] : "", size: 22)
-                        .foregroundStyle(lit.contains(i) ? BaxiColor.signInk : BaxiColor.onSign.opacity(0.5))
+                    Rectangle().fill(lit.contains(i) ? Palette.ready : Palette.signLane)
+                    LaneMark(label: i < s.labels.count ? s.labels[i] : "", size: MarkSize.lane)
+                        .foregroundStyle(lit.contains(i) ? Palette.ink : look.panelSoft)
                     if !lit.contains(i) && !committed, let toward = direction(from: i, lit: lit) {
-                        Image(systemName: toward > 0 ? "chevron.right.2" : "chevron.left.2")
-                            .font(BaxiFont.headline.weight(.heavy))
-                            .foregroundStyle(BaxiColor.warning)
-                            .offset(x: sweep ? CGFloat(toward) * 18 : CGFloat(-toward) * 10)
+                        Mark(glyph: toward > 0 ? .forward : .back, size: MarkSize.inline, weight: MarkWeight.heavy).foregroundStyle(Palette.ready)
+                            .offset(x: sweep ? CGFloat(toward) * Space.s16 : CGFloat(-toward) * Space.s8)
                             .opacity(sweep ? 0.15 : 1)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                if i < s.laneCount - 1 {
-                    LaneLine(solid: committed).frame(width: 3)
-                }
+                if i < s.laneCount - 1 { LaneDivider(solid: committed) }
             }
         }
-        .frame(height: 58)
-        .clipShape(RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous))
+        .frame(height: DriveSize.laneTall)
+        .clipShape(RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
     }
 
     /// +1 when the lane to be in is to the right of lane `i`, -1 when to the left.
@@ -427,58 +473,175 @@ private struct LaneChangePanel: View {
 }
 
 /// A lane line: dashed where changing lanes is allowed, solid where it is not.
-private struct LaneLine: View {
+private struct LaneDivider: View {
     let solid: Bool
     var body: some View {
         GeometryReader { geo in
             Path { p in p.move(to: CGPoint(x: geo.size.width / 2, y: 0)); p.addLine(to: CGPoint(x: geo.size.width / 2, y: geo.size.height)) }
-                .stroke(BaxiColor.onSign, style: StrokeStyle(lineWidth: geo.size.width, dash: solid ? [] : [9, 7]))
+                .stroke(Palette.onDark, style: StrokeStyle(lineWidth: geo.size.width, dash: solid ? [] : LaneSize.dash))
         }
+        .frame(width: LaneSize.divider)
     }
 }
 
-/// Where the lane change must be done: a yellow tab at the end of the zone on the map.
-private struct InLaneMarker: View {
+/// Where a lane change must be done by: an amber tab at the end of the stretch on the map.
+private struct InLaneTab: View {
     let zone: LaneZone
     var body: some View {
-        HStack(spacing: BaxiSpace.xs) {
-            Image(systemName: zone.side == .left ? "arrow.left.to.line" : zone.side == .right ? "arrow.right.to.line" : "arrow.up.to.line")
-            Text(zone.laneLabel.map { "In the \($0)" } ?? "In lane")
-        }
-        .font(BaxiFont.caption.weight(.bold))
-        .foregroundStyle(BaxiColor.signInk)
-        .padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
-        .background(BaxiColor.warning, in: Capsule())
-        .overlay(Capsule().stroke(.white, lineWidth: 2))
-        .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+        Text(zone.laneLabel.map { "In the \($0)" } ?? "In lane")
+            .role(.metaStrong).foregroundStyle(Palette.ink)
+            .padding(.horizontal, Space.s8).padding(.vertical, Space.s4)
+            .background(Palette.ready, in: Capsule())
+            .overlay(Capsule().stroke(Palette.field, lineWidth: MapLine.dotEdge))
     }
 }
 
-/// One box per lane, the lane to be in lit sign yellow (the same yellow as the app icon).
-struct LaneStripView: View {
-    let strip: LaneStrip
+// MARK: - Status, alerts, controls
+
+/// The last thing Baxi said, small, so a passenger can read it; or a state that matters more: off the route
+/// (amber), location off (red, with Settings), waiting for GPS.
+private struct StatusLine: View {
+    let session: DriveSession
+    let look: DriveLook
+
     var body: some View {
-        HStack(spacing: BaxiSpace.sm) {
-            ForEach(0..<strip.laneCount, id: \.self) { i in
-                let lit = strip.highlighted.contains(i)
-                LaneArrows(label: i < strip.labels.count ? strip.labels[i] : "", size: 24)
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .foregroundStyle(lit ? BaxiColor.signInk : BaxiColor.onSign.opacity(0.55))
-                    .background(lit ? BaxiColor.warning : BaxiColor.onSign.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: BaxiRadius.sm, style: .continuous))
-                    .scaleEffect(lit ? 1 : 0.94)
+        Group {
+            if session.mode == .live && !session.hasFix && session.lastCueText.isEmpty {
+                line(text: session.coarseFixes ? "Weak GPS. Check Precise Location in Settings" : "Waiting for GPS",
+                     fill: look.surface, ink: look.text) { SignalDots(onFill: false) }
+            } else if session.lastCueText == DriveSession.locationOffText {
+                line(text: session.lastCueText, fill: Palette.stop, ink: Palette.onStop) {
+                    Button("Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                    .role(.bodyStrong).foregroundStyle(Palette.onStop).underline()
+                    .buttonStyle(Press()).frame(minHeight: Size.tap)
+                    .accessibilityHint("Opens Settings to turn on location for Baxi")
+                }
+            } else if offRoute {
+                line(text: session.lastCueText, fill: Palette.ready, ink: Palette.ink) {
+                    Mark(glyph: .offRoute, size: MarkSize.row).foregroundStyle(Palette.ink)
+                }
             }
         }
-        .accessibilityElement()
-        .accessibilityLabel(Self.spoken(strip))
+        .animation(Motion.standard, value: session.lastCueText)
     }
 
-    static func spoken(_ strip: LaneStrip) -> String {
-        let lanes = strip.highlighted.sorted().map { String($0 + 1) }
-        switch lanes.count {
-        case 0: return "\(strip.laneCount) lanes"
-        case 1: return "Use lane \(lanes[0]) of \(strip.laneCount), counting from the left"
-        default: return "Use lanes \(lanes.dropLast().joined(separator: ", ")) or \(lanes.last!) of \(strip.laneCount), counting from the left"
+    private var offRoute: Bool { Self.offRoute(session) }
+
+    static func offRoute(_ session: DriveSession) -> Bool {
+        session.progress?.isOffRoute == true || session.isRerouting || session.lastCueText == DriveSession.rerouteFailedText
+    }
+
+    /// A state that matters more than the last thing said: waiting for GPS, location off, off the route.
+    static func isState(_ session: DriveSession) -> Bool {
+        (session.mode == .live && !session.hasFix && session.lastCueText.isEmpty)
+            || session.lastCueText == DriveSession.locationOffText || offRoute(session)
+    }
+
+    private func line<Accessory: View>(text: String, fill: Color, ink: Color, @ViewBuilder accessory: () -> Accessory) -> some View {
+        HStack(spacing: Space.s12) {
+            Text(text).role(.bodyStrong).foregroundStyle(ink).lineLimit(2)
+            Spacer(minLength: Space.s8)
+            accessory()
         }
+        .padding(.horizontal, Space.s16).padding(.vertical, Space.s8)
+        .frame(maxWidth: .infinity, minHeight: Size.tap, alignment: .leading)
+        .background(fill, in: RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A heads-up the car is in or about to reach: amber (get ready), with its mark and one word.
+private struct AlertChip: View {
+    let kind: CueKind
+    var body: some View {
+        let (sign, text): (WarningSign.Kind, String) = switch kind {
+        case .schoolZone: (.school, "School zone")
+        case .railroad: (.railroad, "Railroad")
+        case .glare: (.sun, "Low sun")
+        default: (.warning, "Crash-heavy")
+        }
+        // The heads-up as its road sign, with one word beside it.
+        return HStack(spacing: Space.s8) {
+            WarningSign(kind: sign)
+            Text(text).role(.metaStrong).foregroundStyle(Palette.ink)
+        }
+        .padding(.leading, Space.s4).padding(.trailing, Space.s12).padding(.vertical, Space.s4)
+        .background(Palette.field, in: Capsule())
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Mute, how far to go and when you'll arrive, End. For the passenger; the driver never needs it.
+private struct ControlBar: View {
+    let session: DriveSession
+    let look: DriveLook
+    @State private var confirmEnd = false
+
+    private var remaining: Double { session.progress?.remainingMeters ?? session.route.distanceMeters }
+    private var arrival: Date? {
+        guard session.route.distanceMeters > 0, session.mode == .live else { return nil }
+        return Date().addingTimeInterval(session.route.durationSeconds * remaining / session.route.distanceMeters)
+    }
+
+    var body: some View {
+        HStack(spacing: Space.s12) {
+            Button { session.muted.toggle(); Haptic.tap() } label: {
+                Mark(glyph: session.muted ? .speakerOff : .speaker, size: MarkSize.car)
+                    .foregroundStyle(session.muted ? Palette.ink : look.text)
+                    .frame(width: DriveSize.control, height: DriveSize.control)
+                    .background(session.muted ? Palette.ready : look.surface, in: Circle())
+            }
+            .buttonStyle(Press())
+            .accessibilityLabel(session.muted ? "Unmute Baxi" : "Mute Baxi")
+
+            VStack(spacing: 0) {
+                Text(DriveView.distance(remaining)).role(.numberSmall).foregroundStyle(look.text)
+                    .contentTransition(.numericText())
+                Group {
+                    if case .replay = session.mode { Text("Demo, not logged") }
+                    else if let arrival { Text("arrive \(arrival.formatted(date: .omitted, time: .shortened))") }
+                    else { Text("to go") }
+                }
+                .role(.meta).foregroundStyle(look.soft)
+            }
+            .frame(maxWidth: .infinity, minHeight: DriveSize.control)
+            .background(look.surface, in: Capsule())
+            .accessibilityElement(children: .combine)
+
+            // A live drive asks first: one stray tap from the passenger must not end it. Replays just end.
+            Button { Haptic.tap(); if session.mode == .live { confirmEnd = true } else { session.end() } } label: {
+                Text("End").role(.button).foregroundStyle(Palette.onStop)
+                    .frame(width: DriveSize.endWidth, height: DriveSize.control)
+                    .background(Palette.stop, in: Capsule())
+            }
+            .buttonStyle(Press())
+            .accessibilityLabel("End drive")
+            .confirmationDialog("End this drive?", isPresented: $confirmEnd, titleVisibility: .visible) {
+                Button("End drive", role: .destructive) { session.end() }
+                Button("Keep driving", role: .cancel) {}
+            }
+        }
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+    }
+}
+
+/// The posted limit and the car's speed as one unit: the sign, and the speed under it, amber (get ready) when
+/// more than 5 over. Either half hides when unknown.
+private struct SpeedUnit: View {
+    let limit: Int?
+    let speed: Int?
+    let judgedLimit: Int?
+    let night: Bool
+    var body: some View {
+        VStack(spacing: Space.s4) {
+            if let limit { SpeedLimitSign(mph: limit).transition(.opacity) }
+            if let speed { SpeedReadout(mph: speed, limit: judgedLimit, night: night).transition(.opacity) }
+        }
+        .animation(Motion.standard, value: limit)
+        .animation(Motion.standard, value: speed == nil)
     }
 }

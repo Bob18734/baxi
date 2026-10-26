@@ -4,20 +4,26 @@ Navigation built for new drivers. Google Maps tells you where to turn; Baxi tell
 teen with a learner's permit what to do, early enough to stay calm: which lane to be in, said half a
 mile early; how many traffic lights until the turn; which roundabout exit and which lane; where the
 speed limit drops; where the crash-heavy corridors are. Before the drive, a preview shows the hardest
-spots as Look Around imagery with the rule from the Indiana Driver's Manual. Every drive logs toward
+spots as Look Around imagery, with the students' notes quoting the Indiana Driver's Manual where written
+(`Baxi/Resources/Content/briefings.json`). After each drive Baxi coaches habits (speed against the limit, full
+stops, braking, merges) and tracks skill levels. Every drive logs toward
 the 50 supervised hours (10 at night) the BMV requires. Exports fill the official State Form 54706 and include a CSV. Optional driver details are saved
 on this device; review the exported forms and complete the signatures on paper.
 
 Built for the 2026 Congressional App Challenge, Indiana's 5th District, by Vardaan Goel and [partner].
 
 Safety rule: the driver never touches the phone. It is mounted before the drive and the Drive screen
-has no controls except End drive. Cues are spoken once, one short line each. The wording of lane,
-roundabout, merge and school-zone cues cites the Indiana Driver's Manual; the timing of cues (how early
-a lane cue fires) is our own design and is not from the manual.
+has only Mute and End, for the passenger. Cues are spoken once, one short line each. The cue wording is
+our own plain-language phrasing, and the timing of cues (how early a lane cue fires) is our own design;
+neither is from the manual.
 
-Choose **From** on Home or **Change** on Routes to set the start for destination searches. Use a
-current-location snapshot, search for a place, or keep the labeled Carmel demo start. Starting places
-last for this session; the warning level in Settings is remembered. Practice loops always start in Carmel.
+To show Baxi in each state a driver goes through (first launch, no hours, weeks in, nearly licensed, requirement
+met, hours from before Baxi), use Settings > "Show the app's states"; the sample drives it adds are marked and can
+be removed from the same place.
+
+A searched route starts where the phone is. The **From** line under the search field (Home and Routes) opens
+a starting-point picker: a precise fix of your location, a place you search for, or Carmel City Center. A chosen
+start lasts for this session; the experience level is remembered. Practice routes always start in Carmel.
 
 ## Build and run
 
@@ -38,8 +44,8 @@ To run on your own iPhone: select your phone as the destination, set your person
 Signing & Capabilities, and press Run. No paid developer account is needed.
 
 Screens without the Simulator: `scripts/screens.sh` builds a Debug Mac (Catalyst) copy of the app
-and saves screenshots to `build/screens/` (see [docs/DESIGN.md](docs/DESIGN.md)). `scripts/design-lint.sh`
-checks that every screen uses the design tokens.
+and saves screenshots to `build/screens/` (the Mac copy never asks for location). `scripts/design-lint.sh`
+checks that every screen uses the design tokens: no raw colours, sizes, system fonts or system symbols.
 
 Tests: `swift test` in the repo root runs every logic test on the Mac, no Simulator needed
 (`Package.swift` builds only the Core, Models and data services). Product > Test in Xcode runs the same
@@ -60,7 +66,7 @@ python3 scripts/build_crash_layers.py     # MPO High Injury Network, intersectio
 ```
 
 Sources: OpenStreetMap contributors (ODbL) via the Overpass API; OSRM public demo router;
-Apple MapKit; Overpass typeface (SIL Open Font License, Baxi/Resources/Fonts); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
+Apple MapKit; Overpass typeface, after the US highway sign alphabet, used for sign lettering (SIL Open Font License, Baxi/Resources/Fonts); Indianapolis MPO High Injury Network 2026 and Intersection Safety Studies (public ArcGIS
 services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 54706.
 
 ## Code map
@@ -75,23 +81,39 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
   on Oct 14 (see AI_DISCLOSURE.md). Each has its rules in its doc comment and a test suite in `BaxiTests/`.
 - `Baxi/Core/Practice.swift` — skills practiced per drive (single and two-lane roundabouts, merges, exit ramps,
   multi-lane turns, miles at 45 mph or more), totals on the Log, and which practice route fills the biggest gap.
+- `Baxi/Core/PriorHours.swift` — supervised hours driven before Baxi, entered at setup or from the Log. They count
+  toward the 50 and 10 hours but are not rows on the official State Form 54706 export (that form lists each drive).
   The goals (20, 10, 6, 6, 10, 25) are Baxi's own suggestion, not from the statute or the Driver's Manual.
+  Each skill climbs four levels (Started, Steady, Confident, Test-ready) at a quarter, half, three quarters and all
+  of its goal.
+- `Baxi/Core/DriveHabits.swift` — how a drive went, from one GPS speed sample per second: time more than 5 mph over
+  the posted limit, full stops (under 3 mph) at all-way stops only (the map cannot say which road a two-way stop
+  sign faces), hard braking (slowing faster than 3.4 m/s² from above 10 mph), merging up to within 10 mph of the
+  limit 150 m past a merge (not when an exit follows within 300 m), and top speed near a school on roads posted
+  40 or under (a reminder only: Baxi cannot see whether the zone's lights were flashing). A 0 to 100 score and up
+  to three tips. Every threshold is Baxi's own coaching choice, not Indiana law.
 - `Baxi/Services` — bundled data and briefing loading, GPX parse and replay, routing clients, `DriveSession`
   (one drive: following, cue firing, speech, reroute), `OfficialLogPDF` (fills the bundled official State Form 54706).
-- `Baxi/Design` — the design system: colors, type, spacing, the guide-sign panel, buttons, and the drawn
-  road-sign marks. Explained in [docs/DESIGN.md](docs/DESIGN.md).
-- `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes, Preview, Drive, Arrived, Log.
+- `Baxi/Design` — the design system, built on one idea (the language of the road: signals for state, signs for places). `Tokens.swift` (colours with their meanings and measured contrast,
+  type roles in the system font, with Overpass for sign lettering, spacing, corners, motion, haptics),
+  `Components.swift` (the one button press, the signal-dots working state, toast, shimmer, field, row, sheet
+  header, empty state), `Marks.swift` (every icon drawn in one stroke style), `BottomBar.swift` (Baxi's own tab
+  bar) and `Layout.swift`. Explained in [docs/DESIGN.md](docs/DESIGN.md).
+- `Baxi/Screens` — SwiftUI screens: Welcome, Home, Routes (map and plan), Preview, Drive (day and night),
+  Arrived, Log, Settings, Driver details.
 - `scripts/` — Python scripts that build the bundled data; `screens.sh` and `design-lint.sh`.
 - [docs/SHIP-CHECKLIST.md](docs/SHIP-CHECKLIST.md) — everything to check before submitting.
 
 ## Code tour
 
 [CODE_TOUR.md](CODE_TOUR.md) follows one drive through the code, step by step, and lists the
-questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route.
+questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route. `swift run baxi-audit` checks every demo maneuver against the map and `swift run baxi-demo-check` plays the demos on a real-time clock to catch an instruction said too late ([docs/DEMO-AUDIT.md](docs/DEMO-AUDIT.md)).
 [docs/BRIEFINGS.md](docs/BRIEFINGS.md) explains the briefing file the students write.
 
 ## AI disclosure
 
-See [AI_DISCLOSURE.md](AI_DISCLOSURE.md). The four modules listed there are reserved for the students
-and currently contain AI scaffolding. The surrounding app was built with Claude Code; Codex has
-also implemented the reliability fixes and checks recorded in the disclosure. Student review is pending.
+See [AI_DISCLOSURE.md](AI_DISCLOSURE.md), a dated log of every use. The app's code was written with Claude Code,
+including the four modules first reserved for the students (the team decided on Oct 14 that Claude would write
+all app code); the partner's pull requests were written with ChatGPT Codex. The students' part is the idea, the
+product decisions, testing on the phone, the Indiana Driver's Manual briefings (`briefings.json`), the written
+answers and the video.

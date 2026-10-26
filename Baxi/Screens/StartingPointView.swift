@@ -1,156 +1,135 @@
 import SwiftUI
 import MapKit
 
-/// Higgsfield UI concept adapted to Baxi's native controls and design tokens.
+/// Where a searched route begins. Three ways: a precise fix of the phone's position (PlanningLocation), Carmel
+/// City Center, or a place found by search. A choice lasts for this session; until one is made, a searched route
+/// starts wherever the phone is. From the partner's trip-start work (PR #4), on Baxi's own rows.
 struct StartingPointView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dynamicTypeSize) private var textSize
     @State private var location = PlanningLocation()
     @State private var query = ""
     @State private var results: [MKMapItem] = []
-    @State private var searchError: String?
-    @State private var searching = false
-    @State private var searchTask: Task<Void, Never>?
+    /// Why the search shows no places; nil while results show.
+    @State private var searchNote: String?
     @State private var searchID = UUID()
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section("Selected start") {
-                    Label(store.homeLabel, systemImage: "mappin.circle")
-                        .font(BaxiFont.body).foregroundStyle(BaxiColor.ink)
+        VStack(spacing: 0) {
+            SheetHeader(title: "Starting point", subtitle: "Where a searched route begins. Kept for this session.") { dismiss() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Space.s24) {
+                    choices
+                    search
+                    Text("Place searches go to Apple Maps. Finding a route sends its start and end to the route server. Practice routes always start in Carmel.")
+                        .role(.meta).foregroundStyle(Palette.meta).fixedSize(horizontal: false, vertical: true)
                 }
-
-                Section {
-                    Button {
-                        stopSearch()
-                        location.request()
-                    } label: {
-                        HStack {
-                            Label(location.isLocating ? "Finding your location…" : "Use current location", systemImage: "location.fill")
-                            Spacer()
-                            if location.isLocating { ProgressView() }
-                        }
-                        .font(BaxiFont.bodyBold)
-                        .padding(.vertical, BaxiSpace.sm)
-                    }
-                    .disabled(location.isLocating)
-                    if let error = location.error {
-                        Text(error).font(BaxiFont.callout).foregroundStyle(BaxiColor.stopText)
-                    }
-                } footer: {
-                    Text("Refresh your starting point if you move.")
-                }
-
-                Section {
-                    searchLayout {
-                        Image(systemName: "magnifyingglass").foregroundStyle(BaxiColor.inkSoft)
-                        TextField("Address or place", text: $query)
-                            .submitLabel(.search)
-                            .onSubmit { search() }
-                            .accessibilityLabel("Starting address or place")
-                        Button("Search") { search() }
-                            .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .frame(minHeight: 44)
-                    }
-                    if searching { ProgressView("Searching…") }
-                    if let searchError { Text(searchError).foregroundStyle(BaxiColor.stopText) }
-                    ForEach(results, id: \.self) { item in
-                        Button {
-                            choose(Coordinate(item.placemark.coordinate), label: item.name ?? "Selected starting place")
-                        } label: {
-                            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                                Text(item.name ?? "Place").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
-                                Text(item.placemark.title ?? "").font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                            }
-                        }
-                    }
-                }
-
-                Section {
-                    Button { choose(AppStore.carmelDemoHome, label: "Carmel City Center (demo)") } label: {
-                        HStack(spacing: BaxiSpace.md) {
-                            Image(systemName: "mappin.circle.fill")
-                            VStack(alignment: .leading, spacing: BaxiSpace.xxs) {
-                                Text("Carmel City Center").font(BaxiFont.bodyBold)
-                                Text("Demo location").font(BaxiFont.footnote)
-                            }
-                            Spacer()
-                            if store.home == AppStore.carmelDemoHome { Image(systemName: "checkmark") }
-                        }
-                        .foregroundStyle(BaxiColor.accent)
-                        .padding(.vertical, BaxiSpace.sm)
-                    }
-                } header: {
-                    Text("Practice starting point")
-                } footer: {
-                    Text("Saved for this session. Practice loops always start in Carmel.")
-                }
-                Section {
-                    DisclosureGroup("How your location is used") {
-                        Text("Place searches go to Apple Maps. Planning a route sends its start and destination to the route provider.")
-                            .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    }
-                    .font(BaxiFont.callout)
-                }
+                .padding(.horizontal, Space.margin)
+                .padding(.bottom, Space.s32)
             }
-            .scrollContentBackground(.hidden)
-            .baxiPage()
-            .navigationTitle("Starting point")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onChange(of: query) { _, _ in stopSearch(); results = [] }
-            .onChange(of: location.coordinate) { _, coordinate in
-                if let coordinate { choose(coordinate, label: "Current location (snapshot)") }
+            .scrollDismissesKeyboard(.immediately)
+        }
+        .pageBackground()
+        // Places appear while typing, once the typing pauses.
+        .task(id: query) {
+            do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+            await runSearch()
+        }
+        .onChange(of: location.coordinate) { _, found in
+            if let found { choose(found, label: "Your location") }
+        }
+        .onDisappear { location.cancel() }
+    }
+
+    /// The phone's position, or Carmel: the one in use has a check.
+    private var choices: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            GroupLabel("Start from")
+            Button { Haptic.tap(); location.request() } label: {
+                Row(title: location.isLocating ? "Finding your location…" : "Your location",
+                    detail: "A precise fix of where the phone is now",
+                    leading: { Mark(glyph: .locate, size: MarkSize.row).foregroundStyle(Palette.ink) },
+                    trailing: { trailing(chosen: !store.homeChosen || store.homeLabel == "Your location", working: location.isLocating) })
             }
-            .onDisappear { location.cancel(); stopSearch() }
+            .buttonStyle(Press())
+            .disabled(location.isLocating)
+            .accessibilityHint("Finds where the phone is and starts searched routes there")
+            if let error = location.error {
+                Text(error).role(.meta).foregroundStyle(Palette.stopText)
+                    .fixedSize(horizontal: false, vertical: true).padding(.vertical, Space.s8)
+            }
+            Button { Haptic.tap(); choose(AppStore.carmelDemoHome, label: "Carmel City Center") } label: {
+                Row(title: "Carmel City Center", detail: "Where the practice routes begin", showsDivider: false,
+                    leading: { SignalMark(size: MarkSize.row) },
+                    trailing: { trailing(chosen: store.homeChosen && store.home == AppStore.carmelDemoHome, working: false) })
+            }
+            .buttonStyle(Press())
         }
     }
 
-    private var searchLayout: AnyLayout {
-        textSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: BaxiSpace.sm))
-            : AnyLayout(HStackLayout(spacing: BaxiSpace.sm))
+    @ViewBuilder private func trailing(chosen: Bool, working: Bool) -> some View {
+        if working { SignalDots() }
+        else if chosen { Mark(glyph: .check, size: MarkSize.row).foregroundStyle(Palette.goText).accessibilityLabel("In use") }
+        else { RowArrow() }
+    }
+
+    private var search: some View {
+        VStack(alignment: .leading, spacing: Space.s8) {
+            GroupLabel("Or a place")
+            FieldBox {
+                Mark(glyph: .search, size: MarkSize.row).foregroundStyle(Palette.meta)
+                TextField("Search an address or place", text: $query)
+                    .role(.body).foregroundStyle(Palette.ink)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await runSearch() } }
+                    .autocorrectionDisabled()
+                    .accessibilityLabel("Starting address or place")
+                if !query.isEmpty {
+                    MarkButton(glyph: .close, label: "Clear search", tint: Palette.meta) { query = ""; results = []; searchNote = nil }
+                        .padding(.trailing, -Space.s12)
+                }
+            }
+            if let searchNote {
+                Text(searchNote).role(.body).foregroundStyle(Palette.read).padding(.vertical, Space.s8)
+            } else if results.isEmpty, !query.isEmpty {
+                SignalDots().padding(.vertical, Space.s12)
+            }
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(results.enumerated()), id: \.offset) { i, item in
+                    Button { Haptic.tap(); choose(Coordinate(item.placemark.coordinate), label: item.name ?? "Chosen place") } label: {
+                        Row(title: item.name ?? "Place", detail: item.placemark.title, showsDivider: i < results.count - 1) { RowArrow() }
+                    }
+                    .buttonStyle(Press())
+                }
+            }
+        }
     }
 
     private func choose(_ coordinate: Coordinate, label: String) {
         location.cancel()
-        stopSearch()
         store.chooseStart(coordinate, label: label)
+        Haptic.success()
         dismiss()
     }
 
-    private func stopSearch() {
-        searchTask?.cancel()
-        searchID = UUID()
-        searching = false
-        searchError = nil
-    }
-
-    private func search() {
-        stopSearch()
-        location.cancel()
-        results = []
+    private func runSearch() async {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        let id = searchID
-        searching = true
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = text
-        request.region = MKCoordinateRegion(center: (store.home ?? AppStore.carmelDemoHome).clLocation,
-                                            latitudinalMeters: 25_000, longitudinalMeters: 25_000)
-        searchTask = Task {
-            do {
-                let response = try await MKLocalSearch(request: request).start()
-                guard !Task.isCancelled, id == searchID else { return }
-                results = response.mapItems
-                searchError = results.isEmpty ? "No places found. Try a street address or nearby landmark." : nil
-            } catch {
-                guard !Task.isCancelled, id == searchID else { return }
-                searchError = "Search is unavailable. Check your connection and try again."
-            }
-            searching = false
+        guard !text.isEmpty else { results = []; searchNote = nil; return }
+        let id = UUID(); searchID = id
+        let req = MKLocalSearch.Request()
+        req.naturalLanguageQuery = text
+        req.region = MKCoordinateRegion(center: store.start.clLocation, latitudinalMeters: MapSpan.search, longitudinalMeters: MapSpan.search)
+        do {
+            let found = try await MKLocalSearch(request: req).start().mapItems
+            guard searchID == id else { return }   // typing moved on
+            results = found
+            searchNote = found.isEmpty ? "No places found for \u{201C}\(text)\u{201D}." : nil
+        } catch {
+            guard searchID == id else { return }
+            results = []
+            searchNote = (error as? MKError)?.code == .placemarkNotFound
+                ? "No places found for \u{201C}\(text)\u{201D}."
+                : "No connection. Check the internet and try again."
         }
     }
 }

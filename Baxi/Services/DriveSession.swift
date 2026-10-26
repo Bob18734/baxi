@@ -69,12 +69,48 @@ final class DriveSession {
     private(set) var heading: Double = 0
     private(set) var lastCue: Cue?
     private(set) var lastCueText: String = ""
-    private(set) var laneStrip: LaneStrip?
     private(set) var spokenLog: [(meters: Double, text: String)] = []
     private(set) var isFinished = false
+    /// One speed sample per fix on the route, for the habit report. Along positions on a later route
+    /// (after a reroute) are shifted by `alongOffset`, so places on different routes never mix.
+    @ObservationIgnored private var samples: [SpeedSample] = []
+    @ObservationIgnored private var habitStops: [Double] = []
+    @ObservationIgnored private var schoolZones: [ClosedRange<Double>] = []
+    @ObservationIgnored private var mergeAlongs: [Double] = []
+    @ObservationIgnored private var alongOffset = 0.0
+    private static let routeOffsetMeters = 10_000_000.0
+    /// The latest GPS speed, m/s; negative or nil when unknown.
+    private var lastSpeedMps: Double?
+    /// How the drive went, worked out when it ends. nil while driving, or when it was too short to judge.
+    private(set) var habits: HabitReport?
+    /// True while the car is following the route (not still heading to its start, not off it), so the speed
+    /// pill compares against a limit on the road the car is actually on.
+    var isOnRoute: Bool { (mode != .live || hasReachedRoute) && progress?.isOffRoute == false && (progress?.crossTrackMeters ?? .infinity) <= RouteFollower.offRouteMeters }
+    /// The car's speed for the speed pill, nil when the GPS does not know it.
+    var currentMph: Int? { lastSpeedMps.flatMap { $0 >= 0 ? Int(($0 * DriveHabits.mphPerMps).rounded()) : nil } }
+    /// The replay's speed every `replayStepMeters`: posted limit with smooth slowing for turns and stops.
+    @ObservationIgnored private var replayProfile: [Double] = []
+    /// Where the replay comes to a stop on the current route, and how long it still waits at the one it is at.
+    @ObservationIgnored private var replayStops: [Double] = []
+    @ObservationIgnored private var replayWait = 0.0
+    static let replayStopSeconds = 2.0
+    static let replayStepMeters = 5.0
     private(set) var startedAt = Date()
+    private var started = false
     private(set) var endedAt: Date?
     static let locationOffText = "Location is off. Turn it on in Settings."
+    static let farFromRouteText = "You're far from this route. Drive to it, or replay it from Routes."
+    static let farFromRouteMeters = 20_000.0
+    static let rerouteFailedText = "No connection for a new route. Head back to the blue line."
+    /// False on a live drive until the first location fix arrives.
+    private(set) var hasFix = false
+    /// Fixes are arriving but too rough to follow a road (Precise Location off, or indoors).
+    private(set) var coarseFixes = false
+    /// Where reroutes come from; a test swaps in one that fails.
+    @ObservationIgnored var router: @Sendable (Coordinate, Coordinate, String) async throws -> PlannedRoute = {
+        try await RouteService.route(from: $0, to: $1, name: $2)
+    }
+    private var saidRerouteFailed = false
     private(set) var isRerouting = false
     private(set) var rerouteCount = 0
     /// Meters driven on routes replaced by a reroute.
@@ -99,6 +135,15 @@ final class DriveSession {
     private var hasReachedRoute = false
 
     private var replayTimer: Timer?
+    /// False until the start line has been said; the replay car waits until then.
+    private var replayDeparted = false
+    /// Real seconds the replay has been held to real speed by one stretch of talking.
+    private var replayTalkSeconds = 0.0
+    private var replayMultiplierNow = 1.0
+    static let replayRampDown = 0.4
+    static let replayRampUp = 1.2
+    /// Longer than any line Baxi says (with a line queued behind it); past this the voice is not waited on.
+    static let replayTalkLimitSeconds = 25.0
     private var replayMeters = 0.0
     private var clock: TimeInterval = 0
     private var locationDelegate: LocationDelegate?
@@ -124,6 +169,19 @@ final class DriveSession {
         follower = RouteFollower(polyline: route.polyline)
         rebuildLaneZones()
         position = route.polyline.points.first
+        addHabitPlaces(p)
+    }
+
+    /// The stops, school zones and merges of the route now driven, shifted to this route's offset.
+    private func addHabitPlaces(_ p: RoutePrep) {
+        habitStops += p.habitStops.map { $0 + alongOffset }
+        schoolZones += p.schoolZones.map { ($0.lowerBound + alongOffset)...($0.upperBound + alongOffset) }
+        mergeAlongs += DriveHabits.judgedMerges(route.maneuvers).map { $0 + alongOffset }
+        let stopsHere = p.habitStops + cues.filter { $0.kind == .stopSign }.map(\.targetMeters)
+        if case .replay = mode {
+            replayProfile = Self.replayProfile(route: route, speeds: speeds, stops: stopsHere)
+            replayStops = Array(Set(stopsHere.map { ($0 * 10).rounded() / 10 })).sorted()
+        }
     }
 
     /// Total meters driven this drive, across reroutes.
@@ -166,6 +224,23 @@ final class DriveSession {
 
     // MARK: The next maneuver, for the big card
 
+    /// The lanes are shown from this far before a maneuver that has lane data (or from its first lane line,
+    /// when that comes earlier), so the driver sees them while there is still room to move over.
+    static let lanesAheadMeters = 800.0
+
+    /// The lanes at the next maneuver, the one(s) to be in lit, while it is close: from the approach's
+    /// turn:lanes tag, the router's lane data, or, at a roundabout mapped with two or more lanes, the standard
+    /// markings. nil where none of those exists, and while off the route. The phone cannot tell which lane the
+    /// car is in, so this never marks one as "you".
+    var upcomingLanes: LaneStrip? {
+        guard isOnRoute, let m = nextManeuver, let along = progress?.alongMeters else { return nil }
+        let mine = cues.filter { $0.maneuverId == m.id && $0.laneStrip != nil }
+        // The lane line's strip first (it marks the one lane asked for), as Preview does.
+        guard let strip = (mine.first { $0.kind == .laneChange } ?? mine.first)?.laneStrip, strip.laneCount >= 2 else { return nil }
+        let from = min(m.alongMeters - Self.lanesAheadMeters, mine.compactMap(\.fireAtMeters).min() ?? .infinity)
+        return along >= from ? strip : nil
+    }
+
     var nextManeuver: Maneuver? {
         let along = progress?.alongMeters ?? 0
         return route.maneuvers.first { $0.alongMeters > along + 5 && $0.kind != .depart && $0.kind != .continueStraight }
@@ -184,6 +259,8 @@ final class DriveSession {
     // MARK: Start and stop
 
     func start() {
+        guard !started else { return }
+        started = true
         startedAt = Date()
         // Low sun depends on when the drive happens, so its cues are added now, from where the car is.
         let from = progress?.alongMeters ?? 0
@@ -191,7 +268,7 @@ final class DriveSession {
                                       level: level, maneuverTargets: RoutePrep.boundaries(route))
         cues += Self.filtered(glare)
         for c in glare where (c.fireAtMeters ?? 0) < from { scheduler.markFired(c.id) }
-        speaker.say("Here we go. I'll tell you about each turn early.")
+        speaker.say(Line.start)
         if let weatherLine { speaker.say(weatherLine); spokenLog.append((0, weatherLine)) }
         switch mode {
         case .replay(let mult): startReplay(multiplier: mult)
@@ -206,21 +283,70 @@ final class DriveSession {
         locationDelegate?.manager.stopUpdatingLocation(); locationDelegate = nil
         if stopSpeech { speaker.stop() }
         endedAt = Date()
+        // The report first: saving the drive is triggered by isFinished and stores the report with it.
+        habits = DriveHabits.report(samples: samples, stopSignAlongs: habitStops, schoolZones: schoolZones,
+                                    mergeAlongs: mergeAlongs, isDemo: mode != .live)
         isFinished = true
     }
 
     /// Replays the route at a believable speed: the posted limit where known, else 30 mph,
     /// slowed to 15 mph near roundabouts and turns. `multiplier` speeds the clock for testing.
     private func startReplay(multiplier: Double) {
-        let tick = 0.25
+        // Ten updates a second: the car glides on screen instead of stepping.
+        let tick = 0.1
         replayTimer = Timer.scheduledTimer(withTimeInterval: tick, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let mps = self.replaySpeed(at: self.replayMeters)
-            self.replayMeters = min(self.route.polyline.lengthMeters, self.replayMeters + mps * tick * multiplier)
-            self.clock += tick * multiplier
-            if let c = self.route.polyline.coordinate(atMeters: self.replayMeters) { self.feed(c, at: self.clock) }
-            if self.replayMeters >= self.route.polyline.lengthMeters { self.replayTimer?.invalidate() }
+            self?.advanceReplay(tick: tick, multiplier: multiplier)
         }
+    }
+
+    /// One replay timer tick (internal so tests can run a 4x replay without a timer).
+    /// The car moves in steps no longer than the profile's cells, so at 4x it still slows into a stop sign the
+    /// way the profile says, and the speed reported is the speed where it ends up.
+    ///
+    /// While Baxi is talking the replay runs at real speed, whatever the multiplier: the voice cannot talk four
+    /// times faster, so at a steady 4x most instructions were still being said when the car reached the turn
+    /// (35 across the demos, `swift run baxi-demo-check`). The car also waits at the start until the start line
+    /// has been said, as a driver would. Muted, the car still slows for as long as the line would have taken, so
+    /// the sign's text keeps the same pace. A voice that never finishes (an interrupted line the system never
+    /// reports) is waited on for at most `replayTalkLimitSeconds`, so a demo can never stall.
+    func advanceReplay(tick: Double, multiplier requested: Double) {
+        let talking = speaker.isSpeaking || (muted && clock < (scheduler.speechEndsAt ?? 0))
+        replayTalkSeconds = talking ? replayTalkSeconds + tick : 0
+        let waitForVoice = talking && replayTalkSeconds < Self.replayTalkLimitSeconds
+        if !replayDeparted {
+            guard !waitForVoice else { clock += tick; return }
+            replayDeparted = true
+        }
+        // Speed changes ease in rather than switch: dropping to real speed for a line takes `replayRampDown`
+        // seconds, getting back up to the demo's speed `replayRampUp`, so the car never lurches on screen.
+        let target = waitForVoice ? 1 : requested
+        let rampSeconds = target < replayMultiplierNow ? Self.replayRampDown : Self.replayRampUp
+        let step = abs(requested - 1) * tick / max(tick, rampSeconds)
+        replayMultiplierNow = target < replayMultiplierNow ? max(target, replayMultiplierNow - step) : min(target, replayMultiplierNow + step)
+        let multiplier = replayMultiplierNow
+        var left = tick * multiplier
+        let length = route.polyline.lengthMeters
+        while left > 0, replayMeters < length {
+            if replayWait > 0 {
+                // Stopped at a stop sign, counting to two.
+                let w = min(left, replayWait); replayWait -= w; left -= w; continue
+            }
+            let v = replaySpeed(at: replayMeters)
+            let dt = min(left, Self.replayStepMeters / v)
+            let next = min(length, replayMeters + v * dt)
+            if let stop = replayStops.first(where: { $0 > replayMeters && $0 <= next }) {
+                left -= (stop - replayMeters) / v
+                replayMeters = stop
+                replayWait = Self.replayStopSeconds
+            } else {
+                replayMeters = next
+                left -= dt
+            }
+        }
+        clock += tick * multiplier
+        let speed = replayWait > 0 ? 0 : replaySpeed(at: replayMeters)
+        if let c = route.polyline.coordinate(atMeters: replayMeters) { feed(c, at: clock, speedMps: speed) }
+        if replayMeters >= route.polyline.lengthMeters { replayTimer?.invalidate(); if !isFinished { end() } }
     }
 
     /// Replay only: start partway along the route. Cues before that point are marked as passed.
@@ -247,29 +373,62 @@ final class DriveSession {
         var meters = replayMeters, t = 0.0
         while !isFinished && meters < route.polyline.lengthMeters {
             meters = min(route.polyline.lengthMeters, meters + step)
-            t += step / replaySpeed(at: meters)
-            if let c = route.polyline.coordinate(atMeters: meters) { feed(c, at: t) }
+            let v = replaySpeed(at: meters)
+            t += step / v
+            if let c = route.polyline.coordinate(atMeters: meters) { feed(c, at: t, speedMps: v) }
         }
         if !isFinished { end() }
         return spokenLog
     }
 
+    /// The profile's speed at `meters`, read between its cells so it changes smoothly. Speed squared is what
+    /// changes evenly with distance under steady braking, so that is what is blended.
     private func replaySpeed(at meters: Double) -> Double {
-        let nearManeuver = route.maneuvers.contains { $0.needsLaneChoice && abs($0.alongMeters - meters) < 60 }
-        if nearManeuver { return 6.7 }   // 15 mph
-        let mph = cues.last { $0.targetMeters <= meters && $0.roadSpeedMph != nil }?.roadSpeedMph ?? 30
-        return Double(mph) * 0.447 * 0.9
+        guard !replayProfile.isEmpty else { return 6.7 }
+        let x = max(0, meters / Self.replayStepMeters)
+        let i = min(replayProfile.count - 1, Int(x)), j = min(replayProfile.count - 1, i + 1)
+        let f = x - Double(Int(x))
+        let a = replayProfile[i], b = replayProfile[j]
+        return max(0.4, (a * a * (1 - f) + b * b * f).squareRoot())
+    }
+
+    /// A careful driver's speed along the route, for replays: 90% of the posted limit (30 mph where unknown),
+    /// 15 mph through turns and roundabouts, a full stop at stop signs, and never braking or speeding up
+    /// harder than an easy, comfortable rate, so a replay's habit report is clean.
+    static func replayProfile(route: PlannedRoute, speeds: [(along: Double, mph: Int)], stops: [Double]) -> [Double] {
+        let step = replayStepMeters, decel = 2.0, accel = 2.5
+        let n = Int(route.polyline.lengthMeters / step) + 2
+        let turns = route.maneuvers.filter(\.needsLaneChoice).map(\.alongMeters)
+        var v = (0..<n).map { i -> Double in
+            let m = Double(i) * step
+            if stops.contains(where: { abs($0 - m) <= step }) { return 0.4 }   // crawl the last few meters
+            if turns.contains(where: { abs($0 - m) < 60 }) { return 6.7 }   // 15 mph
+            // A limit of 0 (a mapping slip) or none: 30 mph.
+            let mph = CueListBuilder.speed(at: m, in: speeds).flatMap { $0 > 0 ? $0 : nil } ?? 30
+            return Double(mph) * 0.44704 * 0.9
+        }
+        v[0] = min(v[0], 2)
+        for i in stride(from: n - 2, through: 0, by: -1) { v[i] = min(v[i], (v[i + 1] * v[i + 1] + 2 * decel * step).squareRoot()) }
+        for i in 1..<n { v[i] = min(v[i], (v[i - 1] * v[i - 1] + 2 * accel * step).squareRoot()) }
+        return v
     }
 
     private func startLive() {
+        var previous: (at: Coordinate, t: TimeInterval)?
         let d = LocationDelegate(onFix: { [weak self] loc in
             guard let self else { return }
             self.clock = loc.timestamp.timeIntervalSince(self.startedAt)
-            self.feed(Coordinate(loc.coordinate), at: self.clock)
+            let here = Coordinate(loc.coordinate)
+            let speed = Self.speedFromFixes(reported: loc.speed, from: previous?.at, at: previous?.t ?? 0, to: here, at: self.clock)
+            previous = (here, self.clock)
+            self.feed(here, at: self.clock, speedMps: speed ?? -1)
         }, onDenied: { [weak self] in
             guard let self, self.lastCueText != Self.locationOffText else { return }
             self.lastCueText = Self.locationOffText
-            self.speaker.say("Location is off for Baxi. Pull over, then turn it on in Settings.")
+            self.speaker.say(Line.locationOff)
+        }, onCoarseFix: { [weak self] in
+            guard let self, !self.hasFix else { return }
+            self.coarseFixes = true
         })
         locationDelegate = d
         d.manager.requestWhenInUseAuthorization()
@@ -278,14 +437,25 @@ final class DriveSession {
 
     // MARK: Each location fix
 
-    func feed(_ location: Coordinate, at time: TimeInterval) {
-        guard !isFinished, let p = follower.update(location: location, at: time) else { return }
+    /// `speedMps`: the GPS speed (negative when unknown), or the replay's speed; nil when not known at all.
+    func feed(_ location: Coordinate, at time: TimeInterval, speedMps: Double? = nil) {
+        guard !isFinished else { return }
+        hasFix = true
+        if lastCueText == Self.locationOffText { lastCueText = "" }
+        lastSpeedMps = speedMps
+        // A held fix (a far jump waiting for confirmation) changes nothing, not even the time of the last fix.
+        guard let p = follower.update(location: location, at: time), !p.isHeld else { return }
         if p.crossTrackMeters < 30 { hasReachedRoute = true }
         if mode == .live, !hasReachedRoute, p.crossTrackMeters > RouteFollower.offRouteMeters {
             // Still heading to the route: no progress, no cues, until the car is on it.
             position = location
-            lastCueText = "Getting you to the start"
-            if !saidGetToStart { saidGetToStart = true; speaker.say("First, let's get you to the start of the route.") }
+            // Nowhere near the route (another town): a new route to its start is not what the driver needs.
+            if p.crossTrackMeters > Self.farFromRouteMeters {
+                lastCueText = Self.farFromRouteText
+                return
+            }
+            if lastCueText != Self.rerouteFailedText { lastCueText = "Getting you to the start" }
+            if !saidGetToStart { saidGetToStart = true; speaker.say(Line.getToStart) }
             if !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
         }
@@ -317,9 +487,10 @@ final class DriveSession {
         heading = route.polyline.bearing(atMeters: p.alongMeters) ?? heading
 
         if p.isOffRoute {
-            if lastCueText != "Off the route" {
+            // After a failed reroute its message stays up until the car is back or a new route comes.
+            if lastCueText != "Off the route", lastCueText != Self.rerouteFailedText {
                 lastCueText = "Off the route"
-                speaker.say("You're off the route. Keep driving, I'm finding a new way.")
+                speaker.say(Line.offRoute)
             }
             if mode == .live, !isRerouting, time - lastRerouteAttempt > 30 { reroute(from: location, at: time) }
             return
@@ -329,11 +500,11 @@ final class DriveSession {
         // instructions on the old line valid while the car is already away from that line.
         guard p.crossTrackMeters <= RouteFollower.offRouteMeters else { return }
 
-        if lastCueText == "Off the route" { lastCueText = "" }
-
-        // A lane strip stays up from its cue until the maneuver is passed.
-        if let c = lastLaneCue, p.alongMeters > c.targetMeters + 10 {
-            laneStrip = nil; lastLaneCue = nil
+        if lastCueText == "Off the route" || lastCueText == Self.rerouteFailedText { lastCueText = "" }
+        saidRerouteFailed = false
+        if let v = speedMps {
+            samples.append(SpeedSample(t: time, along: p.alongMeters + alongOffset, mps: v,
+                                       limitMph: CueListBuilder.speed(at: p.alongMeters, in: speeds)))
         }
 
         if let cue = scheduler.due(from: cues, alongMeters: p.alongMeters, now: time) {
@@ -342,21 +513,23 @@ final class DriveSession {
             if cue.spokenTemplate.contains("{reminder}"), !saidRoundaboutReminder {
                 // Once per drive, at the first two-lane roundabout.
                 saidRoundaboutReminder = true
-                spoken += ". No lane changes inside the roundabout"
+                spoken += Line.roundaboutReminder
             }
             lastCue = cue
             lastCueText = cue.card(lights: lights)
-            if let s = cue.laneStrip { laneStrip = s; lastLaneCue = cue }
             spokenLog.append((p.alongMeters, spoken))
             speaker.say(spoken, chime: true)
-            // The line as actually said (light counts filled in), at the voice speed the user chose, on the
-            // session clock (a replay at 4x runs the clock 4 times faster than the voice).
+            // The line as actually said (light counts filled in), at the voice speed the user chose. A replay runs
+            // its clock at real speed while a line is being said (advanceReplay), so a line lasts the same on the
+            // session clock as in real time.
             let rate = UserDefaults.standard.object(forKey: Speaker.rateKey) as? Double ?? 1
-            let clockScale: Double = if case .replay(let m) = mode { m } else { 1 }
-            scheduler.noteSpeech(spoken, at: time, rate: rate, clockScale: clockScale)
+            scheduler.noteSpeech(spoken, at: time, rate: rate)
         }
         // Within 30 m of the end counts as there: GPS is often 10 to 20 m off, and people park short.
-        if p.remainingMeters < Self.arrivalMeters, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
+        // A replay has no GPS error, so it drives through every turn first (the practice routes end with a
+        // left into the lot 24 m before the pin, which "arrived" used to swallow).
+        let turnsLeft = mode != .live && route.maneuvers.contains { $0.kind != .arrive && $0.alongMeters > p.alongMeters + 5 }
+        if p.remainingMeters < Self.arrivalMeters, !turnsLeft, previousAlong > route.polyline.lengthMeters - 300, !isFinished {
             if let arrive = cues.first(where: { $0.kind == .arrive }) { scheduler.markFired(arrive.id); lastCue = arrive }
             // The car is there: credit the last few meters and any turn in them, as if it drove to the pin.
             let destination = route.polyline.lengthMeters
@@ -364,15 +537,27 @@ final class DriveSession {
             arrivalCreditMeters = max(0, destination - p.alongMeters)
             passedAlong = destination
             lastCueText = "Arrived"
-            spokenLog.append((p.alongMeters, "You've arrived"))
-            speaker.say("You've arrived", chime: true)
+            spokenLog.append((p.alongMeters, Line.arrived))
+            speaker.say(Line.arrived, chime: true)
             end(stopSpeech: false)
         }
         previousAlong = p.alongMeters
     }
 
     static let arrivalMeters = 30.0
-    private var lastLaneCue: Cue?
+
+    /// The lines Baxi says outside the cue list, in one place so the recorded voice covers them all.
+    enum Line {
+        static let start = "Here we go. I'll tell you about each turn early."
+        static let locationOff = "Location is off for Baxi. Pull over, then turn it on in Settings."
+        static let getToStart = "First, let's get you to the start of the route."
+        static let offRoute = "You're off the route. Keep driving, I'm finding a new way."
+        static let arrived = "You've arrived"
+        static let rerouteFailed = "I can't get a new route right now. Head back to the blue line when it's safe."
+        static let newRoute = "New route"
+        static let roundaboutReminder = ". No lane changes inside the roundabout"
+        static let all = [start, locationOff, getToStart, offRoute, arrived, rerouteFailed, newRoute]
+    }
     private var saidRoundaboutReminder = false
     private var previousAlong = 0.0
     private var saidGetToStart = false
@@ -389,9 +574,19 @@ final class DriveSession {
         isRerouting = true
         lastRerouteAttempt = time
         Task { @MainActor [weak self] in
-            let approach = try? await RouteService.route(from: location, to: target, name: original.name)
+            guard let router = self?.router else { return }
+            let approach = try? await router(location, target, original.name)
             guard let self, !self.isFinished else { return }
-            guard let approach else { self.isRerouting = false; return }
+            guard let approach else {
+                // Keep trying every 30 s, but tell the driver now what to do meanwhile, once per stretch off the route.
+                self.isRerouting = false
+                self.lastCueText = Self.rerouteFailedText
+                if !self.saidRerouteFailed {
+                    self.saidRerouteFailed = true
+                    self.speaker.say(Line.rerouteFailed)
+                }
+                return
+            }
             let new = original.rejoined(by: approach, at: rejoin)
             // Cue building takes a moment; do it off the main thread so fixes keep flowing meanwhile.
             let (cache, features, hin) = (self.cache, self.features, self.highInjury)
@@ -402,7 +597,7 @@ final class DriveSession {
             self.isRerouting = false
             self.install(new, prep: prep)
             // The next instruction comes from the cues at its usual distance, not all at once here.
-            self.speaker.say("New route")
+            self.speaker.say(Line.newRoute)
         }
     }
 
@@ -419,12 +614,13 @@ final class DriveSession {
             ?? RoutePrep.make(route: new, cache: cache, features: features, highInjury: highInjury)
         (cues, signals, speeds) = (Self.filtered(p.planned(for: level, route: new)), p.signals, p.speeds)
         rebuildLaneZones()
+        alongOffset += Self.routeOffsetMeters
+        addHabitPlaces(p)
         follower = RouteFollower(polyline: new.polyline)
         scheduler = CueScheduler()
         progress = nil
         lastCue = nil
         lastFeedTime = nil; lastFixOnRoute = true
-        laneStrip = nil; lastLaneCue = nil
         lastCueText = "New route"
         rerouteCount += 1
     }
@@ -439,6 +635,21 @@ final class DriveSession {
         }
     }
 
+    /// The car's speed at a fix: the GPS's own when it knows it, else the distance from the previous fix over the
+    /// time between them (iOS often reports -1 while the car is stopped, which is exactly when a stop is judged).
+    static func speedFromFixes(reported: Double, from prev: Coordinate?, at t0: TimeInterval, to here: Coordinate,
+                               at t1: TimeInterval) -> Double? {
+        if reported >= 0 { return reported }
+        guard let prev, t1 - t0 > 0, t1 - t0 <= 5 else { return nil }
+        return Geo.distanceMeters(prev, here) / (t1 - t0)
+    }
+
+    /// Only a real supervised drive counts toward the 50 hours: live, at least a minute, and the car moved.
+    static let minLoggedMeters = 200.0
+    static func shouldLog(mode: Mode, seconds: TimeInterval, meters: Double) -> Bool {
+        mode == .live && seconds >= 60 && meters >= minLoggedMeters
+    }
+
     var minutes: Double { ((endedAt ?? Date()).timeIntervalSince(startedAt)) / 60 }
 }
 
@@ -446,10 +657,12 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     let manager = CLLocationManager()
     let onFix: (CLLocation) -> Void
     let onDenied: () -> Void
+    let onCoarseFix: () -> Void
 
-    init(onFix: @escaping (CLLocation) -> Void, onDenied: @escaping () -> Void) {
+    init(onFix: @escaping (CLLocation) -> Void, onDenied: @escaping () -> Void, onCoarseFix: @escaping () -> Void) {
         self.onFix = onFix
         self.onDenied = onDenied
+        self.onCoarseFix = onCoarseFix
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
@@ -466,13 +679,17 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .denied, .restricted: onDenied()
+        // Allowed from Settings mid-drive: updates stopped with the denial, so ask for them again.
+        case .authorizedWhenInUse, .authorizedAlways: manager.startUpdatingLocation()
         default: break
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         // iOS often hands over a cached fix from minutes ago first; it would place the car where it was.
+        var usable = false
         for l in locations where l.horizontalAccuracy >= 0 && l.horizontalAccuracy < 50
-            && abs(l.timestamp.timeIntervalSinceNow) < 10 { onFix(l) }
+            && abs(l.timestamp.timeIntervalSinceNow) < 10 { usable = true; onFix(l) }
+        if !usable, locations.contains(where: { $0.horizontalAccuracy >= 50 }) { onCoarseFix() }
     }
 }

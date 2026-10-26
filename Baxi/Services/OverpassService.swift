@@ -10,8 +10,11 @@ enum OverpassService {
     static let userAgent = "baxi-cac-2026/0.1 (student project; contact via GitHub)"
     static let routeRadiusMeters = 40
     static let schoolRadiusMeters = 200
-    /// Points per query: GET URLs must stay short, so long routes are split into pieces.
-    static let pointsPerQuery = 120
+    /// Points per query: GET URLs must stay under about 8 KB (the servers refuse longer ones; checked Oct 25,
+    /// 2026: 120 points with the line written twice is 6 KB and answers), so long routes are split into pieces.
+    static let pointsPerQuery = 100
+    /// How long one request may take: the public servers answered a corridor in 31 to 36 s on Oct 25, 2026.
+    static let requestSeconds = 40.0
     static let keepTags: Set<String> = ["highway", "junction", "lanes", "turn:lanes", "turn:lanes:forward", "turn:lanes:backward",
                                         "lanes:forward", "lanes:backward", "oneway", "maxspeed", "name", "ref", "amenity", "stop", "railway"]
 
@@ -20,8 +23,13 @@ enum OverpassService {
     /// The road data along `line`, merged across the query pieces.
     static func corridor(along line: Polyline) async throws -> OSMCache {
         var ways: [Int: OSMWay] = [:], nodes: [Int: OSMNode] = [:]
-        for piece in pieces(of: line) {
-            let part = try await fetch(query(around: piece))
+        // The pieces are fetched at the same time (a route has one to a few), so a long route waits
+        // about as long as a short one.
+        let parts = try await withThrowingTaskGroup(of: OSMCache.self) { group in
+            for piece in pieces(of: line) { group.addTask { try await fetch(query(around: piece)) } }
+            return try await group.reduce(into: [OSMCache]()) { $0.append($1) }
+        }
+        for part in parts {
             for w in part.ways { ways[w.id] = merge(ways[w.id], w) }
             for n in part.nodes { nodes[n.id] = n }
         }
@@ -52,19 +60,21 @@ enum OverpassService {
 
     static func query(around pts: [Coordinate]) -> String {
         let line = pts.map { String(format: "%.5f,%.5f", $0.lat, $0.lon) }.joined(separator: ",")
+        // Signals, stop signs and crossings are nodes of the roads already found, so they come from those ways
+        // instead of a second search along the line: the line appears twice, and the query runs in a third of the time.
         return """
-        [out:json][timeout:60];
+        [out:json][timeout:\(Int(requestSeconds))];
         way(around:\(routeRadiusMeters),\(line))["highway"]->.w;
         way.w["junction"="roundabout"]->.rb;
         node(w.rb)->.rbn;
         way(bn.rbn)["highway"]->.legs;
         (.w; .legs;);
         out body geom;
-        node(around:\(routeRadiusMeters),\(line))["highway"~"^(traffic_signals|stop)$"];
+        node(w.w)["highway"~"^(traffic_signals|stop)$"];
         out;
-        node(around:\(routeRadiusMeters),\(line))["railway"="level_crossing"];
+        node(w.w)["railway"="level_crossing"];
         out;
-        (node(around:\(schoolRadiusMeters),\(line))["amenity"="school"]; way(around:\(schoolRadiusMeters),\(line))["amenity"="school"];);
+        nwr(around:\(schoolRadiusMeters),\(line))["amenity"="school"];
         out center tags;
         """
     }
@@ -74,10 +84,11 @@ enum OverpassService {
             var c = URLComponents(string: url)!
             c.queryItems = [URLQueryItem(name: "data", value: query)]
             // GET, not POST: overpass-api.de answered POST with an HTML error page on Oct 13, 2026.
-            var req = URLRequest(url: c.url!, timeoutInterval: 30)
+            var req = URLRequest(url: c.url!, timeoutInterval: requestSeconds)
             req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
             guard let (data, resp) = try? await URLSession.shared.data(for: req),
                   (resp as? HTTPURLResponse)?.statusCode == 200,
+                  data.count < 20_000_000,   // a corridor is a few hundred KB; anything near that size is not one
                   let parsed = try? parse(data) else { continue }
             return parsed
         }

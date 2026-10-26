@@ -17,9 +17,14 @@ final class DriveRecord {
     var manual: Bool = false
     /// Practice.encode of the skills this drive practiced; empty for drives added by hand or saved before Oct 14.
     var skillsJSON: String = ""
+    /// DriveHabits.encode of how the drive went; empty for drives added by hand or saved before Oct 24.
+    var habitsJSON: String = ""
+    /// Made up by Settings > "Show the app's states" to show Baxi off; removed again by the same screen.
+    var sample: Bool = false
 
     init(start: Date, end: Date, dayMinutes: Int, nightMinutes: Int, level: ExperienceLevel, routeTitle: String,
-         distanceMeters: Double, cuesSpoken: Int, manual: Bool = false, skills: SkillCounts = [:]) {
+         distanceMeters: Double, cuesSpoken: Int, manual: Bool = false, skills: SkillCounts = [:], habits: HabitReport? = nil,
+         sample: Bool = false) {
         id = UUID()
         self.start = start; self.end = end
         self.dayMinutes = dayMinutes; self.nightMinutes = nightMinutes
@@ -29,12 +34,16 @@ final class DriveRecord {
         self.cuesSpoken = cuesSpoken
         self.manual = manual
         self.skillsJSON = Practice.encode(skills)
+        self.habitsJSON = DriveHabits.encode(habits)
+        self.sample = sample
     }
+
+    var habits: HabitReport? { DriveHabits.decode(habitsJSON) }
 
     var skills: SkillCounts { Practice.decode(skillsJSON) }
 
     var row: LogRow {
         LogRow(start: start, end: end, dayMinutes: dayMinutes, nightMinutes: nightMinutes, routeTitle: routeTitle,
-               distanceMeters: distanceMeters, manual: manual)
+               distanceMeters: distanceMeters, manual: manual, id: id)
     }
 }

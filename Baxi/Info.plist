@@ -23,10 +23,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Baxi uses location for driving cues and, when requested, a trip starting point. Planning a route shares its start and destination with the route provider.</string>
+	<string>Baxi follows your route during a drive so each cue is spoken at the right moment, and starts a searched route where you are (or from a starting point you choose). Your drives stay on this phone.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Overpass-SemiBold.ttf</string>
 		<string>Overpass-Bold.ttf</string>
 		<string>Overpass-ExtraBold.ttf</string>
 		<string>Overpass-Black.ttf</string>

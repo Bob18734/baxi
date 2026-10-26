@@ -41,3 +41,34 @@ private final class SilentRecorder: SpeechOutput {
     func say(_ text: String) {}
     func stop() {}
 }
+
+/// Oct 24: each skill climbs four levels toward its goal.
+struct SkillLevelTests {
+    @Test func levelThresholds() {
+        // Two-lane roundabouts, goal 10: levels at 3, 5, 8 and 10.
+        let lv = { (n: Int) in Practice.level(.multiLaneRoundabout, count: n) }
+        #expect(lv(0).level == 0 && lv(0).title == "Not yet" && lv(0).toNext == 3)
+        #expect(lv(2).level == 0 && lv(2).toNext == 1)
+        #expect(lv(3).level == 1 && lv(3).title == "Started")
+        #expect(lv(5).level == 2 && lv(5).title == "Steady")
+        #expect(lv(7).level == 2 && lv(7).toNext == 1)
+        #expect(lv(8).level == 3 && lv(8).title == "Confident")
+        #expect(lv(10).level == 4 && lv(10).title == "Test-ready" && lv(10).toNext == nil)
+        #expect(lv(14).level == 4)
+    }
+
+    @Test func levelUpsDetected() {
+        let ups = Practice.levelUps(before: [.multiLaneRoundabout: 2, .exitRamp: 1], after: [.multiLaneRoundabout: 3, .exitRamp: 1])
+        #expect(ups.count == 1)
+        #expect(ups.first?.skill == .multiLaneRoundabout && ups.first?.level == 1)
+        #expect(Practice.levelUps(before: [:], after: [:]).isEmpty)
+    }
+}
+
+struct SkillWordingTests {
+    @Test func oneIsSingular() {
+        #expect(Skill.highwayMerge.count(1) == "1 highway merge")
+        #expect(Skill.highwayMerge.count(2) == "2 highway merges")
+        #expect(Skill.multiLaneRoundabout.count(1) == "1 two-lane roundabout")
+    }
+}

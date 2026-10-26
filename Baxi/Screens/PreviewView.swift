@@ -1,8 +1,9 @@
 import SwiftUI
 import MapKit
 
-/// Before the drive, at home or parked: every hard spot on the route as street-level imagery, what Baxi
-/// will say there, and the rule from the Indiana Driver's Manual (written by the students).
+/// Before the drive, at home or parked: every hard spot on the route as street-level imagery from just before
+/// it, what Baxi will say there, the lanes, where the data comes from, and the rule from the Indiana Driver's
+/// Manual where the students have written it.
 struct PreviewView: View {
     let routeName: String
     let spots: [HardSpot]
@@ -12,165 +13,132 @@ struct PreviewView: View {
     private let briefings = BundledData.briefings()
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            SheetHeader(title: "Preview", subtitle: routeName, actionTitle: "Close") { dismiss() }
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: BaxiSpace.xl) {
-                    header
-                    ForEach(Array(spots.enumerated()), id: \.element.id) { i, spot in
-                        SpotCard(index: i + 1, spot: spot, route: route,
-                                 briefing: spot.featureKind.flatMap { briefings[$0] })
-                    }
+                LazyVStack(alignment: .leading, spacing: Space.s32) {
+                    Text(summary).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
                     if spots.isEmpty {
-                        ContentUnavailableView("Nothing tricky", systemImage: "checkmark.circle",
-                                               description: Text("No roundabouts, ramps or multi-lane turns on this route."))
+                        EmptyState(message: "Nothing tricky on this route: no roundabouts, ramps or turns from busy roads.")
+                    }
+                    ForEach(Array(spots.enumerated()), id: \.element.id) { i, spot in
+                        SpotSection(index: i + 1, spot: spot, route: route, briefing: spot.featureKind.flatMap { briefings[$0] },
+                                    isLast: i == spots.count - 1)
                     }
                 }
-                .padding(.horizontal, BaxiSpace.page)
-                .padding(.bottom, BaxiSpace.xl)
-            }
-            .baxiPage()
-            .navigationTitle("Preview")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if let onStart {
-                    Button { dismiss(); onStart() } label: { Label("Start drive", systemImage: "car.fill") }
-                        .buttonStyle(.baxiPrimary)
-                        .padding(.horizontal, BaxiSpace.page)
-                        .padding(.vertical, BaxiSpace.sm)
-                        .background(.bar)
-                }
+                .padding(.horizontal, Space.margin)
+                .padding(.bottom, Space.s32)
             }
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-            Text(routeName).font(BaxiFont.title).foregroundStyle(BaxiColor.ink)
-            Text(summary).font(BaxiFont.callout).foregroundStyle(BaxiColor.inkSoft)
+        .pageBackground()
+        .safeAreaInset(edge: .bottom) {
+            if let onStart {
+                BigButton(title: "Start drive") { dismiss(); onStart() }
+                    .padding(.horizontal, Space.margin)
+                    .padding(.vertical, Space.s12)
+                    .background(Palette.page)
+            }
         }
-        .padding(.top, BaxiSpace.md)
     }
 
     private var summary: String {
         let counts = Dictionary(grouping: spots, by: \.kind).mapValues(\.count)
-        var parts: [String] = []
-        if let n = counts[.roundabout] { parts.append("\(n) roundabout\(n == 1 ? "" : "s")") }
-        if let n = counts[.ramp] { parts.append("\(n) merge\(n == 1 ? "" : "s") or ramp\(n == 1 ? "" : "s")") }
-        if let n = counts[.laneTurn] { parts.append("\(n) lane choice\(n == 1 ? "" : "s")") }
-        if let n = counts[.schoolZone] { parts.append("\(n) school zone\(n == 1 ? "" : "s")") }
-        if let n = counts[.crashCorridor] { parts.append("\(n) crash-heavy stretch\(n == 1 ? "" : "es")") }
-        if let n = counts[.studyIntersection] { parts.append("\(n) studied intersection\(n == 1 ? "" : "s")") }
-        if let n = counts[.fatalCrash] { parts.append("\(n) historical crash record\(n == 1 ? "" : "s")") }
-        if let n = counts[.glare] { parts.append("\(n) low-sun stretch\(n == 1 ? "" : "es") if you leave now") }
-        return parts.isEmpty ? "No hard spots." : parts.joined(separator: ", ") + "."
+        func n(_ k: HardSpot.Kind, _ one: String, _ many: String) -> String? { counts[k].map { "\($0) \($0 == 1 ? one : many)" } }
+        let parts = [n(.roundabout, "roundabout", "roundabouts"), n(.ramp, "merge or ramp", "merges or ramps"),
+                     n(.laneTurn, "lane choice", "lane choices"), n(.schoolZone, "school zone", "school zones"),
+                     n(.crashCorridor, "crash-heavy stretch", "crash-heavy stretches"),
+                     n(.studyIntersection, "studied intersection", "studied intersections"),
+                     n(.fatalCrash, "past fatal crash", "past fatal crashes"),
+                     n(.glare, "low-sun stretch if you leave now", "low-sun stretches if you leave now")].compactMap { $0 }
+        return parts.isEmpty ? "No hard spots on this route." : "On this route: " + parts.joined(separator: ", ") + "."
     }
 }
 
-private struct SpotCard: View {
+/// One hard spot: the approach in Look Around (or a small map), then what to know about it.
+private struct SpotSection: View {
     let index: Int
     let spot: HardSpot
     let route: PlannedRoute
     let briefing: Briefing?
+    let isLast: Bool
     @State private var scene: MKLookAroundScene?
     @State private var looked = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Space.s16) {
             imagery
-                .frame(height: 210)
-                .clipped()
-                .overlay(alignment: .bottomTrailing) {
-                    // Bottom right: Look Around keeps its own badge top left and the Maps logo bottom left.
-                    HStack(spacing: BaxiSpace.sm) {
-                        Text("at \(DriveView.distance(spot.alongMeters))").font(BaxiFont.caption)
-                            .padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
-                            .background(.regularMaterial, in: Capsule())
-                        SpotPin(number: index, kind: spot.kind)
-                    }
-                    .padding(BaxiSpace.md)
-                    .allowsHitTesting(false)
+                .frame(height: PreviewSize.imagery)
+                .clipShape(RoundedRectangle(cornerRadius: Corner.control, style: .continuous))
+            HStack(alignment: .firstTextBaseline, spacing: Space.s12) {
+                Text("\(index)").role(.rowTitle).monospacedDigit()
+                    .foregroundStyle(SpotColor.onMarker(spot.kind))
+                    .frame(width: PreviewSize.number, height: PreviewSize.number)
+                    .background(SpotColor.of(spot.kind), in: Circle())
+                VStack(alignment: .leading, spacing: Space.s4) {
+                    Text(spot.title).role(.rowTitle).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                    Text("At \(DriveView.distance(spot.alongMeters))").role(.meta).foregroundStyle(Palette.meta)
                 }
-            VStack(alignment: .leading, spacing: BaxiSpace.md) {
-                Text(spot.title).font(BaxiFont.section).foregroundStyle(BaxiColor.ink)
-                if let strip = spot.laneStrip {
-                    VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                        Text("Map-based lane guidance").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.onSign)
-                        LaneStripView(strip: strip)
-                    }
-                    .padding(BaxiSpace.md)
-                    .signPanel(radius: BaxiRadius.md)
-                }
-                if let note = spot.mapDataNote {
-                    Label(note, systemImage: "questionmark.circle")
-                        .font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                }
-                said
-                if let context = spot.context { sourceContext(context) }
-                if let b = briefing { manual(b) }
             }
-            .padding(BaxiSpace.lg)
+            said
+            if let strip = spot.laneStrip {
+                // The same lane sign as the Drive screen, so the driver recognises it on the road.
+                GuideSign(padding: Space.s12 + SignStyle.borderInset) { LaneRow(strip: strip) }
+            }
+            if let note = spot.mapDataNote {
+                Text(note).role(.meta).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
+            }
+            if let context = spot.context { source(context) }
+            if let b = briefing { manual(b) }
+            if !isLast { Hairline().padding(.top, Space.s8) }
         }
-        .background(BaxiColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: BaxiRadius.lg, style: .continuous).strokeBorder(BaxiColor.hairline, lineWidth: 1))
         .task(id: spot.id) { await loadScene() }
     }
 
     private var said: some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.xs) {
+        HStack(alignment: .top, spacing: Space.s12) {
+            Mark(glyph: spot.spoken.isEmpty ? .speakerOff : .speaker, size: MarkSize.row).foregroundStyle(Palette.meta)
             if spot.spoken.isEmpty {
-                Label("Baxi stays quiet here", systemImage: "speaker.slash").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
-                Text("This record is shown only in Preview; it does not add a spoken instruction.")
-                    .font(BaxiFont.body).foregroundStyle(BaxiColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text("Baxi stays quiet here. This record is shown only in Preview.")
+                    .role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
             } else {
-                Label("Baxi will say", systemImage: "waveform").font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.accent)
-                Text("“\(spot.spoken)”").font(BaxiFont.bodyBold).foregroundStyle(BaxiColor.ink)
+                Text("\u{201C}\(spot.spoken)\u{201D}").role(.bodyStrong).foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(BaxiSpace.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BaxiColor.sunken, in: RoundedRectangle(cornerRadius: BaxiRadius.md, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spot.spoken.isEmpty ? "Baxi stays quiet here" : "Baxi will say: \(spot.spoken)")
     }
 
-    private func sourceContext(_ context: PreviewContext) -> some View {
-        DisclosureGroup("Source and details") {
-            VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-                Text(context.detail).font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+    private func source(_ context: PreviewContext) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: Space.s8) {
+                Text(context.detail).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
                 if let url = context.url {
-                    Link(destination: url) {
-                        Label(context.source, systemImage: "arrow.up.right.square")
-                    }
-                    .font(BaxiFont.footnote)
+                    Link(context.source, destination: url).role(.metaStrong).foregroundStyle(Palette.ink).underline()
                 } else {
-                    Text(context.source).font(BaxiFont.footnote).foregroundStyle(BaxiColor.inkSoft)
-                    Text("No source link is included in this record.")
-                        .font(BaxiFont.caption).foregroundStyle(BaxiColor.inkSoft)
+                    Text("\(context.source). No source link in this record.").role(.meta).foregroundStyle(Palette.meta)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, BaxiSpace.sm)
+            .padding(.top, Space.s8)
+        } label: {
+            Text("Where this comes from").role(.metaStrong).foregroundStyle(Palette.ink)
         }
-        .font(BaxiFont.callout)
-        .tint(BaxiColor.accent)
+        .tint(Palette.ink)
     }
 
     private func manual(_ b: Briefing) -> some View {
-        VStack(alignment: .leading, spacing: BaxiSpace.sm) {
-            Label("From the Indiana Driver's Manual", systemImage: "book.closed.fill")
-                .font(BaxiFont.eyebrow).foregroundStyle(BaxiColor.inkFaint)
-            Text(b.title).font(BaxiFont.headline).foregroundStyle(BaxiColor.ink)
-            Text(b.howTo).font(BaxiFont.callout).foregroundStyle(BaxiColor.ink)
+        VStack(alignment: .leading, spacing: Space.s8) {
+            Text("From the Indiana Driver's Manual").role(.group).foregroundStyle(Palette.meta)
+            Text(b.title).role(.rowTitle).foregroundStyle(Palette.ink)
+            Text(b.howTo).role(.body).foregroundStyle(Palette.read).fixedSize(horizontal: false, vertical: true)
             if !b.quote.isEmpty {
-                Text("“\(b.quote)”").font(BaxiFont.callout.italic()).foregroundStyle(BaxiColor.inkSoft)
-                    .padding(.leading, BaxiSpace.md)
-                    .overlay(alignment: .leading) { Rectangle().fill(BaxiColor.accent).frame(width: 3) }
+                Text("\u{201C}\(b.quote)\u{201D}").role(.body).italic().foregroundStyle(Palette.read)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, Space.s12)
+                    .overlay(alignment: .leading) { Rectangle().fill(Palette.ink).frame(width: Size.quoteRule) }
             }
-            if let c = b.citation { Text(c).font(BaxiFont.caption).foregroundStyle(BaxiColor.inkFaint) }
+            if let c = b.citation { Text(c).role(.meta).foregroundStyle(Palette.meta) }
         }
     }
 
@@ -178,22 +146,29 @@ private struct SpotCard: View {
         if let scene {
             LookAroundPreview(initialScene: scene, allowsNavigation: true, showsRoadLabels: true)
         } else if !looked {
-            Rectangle().fill(BaxiColor.sunken).shimmer()
+            Rectangle().fill(Palette.track).shimmering()
         } else {
             // No street imagery here: a small map of the spot, aimed the way the car arrives.
-            Map(initialPosition: .camera(MapCamera(centerCoordinate: spot.location.clLocation, distance: 450, heading: approachHeading, pitch: 45)),
+            Map(initialPosition: .camera(MapCamera(centerCoordinate: spot.location.clLocation, distance: PreviewSize.mapDistance,
+                                                   heading: approachHeading, pitch: PreviewSize.mapPitch)),
                 interactionModes: []) {
-                MapPolyline(coordinates: route.polyline.points.map(\.clLocation)).stroke(BaxiColor.route, lineWidth: 6)
-                Annotation("", coordinate: spot.location.clLocation) { SpotPin(number: index, kind: spot.kind) }
+                MapPolyline(coordinates: route.polyline.points.map(\.clLocation))
+                    .stroke(Palette.ink, style: StrokeStyle(lineWidth: MapLine.route, lineCap: .round, lineJoin: .round))
+                Annotation("", coordinate: spot.location.clLocation) {
+                    Circle().fill(SpotColor.of(spot.kind)).frame(width: MapLine.dot + Space.s4, height: MapLine.dot + Space.s4)
+                        .overlay(Circle().stroke(Palette.field, lineWidth: MapLine.dotEdge))
+                }
             }
+            .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
             .overlay(alignment: .bottomLeading) {
-                Text("No street imagery here").font(BaxiFont.caption).padding(.horizontal, BaxiSpace.sm).padding(.vertical, BaxiSpace.xs)
-                    .background(.regularMaterial, in: Capsule()).padding(BaxiSpace.md)
+                Text("No street imagery here").role(.meta).foregroundStyle(Palette.onDark)
+                    .padding(.horizontal, Space.s12).padding(.vertical, Space.s4)
+                    .background(Palette.ink, in: Capsule()).padding(Space.s12)
             }
         }
     }
 
-    /// The partner's ApproachHeading once it is written; until then the route's own bearing.
+    /// The partner's ApproachHeading where it applies; otherwise the route's own bearing.
     private var approachHeading: Double {
         if ApproachHeading.isImplemented, let b = ApproachHeading.bearing(route: route.polyline.points, spot: spot.location) { return b }
         return route.polyline.bearing(atMeters: max(0, spot.alongMeters - 40)) ?? 0
@@ -202,7 +177,43 @@ private struct SpotCard: View {
     /// Look Around from just before the spot, so the image shows the approach.
     private func loadScene() async {
         let point = route.polyline.coordinate(atMeters: max(0, spot.alongMeters - 40)) ?? spot.location
-        let found = try? await MKLookAroundSceneRequest(coordinate: point.clLocation).scene
-        withAnimation(.easeOut(duration: 0.25)) { scene = found; looked = true }
+        let found: MKLookAroundScene?
+        do { found = try await MKLookAroundSceneRequest(coordinate: point.clLocation).scene }
+        catch is CancellationError { return }
+        catch { found = nil }
+        // Scrolled away mid-load: say nothing, so the row asks again when it comes back.
+        guard !Task.isCancelled else { return }
+        withAnimation(Motion.standard) { scene = found; looked = true }
+    }
+}
+
+/// The lanes at a spot or a turn, as on a diagrammatic guide sign: white arrows on green, the lanes to use lit amber.
+struct LaneRow: View {
+    let strip: LaneStrip
+    var onSign = true
+    var height: CGFloat = LaneSize.row
+
+    var body: some View {
+        HStack(spacing: Space.s8) {
+            ForEach(0..<strip.laneCount, id: \.self) { i in
+                let lit = strip.highlighted.contains(i)
+                LaneMark(label: i < strip.labels.count ? strip.labels[i] : "", size: height * LaneSize.markRatio)
+                    .foregroundStyle(lit ? Palette.ink : (onSign ? Palette.onSign : Palette.meta))
+                    .frame(maxWidth: .infinity, minHeight: height)
+                    .background(lit ? Palette.ready : (onSign ? Palette.signLane : Palette.field),
+                                in: RoundedRectangle(cornerRadius: LaneSize.corner, style: .continuous))
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(Self.spoken(strip))
+    }
+
+    static func spoken(_ strip: LaneStrip) -> String {
+        let lanes = strip.highlighted.sorted().map { String($0 + 1) }
+        switch lanes.count {
+        case 0: return "\(strip.laneCount) lanes"
+        case 1: return "Use lane \(lanes[0]) of \(strip.laneCount), counting from the left"
+        default: return "Use lanes \(lanes.dropLast().joined(separator: ", ")) or \(lanes.last!) of \(strip.laneCount), counting from the left"
+        }
     }
 }

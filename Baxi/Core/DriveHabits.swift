@@ -1,0 +1,173 @@
+import Foundation
+
+/// The car's speed at one location fix, where it was along the route, and the posted limit there.
+struct SpeedSample: Codable, Equatable {
+    let t: TimeInterval
+    let along: Double
+    /// Meters per second from the GPS; negative when the phone did not know.
+    let mps: Double
+    let limitMph: Int?
+}
+
+/// How a drive went, for the coaching card after it and the trend in the Log.
+struct HabitReport: Codable, Equatable {
+    var trackedMinutes: Double
+    /// Share of the time on roads with a known limit spent more than 5 mph over it. nil when no limit was known.
+    var overLimitShare: Double?
+    /// The most over the limit, in mph; nil when never more than 5 over.
+    var topOverMph: Int?
+    /// Top speed inside a school zone; nil when the drive passed none.
+    var schoolZoneTopMph: Int?
+    var stopSigns: Int
+    var fullStops: Int
+    var hardBrakes: Int
+    var merges: Int
+    var mergesUpToSpeed: Int
+    /// 0 to 100.
+    var score: Int
+    /// A replay of the route, not a real drive.
+    var isDemo: Bool
+
+    var rollingStops: Int { stopSigns - fullStops }
+    var slowMerges: Int { merges - mergesUpToSpeed }
+}
+
+/// Turns a drive's speed samples into habits a new driver can work on. All of the numbers are Baxi's own
+/// coaching choices, not Indiana law (the README says so).
+enum DriveHabits {
+    static let mphPerMps = 2.23694
+    /// More than this over the posted limit counts as over.
+    static let overMph = 5.0
+    /// Below this the car has stopped (about 3 mph: GPS speed is rarely exactly zero).
+    static let stoppedMps = 1.3
+    /// A stop sign's stop is looked for from this far before it to `stopAfterMeters` past it.
+    static let stopBeforeMeters = 25.0, stopAfterMeters = 10.0
+    /// Slowing faster than this (about 0.35 g) from above 10 mph is a hard brake.
+    static let hardBrakeMps2 = 3.4, hardBrakeFromMps = 4.5
+    /// Hard decelerations closer together than this are one event.
+    static let hardBrakeGapSeconds = 5.0
+    /// A merge is judged this far past the merge point: speed within 10 mph of the limit (45 mph where unknown).
+    static let mergeCheckMeters = 150.0, mergeUnderLimitMph = 10.0, mergeDefaultMph = 45.0
+    /// Fixes further apart than this are a GPS gap, not driving time.
+    static let maxGapSeconds = 10.0
+    /// Shorter drives get no report.
+    static let minTrackedMinutes = 2.0
+    static let schoolZoneMph = 20
+    static let schoolRoadMaxMph = 40
+
+    /// Whole miles per hour, as a speedometer shows them (so 40.0000001 is not "over 40").
+    static func mph(_ x: SpeedSample) -> Double { (x.mps * mphPerMps).rounded() }
+
+    /// The merges whose speed is judged: not one followed within 300 m by a turn, roundabout or exit, where the
+    /// driver is already slowing for what comes next.
+    static func judgedMerges(_ maneuvers: [Maneuver]) -> [Double] {
+        maneuvers.filter { $0.kind == .merge }.map(\.alongMeters).filter { m in
+            !maneuvers.contains { $0.needsLaneChoice && $0.alongMeters > m && $0.alongMeters - m <= 300 }
+        }
+    }
+
+    static func report(samples raw: [SpeedSample], stopSignAlongs: [Double], schoolZones: [ClosedRange<Double>],
+                       mergeAlongs: [Double], isDemo: Bool) -> HabitReport? {
+        let s = raw.filter { $0.mps >= 0 }.sorted { $0.t < $1.t }
+        var tracked = 0.0, knownLimit = 0.0, over = 0.0
+        var hardBrakes = 0, lastBrake = -Double.infinity
+        for (a, b) in zip(s, s.dropFirst()) {
+            let dt = b.t - a.t
+            guard dt > 0, dt <= maxGapSeconds else { continue }
+            tracked += dt
+            if let limit = a.limitMph {
+                knownLimit += dt
+                if mph(a) > Double(limit) + overMph { over += dt }
+            }
+            if dt >= 0.5, a.mps > hardBrakeFromMps, (a.mps - b.mps) / dt > hardBrakeMps2 {
+                if b.t - lastBrake >= hardBrakeGapSeconds { hardBrakes += 1 }
+                lastBrake = b.t
+            }
+        }
+        guard tracked / 60 >= minTrackedMinutes else { return nil }
+
+        let topOver = s.compactMap { x in x.limitMph.map { mph(x) - Double($0) } }.max()
+            .flatMap { $0 > overMph ? Int($0.rounded()) : nil }
+        // Only on roads posted 40 or under: a school next to a 55 mph road has no school-zone limit on it.
+        let schoolTop = s.filter { x in (x.limitMph ?? 0) <= schoolRoadMaxMph && schoolZones.contains { $0.contains(x.along) } }
+            .map(mph).max().map { Int($0) }
+
+        var stopSigns = 0, fullStops = 0
+        for sign in stopSignAlongs {
+            let near = s.filter { $0.along >= sign - stopBeforeMeters && $0.along <= sign + stopAfterMeters }
+            guard let slowest = near.map(\.mps).min() else { continue }   // not driven, or no fix there
+            stopSigns += 1
+            if slowest < stoppedMps { fullStops += 1 }
+        }
+
+        var merges = 0, upToSpeed = 0
+        for m in mergeAlongs {
+            let target = m + mergeCheckMeters
+            guard let x = s.min(by: { abs($0.along - target) < abs($1.along - target) }), abs(x.along - target) <= 40 else { continue }
+            merges += 1
+            let needed = x.limitMph.map { Double($0) - mergeUnderLimitMph } ?? mergeDefaultMph
+            if mph(x) >= needed { upToSpeed += 1 }
+        }
+
+        let share: Double? = knownLimit > 0 ? over / knownLimit : nil
+        var score = 100.0 - min(30, (share ?? 0) * 100)
+        score -= Double(8 * (stopSigns - fullStops) + 6 * hardBrakes + 5 * (merges - upToSpeed))
+        return HabitReport(trackedMinutes: tracked / 60, overLimitShare: share, topOverMph: topOver, schoolZoneTopMph: schoolTop,
+                           stopSigns: stopSigns, fullStops: fullStops, hardBrakes: hardBrakes, merges: merges,
+                           mergesUpToSpeed: upToSpeed, score: max(0, Int(score.rounded())), isDemo: isDemo)
+    }
+
+    /// One line of coaching after a drive, with what it is about (for its icon).
+    struct Tip: Equatable {
+        enum Kind { case clean, speed, stops, braking, merge, school }
+        let kind: Kind
+        let text: String
+    }
+
+    /// Up to three things to work on, most important first: speed, stop signs, braking, merges, then a school
+    /// zone reminder. With nothing to work on, "Clean drive", plus the school reminder when it applies.
+    static func tipItems(_ r: HabitReport) -> [Tip] {
+        var out: [Tip] = []
+        if let share = r.overLimitShare, share >= 0.01, let top = r.topOverMph {
+            out.append(Tip(kind: .speed, text: "Over the limit for \(max(1, Int((share * 100).rounded())))% of the drive, by up to \(top) mph. Ease off a little."))
+        }
+        if r.rollingStops > 0 {
+            out.append(Tip(kind: .stops, text: "\(r.rollingStops) of \(r.stopSigns) stop signs \(r.rollingStops == 1 ? "was a rolling stop" : "were rolling stops"). "
+                           + "Come to a full stop and count to two."))
+        }
+        if r.hardBrakes > 0 {
+            out.append(Tip(kind: .braking, text: r.hardBrakes == 1 ? "One hard stop. Look further ahead and brake earlier."
+                                                 : "\(r.hardBrakes) hard stops. Look further ahead and brake earlier."))
+        }
+        if r.slowMerges > 0 { out.append(Tip(kind: .merge, text: "Merge at highway speed: speed up on the ramp before you join.")) }
+        // Not marked down: Baxi cannot see whether the zone's lights were flashing (school hours).
+        let school = r.schoolZoneTopMph.flatMap { $0 > schoolZoneMph
+            ? Tip(kind: .school, text: "Top speed near a school was \($0) mph. When a school zone's lights flash, the limit is \(schoolZoneMph).") : nil }
+        if out.isEmpty { return [Tip(kind: .clean, text: "Clean drive. Keep it up.")] + [school].compactMap { $0 } }
+        return Array((out + [school].compactMap { $0 }).prefix(3))
+    }
+
+    static func tips(_ r: HabitReport) -> [String] { tipItems(r).map(\.text) }
+
+    /// How recent real drives went (oldest first in, demos skipped): the last ten scores, the share of judged
+    /// stops that were full stops, and the time-weighted share over the limit.
+    static func trend(_ reports: [HabitReport]) -> (lastScores: [Int], fullStopRate: Double?, overLimitShare: Double?) {
+        let recent = reports.filter { !$0.isDemo }.suffix(10)
+        let stops = recent.map(\.stopSigns).reduce(0, +), full = recent.map(\.fullStops).reduce(0, +)
+        let withLimits = recent.filter { $0.overLimitShare != nil }
+        let minutes = withLimits.map(\.trackedMinutes).reduce(0, +)
+        let over = withLimits.map { ($0.overLimitShare ?? 0) * $0.trackedMinutes }.reduce(0, +)
+        return (recent.map(\.score), stops > 0 ? Double(full) / Double(stops) : nil, minutes > 0 ? over / minutes : nil)
+    }
+
+    // Stored on DriveRecord as JSON text, so records saved before Oct 24 (empty) still load.
+    static func encode(_ r: HabitReport?) -> String {
+        guard let r, let d = try? JSONEncoder().encode(r) else { return "" }
+        return String(data: d, encoding: .utf8) ?? ""
+    }
+
+    static func decode(_ s: String) -> HabitReport? {
+        guard !s.isEmpty, let d = s.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(HabitReport.self, from: d)
+    }
+}

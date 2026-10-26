@@ -53,6 +53,14 @@ enum Geo {
     }
 
     /// A point `fraction` of the way from a to b (straight interpolation, fine at city scale).
+    /// The point `meters` from `c` along a compass bearing (flat-earth, fine for a few hundred meters).
+    static func offset(_ c: Coordinate, bearingDegrees: Double, meters: Double) -> Coordinate {
+        let rad = bearingDegrees * .pi / 180
+        let dLat = meters * cos(rad) / 110_540
+        let dLon = meters * sin(rad) / (111_320 * cos(c.lat * .pi / 180))
+        return Coordinate(lat: c.lat + dLat, lon: c.lon + dLon)
+    }
+
     static func interpolate(_ a: Coordinate, _ b: Coordinate, fraction: Double) -> Coordinate {
         Coordinate(lat: a.lat + (b.lat - a.lat) * fraction, lon: a.lon + (b.lon - a.lon) * fraction)
     }

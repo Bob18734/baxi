@@ -3,12 +3,12 @@ import SwiftData
 
 @main
 struct BaxiApp: App {
-    init() { BaxiChrome.apply() }
-
     var body: some Scene {
         WindowGroup {
             RootView()
-                .tint(BaxiColor.accent)
+                .tint(Palette.ink)
+                // One identity, light. The Drive screen alone draws its own night (docs/DESIGN.md).
+                .preferredColorScheme(.light)
                 #if DEBUG
                 .transformEnvironment(\.dynamicTypeSize) { if ScreenCheck.bigText { $0 = .accessibility3 } }
                 #endif
@@ -31,34 +31,55 @@ struct RootView: View {
     var body: some View {
         #if DEBUG
         if let screen = ScreenCheck.value("--screen") {
-            ScreenCheckRoot(screen: screen).environment(store)
+            ScreenCheckRoot(screen: screen).environment(store).environment(toasts)
         } else { tabs }
         #else
         tabs
         #endif
     }
 
+    @State private var toasts = ToastCenter()
+    /// The bar steps aside while the keyboard is up (typing a search), as a system tab bar does.
+    @State private var keyboardUp = false
+
+    /// The three tabs stay alive while hidden (the Routes map keeps its place); the bar sits under them,
+    /// and content ends where the bar begins.
+    private func tab<V: View>(_ t: AppTab, @ViewBuilder _ content: () -> V) -> some View {
+        content()
+            .opacity(store.tab == t ? 1 : 0)
+            .allowsHitTesting(store.tab == t)
+            .accessibilityHidden(store.tab != t)
+    }
+
     private var tabs: some View {
-        TabView(selection: Bindable(store).tab) {
-            Tab("Home", systemImage: "signpost.right.fill", value: .home) { HomeView() }
-            Tab("Routes", systemImage: "map.fill", value: .route) { RouteView() }
-            Tab("Log", systemImage: "clock.badge.checkmark.fill", value: .log) { LogView() }
+        VStack(spacing: 0) {
+            ZStack {
+                tab(.home) { HomeView() }
+                tab(.route) { RouteView() }
+                tab(.log) { LogView() }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if !keyboardUp { BottomBar(selection: Bindable(store).tab).transition(.opacity) }
+        }
+        .animation(Motion.quick, value: keyboardUp)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardUp = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardUp = false }
+        .overlay(alignment: .bottom) {
+            if let t = toasts.current {
+                ToastView(toast: t) { toasts.runAction() }
+                    .padding(.bottom, Size.bar + Space.s12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .environment(store)
-        .fullScreenCover(item: Bindable(store).activeSession) { s in DriveView(session: s) { store.activeSession = nil } }
+        .environment(toasts)
+        .fullScreenCover(item: Bindable(store).activeSession) { s in
+            DriveView(session: s) { store.activeSession = nil }.environment(store).environment(toasts)
+        }
         .sheet(isPresented: .constant(!didFinishWelcome && !Self.launchedForDemo)) {
             WelcomeView { didFinishWelcome = true }.environment(store).interactiveDismissDisabled()
         }
         .onAppear {
-            // Launch arguments for screenshots, testing and the video:
-            //   --carmel-demo                 load Carmel and open the Route tab
-            //   --demo-drive <preset id>      start a replayed drive on that preset right away
-            //   --replay-speed <n>            replay clock multiplier (default 4)
-            //   --replay-start <meters>       skip ahead along the route before starting
-            //   --skip-welcome                skip the first-launch safety screen
-            //   --reset-welcome               show it again
-            //   --tab route|log               open on that tab
-            //   --route <preset id>           choose that practice route
             #if DEBUG
             ScreenCheck.run()
             ScreenCheck.addSampleDrives(context)
@@ -70,6 +91,12 @@ struct RootView: View {
                 store.tab = .route
             }
             if args.contains("--skip-welcome") { didFinishWelcome = true }
+            #if DEBUG
+            if let state = value("--demo-state").flatMap(DemoState.init(rawValue:)) {
+                DemoStates.apply(state, store: store, context: context, replacingAll: true)
+                if state == .firstLaunch { didFinishWelcome = false }
+            }
+            #endif
             if args.contains("--reset-welcome") { didFinishWelcome = false }
             if let preset = value("--route") { store.choosePreset(preset); store.tab = .route }
             switch value("--tab") { case "route": store.tab = .route; case "log": store.tab = .log; default: break }
@@ -80,5 +107,18 @@ struct RootView: View {
                                      startMeters: value("--replay-start").flatMap(Double.init))
             }
         }
+    }
+}
+
+/// Pushed pages draw their own header (the system bar is hidden), which would also switch off the edge swipe
+/// back. This keeps the swipe wherever there is a page to go back to.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
     }
 }

@@ -121,3 +121,17 @@ struct OfficialLogPDFTests {
         }
     }
 }
+
+struct AppearanceFlagTests {
+    @Test func theFlagIsTurnedOffWithoutMovingBytes() {
+        let data = Data("<< /AcroForm << /NeedAppearances true >> /Fields [] >>".utf8)
+        let out = OfficialLogPDF.preserveAppearances(data)
+        #expect(out.count == data.count)
+        #expect(String(decoding: out, as: UTF8.self).contains("/NeedAppearances false>>"))
+    }
+
+    @Test func anUnknownSerializationIsSharedAsWritten() {
+        let data = Data("<< /AcroForm << /NeedAppearances true /DA (x) >> >>".utf8)
+        #expect(OfficialLogPDF.preserveAppearances(data) == data)
+    }
+}

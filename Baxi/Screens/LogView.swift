@@ -212,7 +212,24 @@ struct LogView: View {
             guard !Task.isCancelled else { return }
             switch written {
             case .success(let files): pdfURLs = files.pdfs; csvURL = files.csv
-            case .failure(let error): pdfURLs = []; csvURL = nil; exportError = error.localizedDescription
+            case .failure:
+                // PDFKit is happiest on the main thread: before giving up, draw the forms there once.
+                do {
+                    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("baxi-export-\(UUID().uuidString)")
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let forms = try OfficialLogPDF.renderForms(rows, driver: driver)
+                    var urls: [URL] = []
+                    for (index, data) in forms.enumerated() {
+                        let pdf = dir.appendingPathComponent("Baxi State Form 54706 - \(index + 1).pdf")
+                        try data.write(to: pdf, options: [.atomic, .completeFileProtection])
+                        urls.append(pdf)
+                    }
+                    let csv = dir.appendingPathComponent("Baxi driving log.csv")
+                    try Data(DriveLog.csv(rows, prior: input.prior).utf8).write(to: csv, options: [.atomic, .completeFileProtection])
+                    pdfURLs = urls; csvURL = csv
+                } catch {
+                    pdfURLs = []; csvURL = nil; exportError = error.localizedDescription
+                }
             }
         }
     }

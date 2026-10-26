@@ -1,5 +1,6 @@
 #if DEBUG
 import SwiftUI
+import PDFKit
 import SwiftData
 import UIKit
 
@@ -16,6 +17,30 @@ enum ScreenCheck {
     static let args = ProcessInfo.processInfo.arguments
     static func value(_ flag: String) -> String? {
         args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+    }
+
+    /// `--pdf-check`: renders the official form from sample rows on the main thread and on a background thread and
+    /// prints what happens, so a phone-only PDFKit failure can be reproduced on the simulator.
+    @MainActor static func pdfCheck() async {
+        guard args.contains("--pdf-check") else { return }
+        let rows = DemoStates.drives(for: .nearlyLicensed).map(\.row)
+        let driver = OfficialLogPDF.Driver(name: "Sample, Alex Q", licenseNumber: "1234567890")
+        do { let d = try OfficialLogPDF.renderForms(rows, driver: driver); print("PDFCHECK main ok \(d.map(\.count))") }
+        catch { print("PDFCHECK main FAILED \(error)") }
+        let bg = await Task.detached(priority: .userInitiated) { () -> String in
+            do { let d = try OfficialLogPDF.renderForms(rows, driver: driver); return "ok \(d.map(\.count))" }
+            catch { return "FAILED \(error)" }
+        }.value
+        print("PDFCHECK background \(bg)")
+        if let url = Bundle.baxi.url(forResource: "54706", withExtension: "pdf"), let form = PDFDocument(url: url) {
+            for (i, r) in rows.prefix(1).enumerated() { _ = (i, r) }
+            if let data = form.dataRepresentation() {
+                let s = String(decoding: data, as: UTF8.self)
+                for m in ["/NeedAppearances true >>", "/NeedAppearances true>>", "/NeedAppearances true", "NeedAppearances"] {
+                    print("PDFCHECK marker \(m.debugDescription): \(s.components(separatedBy: m).count - 1)")
+                }
+            }
+        }
     }
 
     @MainActor static func run() {

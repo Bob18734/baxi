@@ -27,7 +27,7 @@ enum OfficialLogPDF {
             case .missingTemplate: "The official form is missing. Reinstall Baxi and try again."
             case .invalidTemplate: "The official form could not be read. Your drives are still saved."
             case .invalidRow: "A drive has invalid times or minutes. Check the log before exporting."
-            case .cannotWrite: "The PDF could not be created. Your drives are still saved."
+            case .cannotWrite: "The filled form could not be saved as a PDF. Your drives are still saved."
             case .tooManyRows: "This form holds 108 drives. Export the complete log as multiple forms."
             case .textTooLong: "Driver details are too long to fit the form. Shorten them or leave them blank to fill by hand."
             }
@@ -112,23 +112,27 @@ enum OfficialLogPDF {
                 try fill(names.night, DriveLog.hm(row.nightMinutes))
             }
             guard let data = form.dataRepresentation() else { throw ExportError.cannotWrite }
-            return try preserveAppearances(data)
+            return preserveAppearances(data)
         }
     }
 
-    /// PDFKit writes complete appearance streams, but requests that viewers regenerate them
-    /// using an incomplete default-font dictionary. Poppler then displays blank entries.
-    /// Disable that request without shifting any byte offsets in PDFKit's cross-reference table.
-    /// Fail closed if its serialization changes; never silently share a potentially blank form.
-    private static func preserveAppearances(_ data: Data) throws -> Data {
-        let marker = Data("/NeedAppearances true >>".utf8)
-        let replacement = Data("/NeedAppearances false>>".utf8)
-        guard let range = data.range(of: marker),
-              data.range(of: marker, in: range.upperBound..<data.endIndex) == nil else {
-            throw ExportError.cannotWrite
+    /// PDFKit writes complete appearance streams, but requests that viewers regenerate them using an incomplete
+    /// default-font dictionary; Poppler-based viewers then show blank entries. Turn that request off without
+    /// shifting any byte offset in PDFKit's cross-reference table (the replacement is the same length).
+    /// If this PDFKit wrote the flag some other way, the form is shared as written: it is complete and fills
+    /// correctly in Apple's and Adobe's viewers, and a form that can't be exported at all is worse than one a rare
+    /// viewer shows blank. (Changed Oct 25 after the phone's PDFKit refused the export this way.)
+    static func preserveAppearances(_ data: Data) -> Data {
+        for (marker, replacement) in [("/NeedAppearances true >>", "/NeedAppearances false>>"),
+                                      ("/NeedAppearances true  >>", "/NeedAppearances false >>"),
+                                      ("/NeedAppearances true\n>>", "/NeedAppearances false>>")] {
+            let m = Data(marker.utf8), r = Data(replacement.utf8)
+            guard m.count == r.count, let range = data.range(of: m),
+                  data.range(of: m, in: range.upperBound..<data.endIndex) == nil else { continue }
+            var result = data
+            result.replaceSubrange(range, with: r)
+            return result
         }
-        var result = data
-        result.replaceSubrange(range, with: replacement)
-        return result
+        return data
     }
 }

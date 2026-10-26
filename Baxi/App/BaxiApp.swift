@@ -83,6 +83,7 @@ struct RootView: View {
             #if DEBUG
             ScreenCheck.run()
             ScreenCheck.addSampleDrives(context)
+            Task { await ScreenCheck.pdfCheck() }
             #endif
             let args = ProcessInfo.processInfo.arguments
             func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }

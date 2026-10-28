@@ -109,11 +109,3 @@ services); NHTSA FARS 2023; Indiana BMV Driver's Manual; Indiana State Form 5470
 [CODE_TOUR.md](CODE_TOUR.md) follows one drive through the code, step by step, and lists the
 questions a judge is likely to ask. `swift run baxi-transcript` prints everything Baxi says on a route. `swift run baxi-audit` checks every demo maneuver against the map and `swift run baxi-demo-check` plays the demos on a real-time clock to catch an instruction said too late ([docs/DEMO-AUDIT.md](docs/DEMO-AUDIT.md)).
 [docs/BRIEFINGS.md](docs/BRIEFINGS.md) explains the briefing file the students write.
-
-## AI disclosure
-
-See [AI_DISCLOSURE.md](AI_DISCLOSURE.md), a dated log of every use. The app's code was written with Claude Code,
-including the four modules first reserved for the students (the team decided on Oct 14 that Claude would write
-all app code); the partner's pull requests were written with ChatGPT Codex. The students' part is the idea, the
-product decisions, testing on the phone, the Indiana Driver's Manual briefings (`briefings.json`), the written
-answers and the video.
